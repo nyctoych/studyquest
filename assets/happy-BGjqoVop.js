@@ -1,0 +1,1 @@
+var e=``+new URL(`bosses/skull/happy.png`,import.meta.url).href,t=``+new URL(`bosses/shadows/happy.png`,import.meta.url).href;export{e as n,t};

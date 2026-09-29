@@ -1,0 +1,639 @@
+/**
+ * StudyQuest — Gothic Pixel Design System
+ * Core utilities for Gothic / Alternative / Pixelated / Dark Fantasy aesthetic
+ * Inspired by the Boss artwork: near-black voids, crimson, bone, charcoal
+ */
+
+/* ── GOTHIC PIXEL FONTS (LOCAL) ─────────────────────────────────────── */
+@import './fonts.css';
+
+/* ── CSS CUSTOM PROPERTIES — GOTHIC THEME ──────────────────────────── */
+:root {
+  /* === VOID BACKGROUNDS === */
+  --gothic-void:         #080a0e;
+  --gothic-deep:         #0d0f17;
+  --gothic-surface:      #141620;
+  --gothic-raised:       #1a1d2a;
+  --gothic-elevated:     #1e2133;
+
+  /* === GOTHIC BORDERS === */
+  --gothic-border:       #2a1f30;
+  --gothic-border-lit:   #3d2a48;
+  --gothic-border-bone:  #4a3a2a;
+  --gothic-border-gold:  #5a4010;
+
+  /* === CRIMSON PALETTE (Skull, Brain, Eye bosses) === */
+  --crimson-void:        #200808;
+  --crimson-deep:        #4a0d12;
+  --crimson:             #8b1a1a;
+  --crimson-bright:      #c0392b;
+  --blood-red:           #7f1d1d;
+
+  /* === BONE / PARCHMENT (Mask boss) === */
+  --bone-white:          #c9b99a;
+  --bone-mid:            #a8967a;
+  --bone-dim:            #7a6a55;
+  --parchment:           #d4c4a8;
+  --parchment-dark:      #8a7a60;
+
+  /* === ASH / CHARCOAL (Clock boss) === */
+  --ash-grey:            #4a4a5a;
+  --ash-dim:             #32323e;
+  --charcoal:            #242430;
+  --stone:               #3a3a48;
+
+  /* === SHADOW TEAL (Shadows boss) === */
+  --shadow-teal:         #0d3035;
+  --shadow-teal-mid:     #1a5055;
+  --shadow-teal-bright:  #2a8088;
+
+  /* === ARCANE PURPLE (subtle, not neon) === */
+  --arcane-void:         #180d28;
+  --arcane-deep:         #2d1b4e;
+  --arcane:              #4a2d6f;
+  --arcane-mid:          #5e3a8a;
+
+  /* === AGED GOLD (XP, rewards, legendary) === */
+  --aged-gold-dim:       #6a4a08;
+  --aged-gold:           #b8860b;
+  --aged-gold-bright:    #d4a017;
+  --aged-gold-shine:     #e8c040;
+
+  /* === TEXT COLORS === */
+  --text-primary:        #d4c4a8;   /* bone/parchment — main readable text */
+  --text-heading:        #e8d8b8;   /* slightly brighter for headings */
+  --text-bright:         #f0e8d0;   /* full bright text */
+  --text-muted:          #6b6678;   /* secondary / disabled text */
+  --text-faded:          #3d3548;   /* placeholder text */
+  --text-crimson:        #c0392b;   /* danger/boss text */
+  --text-gold:           #d4a017;   /* gold/XP text */
+  --text-bone:           #c9b99a;   /* parchment text */
+
+  /* === SEMANTIC COLORS === */
+  --gothic-danger:       #8b1a1a;
+  --gothic-success:      #1a4a2a;
+  --gothic-success-text: #4aaa6a;
+  --gothic-warning:      #5a4010;
+  --gothic-warning-text: #d4a017;
+  --gothic-info:         #0d3035;
+  --gothic-info-text:    #2a8088;
+
+  /* === RARITY SYSTEM === */
+  --rarity-common:       #6b6678;
+  --rarity-uncommon:     #2a4a3a;
+  --rarity-uncommon-t:   #4aaa6a;
+  --rarity-rare:         #1a2d5a;
+  --rarity-rare-t:       #4a7aee;
+  --rarity-epic:         #2d1b4e;
+  --rarity-epic-t:       #9a5adf;
+  --rarity-legendary:    #5a3a08;
+  --rarity-legendary-t:  #d4a017;
+
+  /* === FONT FAMILIES === */
+  --font-pixel:    'Press Start 2P', monospace;
+  --font-gothic:   'Crimson Text', Georgia, serif;
+  --font-mono:     'Courier Prime', 'Courier New', monospace;
+  --font-system:   system-ui, sans-serif;
+
+  /* === PIXEL SIZES (font-size for Press Start 2P — scale carefully) === */
+  --px-xs:    7px;
+  --px-sm:    8px;
+  --px-base:  10px;
+  --px-md:    12px;
+  --px-lg:    14px;
+  --px-xl:    16px;
+  --px-2xl:   20px;
+  --px-3xl:   24px;
+
+  /* === SHADOWS & GLOWS === */
+  --shadow-gothic:    0 4px 16px rgba(0,0,0,0.8), 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-deep:      0 8px 32px rgba(0,0,0,0.9), inset 0 1px 2px rgba(255,255,255,0.03);
+  --glow-crimson:     0 0 12px rgba(139,26,26,0.7), 0 0 30px rgba(139,26,26,0.3);
+  --glow-gold:        0 0 12px rgba(180,134,11,0.6), 0 0 30px rgba(180,134,11,0.25);
+  --glow-bone:        0 0 8px rgba(201,185,154,0.4);
+  --glow-teal:        0 0 12px rgba(13,74,74,0.7);
+}
+
+/* ── PIXEL BORDER UTILITY (CSS box-shadow technique) ────────────────── */
+/* Creates sharp pixel-perfect borders without border-radius */
+.pixel-border {
+  box-shadow:
+    -2px 0 0 0 var(--gothic-border),
+     2px 0 0 0 var(--gothic-border),
+     0 -2px 0 0 var(--gothic-border),
+     0  2px 0 0 var(--gothic-border);
+}
+
+.pixel-border-crimson {
+  box-shadow:
+    -2px 0 0 0 var(--crimson),
+     2px 0 0 0 var(--crimson),
+     0 -2px 0 0 var(--crimson),
+     0  2px 0 0 var(--crimson),
+    var(--glow-crimson);
+}
+
+.pixel-border-gold {
+  box-shadow:
+    -2px 0 0 0 var(--aged-gold),
+     2px 0 0 0 var(--aged-gold),
+     0 -2px 0 0 var(--aged-gold),
+     0  2px 0 0 var(--aged-gold),
+    var(--glow-gold);
+}
+
+.pixel-border-bone {
+  box-shadow:
+    -2px 0 0 0 var(--bone-mid),
+     2px 0 0 0 var(--bone-mid),
+     0 -2px 0 0 var(--bone-mid),
+     0  2px 0 0 var(--bone-mid);
+}
+
+/* ── GOTHIC PANEL BASE ──────────────────────────────────────────────── */
+.gothic-panel {
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border);
+  position: relative;
+  image-rendering: pixelated;
+}
+
+/* Corner pixel decorations */
+.gothic-panel::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 6px;
+  height: 6px;
+  background: var(--gothic-border-lit);
+}
+.gothic-panel::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  background: var(--gothic-border-lit);
+}
+
+/* Dark stone variant */
+.gothic-panel-stone {
+  background: linear-gradient(160deg, #141820 0%, #0e1018 100%);
+  border: 1px solid var(--gothic-border);
+}
+
+/* Parchment variant */
+.gothic-panel-parchment {
+  background: linear-gradient(160deg, #1a1510 0%, #120e0a 100%);
+  border: 1px solid var(--gothic-border-bone);
+}
+
+/* ── PIXEL BUTTONS ──────────────────────────────────────────────────── */
+.btn-gothic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-pixel);
+  font-size: var(--px-sm);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+  transition: background 0.1s, transform 0.05s, box-shadow 0.1s;
+  image-rendering: pixelated;
+  position: relative;
+  padding: 0.75rem 1.5rem;
+}
+
+/* Primary — crimson battle button */
+.btn-gothic-crimson {
+  background: var(--crimson-deep);
+  color: var(--bone-white);
+  border: 2px solid var(--crimson);
+  box-shadow: 2px 2px 0 var(--crimson-void), var(--glow-crimson);
+}
+.btn-gothic-crimson:hover:not(:disabled) {
+  background: var(--crimson);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0 var(--crimson-void), 0 0 20px rgba(139,26,26,0.8);
+}
+.btn-gothic-crimson:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0 var(--crimson-void);
+}
+
+/* Gold — reward/confirm button */
+.btn-gothic-gold {
+  background: var(--gothic-surface);
+  color: var(--aged-gold-bright);
+  border: 2px solid var(--aged-gold);
+  box-shadow: 2px 2px 0 #1a1008, var(--glow-gold);
+}
+.btn-gothic-gold:hover:not(:disabled) {
+  background: var(--aged-gold-dim);
+  color: var(--aged-gold-shine);
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0 #1a1008, 0 0 20px rgba(180,134,11,0.6);
+}
+
+/* Ghost — secondary action */
+.btn-gothic-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--gothic-border-lit);
+}
+.btn-gothic-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-primary);
+  border-color: var(--bone-dim);
+}
+
+/* Danger — delete/negative */
+.btn-gothic-danger {
+  background: var(--crimson-void);
+  color: #ff6060;
+  border: 2px solid var(--blood-red);
+}
+.btn-gothic-danger:hover:not(:disabled) {
+  background: var(--crimson-deep);
+  box-shadow: var(--glow-crimson);
+}
+
+/* Disabled state */
+.btn-gothic:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+/* Size variants */
+.btn-gothic-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: var(--px-xs);
+}
+.btn-gothic-lg {
+  padding: 1rem 2rem;
+  font-size: var(--px-md);
+}
+.btn-gothic-xl {
+  padding: 1.25rem 2.5rem;
+  font-size: var(--px-lg);
+}
+
+/* ── PIXEL PROGRESS BARS ────────────────────────────────────────────── */
+/* HP bar — segmented pixel style */
+.pixel-bar-wrap {
+  width: 100%;
+  height: 14px;
+  background: #0a0808;
+  border: 2px solid var(--gothic-border);
+  position: relative;
+  overflow: hidden;
+  /* Segmented look via repeating-linear-gradient */
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 9px,
+    rgba(0,0,0,0.5) 9px,
+    rgba(0,0,0,0.5) 10px
+  );
+}
+
+.pixel-bar-fill {
+  height: 100%;
+  transition: width 0.4s steps(20, end);
+  position: relative;
+}
+
+/* HP (player — green-dim) */
+.pixel-bar-hp {
+  background: #1a5a2a;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.1);
+}
+.pixel-bar-hp::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(90deg, #2a7a3a, #4aaa5a);
+}
+
+/* HP — enemy (crimson) */
+.pixel-bar-enemy {
+  background: var(--crimson-deep);
+}
+.pixel-bar-enemy::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(90deg, var(--crimson), var(--crimson-bright));
+}
+
+/* HP — low warning (gold) */
+.pixel-bar-low {
+  background: #3a2a08;
+}
+.pixel-bar-low::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(90deg, var(--aged-gold-dim), var(--aged-gold));
+}
+
+/* XP bar — thin pixel strip */
+.pixel-xp-wrap {
+  width: 100%;
+  height: 8px;
+  background: #080808;
+  border: 1px solid var(--gothic-border);
+  overflow: hidden;
+}
+.pixel-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--arcane-deep), var(--arcane-mid));
+  transition: width 0.5s steps(15, end);
+}
+
+/* ── GOTHIC FORM ELEMENTS ────────────────────────────────────────────── */
+.gothic-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #0d0f17;
+  border: 1px solid var(--gothic-border-lit);
+  color: var(--text-primary);
+  font-family: var(--font-gothic);
+  font-size: 1rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.gothic-input:focus {
+  border-color: var(--bone-dim);
+  box-shadow: 0 0 0 2px rgba(122,106,85,0.15);
+}
+
+.gothic-input::placeholder {
+  color: var(--text-faded);
+  font-style: italic;
+}
+
+.gothic-label {
+  font-family: var(--font-pixel);
+  font-size: var(--px-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* ── GOTHIC SEPARATOR ───────────────────────────────────────────────── */
+.gothic-sep {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gothic-border-lit), transparent);
+  margin: 1rem 0;
+  position: relative;
+}
+.gothic-sep::before {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--gothic-border-lit);
+  font-size: 10px;
+  background: var(--gothic-surface);
+  padding: 0 6px;
+}
+
+.gothic-sep-bone {
+  background: linear-gradient(90deg, transparent, var(--gothic-border-bone), transparent);
+}
+.gothic-sep-crimson {
+  background: linear-gradient(90deg, transparent, var(--crimson-deep), transparent);
+}
+
+/* ── GOTHIC BADGE / PILL ────────────────────────────────────────────── */
+.gothic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--gothic-raised);
+  border: 1px solid var(--gothic-border-lit);
+  font-family: var(--font-pixel);
+  font-size: var(--px-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.gothic-badge-crimson {
+  background: var(--crimson-void);
+  border-color: var(--crimson);
+  color: #ff9090;
+}
+.gothic-badge-gold {
+  background: #1a1008;
+  border-color: var(--aged-gold-dim);
+  color: var(--aged-gold-bright);
+}
+.gothic-badge-bone {
+  background: #141008;
+  border-color: var(--bone-dim);
+  color: var(--bone-white);
+}
+
+/* ── RARITY FRAMES ──────────────────────────────────────────────────── */
+.frame-common    { border-color: var(--rarity-common) !important; }
+.frame-uncommon  { border-color: var(--rarity-uncommon-t) !important; box-shadow: 0 0 8px rgba(74,170,106,0.25); }
+.frame-rare      { border-color: var(--rarity-rare-t) !important; box-shadow: 0 0 8px rgba(74,122,238,0.25); }
+.frame-epic      { border-color: var(--rarity-epic-t) !important; box-shadow: 0 0 10px rgba(154,90,223,0.3); }
+.frame-legendary { border-color: var(--rarity-legendary-t) !important; box-shadow: 0 0 16px rgba(212,160,23,0.45); }
+
+.text-common     { color: var(--rarity-common); }
+.text-uncommon   { color: var(--rarity-uncommon-t); }
+.text-rare       { color: var(--rarity-rare-t); }
+.text-epic       { color: var(--rarity-epic-t); }
+.text-legendary  { color: var(--rarity-legendary-t); }
+
+/* ── ATMOSPHERIC EFFECTS ────────────────────────────────────────────── */
+/* Pixel particle (CSS-only) */
+.pixel-dust {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--gothic-border-lit);
+  animation: pixelDrift ease-in-out infinite;
+  image-rendering: pixelated;
+}
+
+@keyframes pixelDrift {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
+  50%       { transform: translateY(-20px) translateX(5px); opacity: 0.8; }
+}
+
+/* Candle flicker (for loading, atmosphere) */
+@keyframes candleFlicker {
+  0%, 100% { opacity: 0.7; transform: scaleY(1); }
+  25%       { opacity: 0.9; transform: scaleY(1.05) scaleX(0.97); }
+  50%       { opacity: 0.75; transform: scaleY(0.95) scaleX(1.02); }
+  75%       { opacity: 0.85; transform: scaleY(1.02) scaleX(0.98); }
+}
+
+/* Gothic rune pulse */
+@keyframes runePulse {
+  0%, 100% { opacity: 0.15; }
+  50%       { opacity: 0.45; }
+}
+
+/* Pixel dissolve transition */
+@keyframes pixelDissolveIn {
+  0%   { opacity: 0; clip-path: inset(100% 0 0 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* Pixel-art float — for boss idle animation */
+@keyframes bossIdleFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+/* Dim pulse — for dark atmospheric panels */
+@keyframes dimPulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.6; }
+}
+
+/* Crimson throb — for boss health bars */
+@keyframes crimsonThrob {
+  0%, 100% { box-shadow: var(--glow-crimson); }
+  50%       { box-shadow: 0 0 24px rgba(139,26,26,0.9), 0 0 50px rgba(139,26,26,0.4); }
+}
+
+/* ── BOSS-SPECIFIC ACCENT CLASSES ────────────────────────────────────── */
+/* Apply to boss battle containers for per-boss coloring */
+.boss-accent-brain    { --boss-accent: #8b1a1a; --boss-bg: #120808; }
+.boss-accent-clock    { --boss-accent: #4a4a5a; --boss-bg: #0e0e14; }
+.boss-accent-eye      { --boss-accent: #6b1212; --boss-bg: #110808; }
+.boss-accent-mask     { --boss-accent: #7a6a55; --boss-bg: #120f0a; }
+.boss-accent-shadows  { --boss-accent: #0d4a4a; --boss-bg: #050e0e; }
+.boss-accent-skull    { --boss-accent: #8b1a1a; --boss-bg: #100606; }
+.boss-accent-purple   { --boss-accent: #4a1a6b; --boss-bg: #0e0814; }
+.boss-accent-gold     { --boss-accent: #5a3a10; --boss-bg: #100a04; }
+
+/* ── GOTHIC CHAPTER COLORS (per domain) ─────────────────────────────── */
+.chapter-1  { --ch-color: #8b1a1a; }  /* General — crimson brain */
+.chapter-2  { --ch-color: #4a4a5a; }  /* Developmental — charcoal clock */
+.chapter-3  { --ch-color: #6b1212; }  /* Research — dark burgundy eye */
+.chapter-4  { --ch-color: #7a6a55; }  /* Personality — parchment mask */
+.chapter-5  { --ch-color: #0d4a4a; }  /* Social — shadow teal */
+.chapter-6  { --ch-color: #8b1a1a; }  /* Biological — skull crimson */
+.chapter-7  { --ch-color: #4a1a6b; }  /* Cognitive — arcane purple */
+.chapter-8  { --ch-color: #5a3a10; }  /* Assessment — aged leather */
+.chapter-9  { --ch-color: #7a1a2a; }  /* Clinical — deep rose */
+.chapter-10 { --ch-color: #3a2a5a; }  /* Ethics — arcane dim */
+.chapter-11 { --ch-color: #2a4a5a; }  /* IO — steel teal */
+
+/* ── SCROLLBAR (gothic theme) ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--gothic-void); }
+::-webkit-scrollbar-thumb {
+  background: var(--crimson-deep);
+  border-radius: 0;  /* No radius — pixel style */
+}
+::-webkit-scrollbar-thumb:hover { background: var(--crimson); }
+
+/* ── IMAGE RENDERING (pixel art assets) ─────────────────────────────── */
+.pixel-art,
+.boss-img,
+.boss-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ── GOTHIC TOAST / NOTIFICATION ─────────────────────────────────────── */
+.gothic-toast {
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-lit);
+  border-left: 3px solid var(--crimson);
+  color: var(--text-primary);
+  font-family: var(--font-gothic);
+}
+.gothic-toast-success { border-left-color: var(--gothic-success-text); }
+.gothic-toast-warning { border-left-color: var(--aged-gold); }
+.gothic-toast-info    { border-left-color: var(--shadow-teal-bright); }
+
+/* ── GOTHIC MODAL ────────────────────────────────────────────────────── */
+.gothic-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 10, 0.88);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gothic-modal {
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-lit);
+  box-shadow: var(--shadow-gothic);
+  max-width: 90vw;
+  position: relative;
+}
+
+/* ── UTILITY ─────────────────────────────────────────────────────────── */
+.text-pixel  { font-family: var(--font-pixel); }
+.text-gothic { font-family: var(--font-gothic); }
+.text-mono   { font-family: var(--font-mono); }
+
+.text-crimson { color: var(--text-crimson); }
+.text-gold    { color: var(--text-gold); }
+.text-bone    { color: var(--text-bone); }
+.text-muted   { color: var(--text-muted); }
+.text-parchment { color: var(--parchment); }
+
+.bg-void     { background: var(--gothic-void); }
+.bg-deep     { background: var(--gothic-deep); }
+.bg-surface  { background: var(--gothic-surface); }
+.bg-raised   { background: var(--gothic-raised); }
+
+.border-gothic  { border: 1px solid var(--gothic-border); }
+.border-lit     { border: 1px solid var(--gothic-border-lit); }
+.border-crimson { border: 1px solid var(--crimson); }
+.border-gold    { border: 1px solid var(--aged-gold); }
+.border-bone    { border: 1px solid var(--bone-dim); }
+
+.animate-boss-float { animation: bossIdleFloat 3s ease-in-out infinite; }
+.animate-pixel-drift { animation: pixelDrift 4s ease-in-out infinite; }
+.animate-candle-flicker { animation: candleFlicker 2s ease-in-out infinite; }
+.animate-rune-pulse { animation: runePulse 3s ease-in-out infinite; }
+.animate-crimson-throb { animation: crimsonThrob 2s ease-in-out infinite; }
+
+.animate-slide-up    { animation: slideUpGothic 0.35s ease-out; }
+.animate-slide-down  { animation: slideDownGothic 0.35s ease-out; }
+.animate-scale-up    { animation: scaleUpGothic 0.3s ease-out; }
+.animate-fade-in     { animation: fadeInGothic 0.4s ease-out; }
+
+@keyframes slideUpGothic {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDownGothic {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleUpGothic {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes fadeInGothic {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

@@ -1,0 +1,1 @@
+var e=e=>Number(e||0).toLocaleString(),t=e=>Number(e||0).toLocaleString();export{e as n,t};

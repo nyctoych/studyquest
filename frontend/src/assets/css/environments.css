@@ -1,0 +1,79 @@
+/**
+ * StudyQuest — Dedicated Game-World Module Environments
+ * Prevents background leaking between modules.
+ * Each location has an authentic, opaque, dark fantasy / gothic atmosphere.
+ */
+
+/* Base container for all module environments */
+.game-module-env {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - var(--hud-height));
+  background-color: #06070a;
+  color: #e2d9cc;
+  box-sizing: border-box;
+}
+
+/* ── 1. ARENA ENVIRONMENT (Multiplayer & Matchmaking) ── */
+.module-env-arena {
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(185, 28, 28, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 20% 80%, rgba(181, 148, 16, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #090a0f 0%, #050608 50%, #020204 100%);
+  border-top: 1px solid rgba(139, 26, 26, 0.3);
+}
+
+.module-env-arena::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(239, 68, 68, 0.05) 0%, transparent 20%),
+    radial-gradient(circle at 90% 20%, rgba(239, 68, 68, 0.05) 0%, transparent 20%);
+  pointer-events: none;
+}
+
+/* ── 2. LIBRARY ARCHIVES (Quests, Study Domain, Practice) ── */
+.module-env-library {
+  background:
+    radial-gradient(ellipse at 50% 10%, rgba(181, 148, 16, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(100, 50, 150, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0b10 0%, #06070b 60%, #030306 100%);
+  border-top: 1px solid rgba(181, 148, 16, 0.25);
+}
+
+/* ── 3. HALL OF RECORDS (Leaderboard & Achievements) ── */
+.module-env-records {
+  background:
+    radial-gradient(ellipse at 50% 10%, rgba(230, 200, 69, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 90%, rgba(185, 28, 28, 0.1) 0%, transparent 60%),
+    linear-gradient(180deg, #0c0d14 0%, #06070a 60%, #020204 100%);
+  border-top: 1px solid rgba(230, 200, 69, 0.3);
+}
+
+/* ── 4. MIDNIGHT MARKET (Shop & Market) ── */
+.module-env-market {
+  background:
+    radial-gradient(ellipse at 70% 15%, rgba(181, 148, 16, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 25%, rgba(139, 26, 26, 0.12) 0%, transparent 50%),
+    linear-gradient(180deg, #0c0a10 0%, #07060a 60%, #030205 100%);
+  border-top: 1px solid rgba(181, 148, 16, 0.2);
+}
+
+/* ── 5. SANCTUARY CHAMBER (Character Hall & Profile) ── */
+.module-env-sanctuary {
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(147, 51, 234, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 85%, rgba(185, 28, 28, 0.1) 0%, transparent 50%),
+    linear-gradient(180deg, #0b0812 0%, #06050a 60%, #020204 100%);
+  border-top: 1px solid rgba(147, 51, 234, 0.25);
+}
+
+/* Ambient vignette layer for all modules */
+.module-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 70%, rgba(3, 4, 6, 0.6) 100%);
+  pointer-events: none;
+  z-index: 0;
+}

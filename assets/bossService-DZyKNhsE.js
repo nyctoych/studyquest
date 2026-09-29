@@ -1,0 +1,1 @@
+import{l as e}from"./index-Da07pcLN.js";var t={getAll:()=>e.get(`/bosses`),getById:t=>e.get(`/bosses/${t}`),start:t=>e.post(`/bosses/${t}/start`),getAttempt:t=>e.get(`/attempts/${t}`),submitAnswer:(t,n)=>e.post(`/attempts/${t}/answer`,{answer:n}),history:()=>e.get(`/bosses/history`)};export{t};

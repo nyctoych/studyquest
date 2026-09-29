@@ -1,0 +1,1 @@
+import{l as e}from"./index-CHY1r5Ep.js";var t={get:()=>e.get(`/profile`),update:t=>e.put(`/profile`,t),saveAvatar:t=>e.post(`/profile/avatar`,t),stats:()=>e.get(`/profile/stats`)};export{t};

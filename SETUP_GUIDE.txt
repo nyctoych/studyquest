@@ -1,0 +1,84 @@
+========================================================================
+STUDYQUEST — LAN MULTIPLAYER MATCHMAKING & REAL-TIME BATTLE SETUP GUIDE
+========================================================================
+
+Follow these simple steps to run StudyQuest with real-time LAN multiplayer
+between two computers or browser windows.
+
+------------------------------------------------------------------------
+PREREQUISITES
+------------------------------------------------------------------------
+1. XAMPP (Apache & MySQL) running.
+2. Node.js (v18 or newer) installed on the host machine.
+3. Database `studyquest` created, migrated, and seeded.
+   (Both `multiplayer_migration.sql` and `psychology_questions_seed.sql` 
+    have been executed into the database).
+
+------------------------------------------------------------------------
+STEP 1: FIND YOUR SERVER MACHINE LAN IP
+------------------------------------------------------------------------
+1. Open PowerShell or Command Prompt on the host machine.
+2. Run: `ipconfig`
+3. Locate your IPv4 Address (e.g., 192.168.1.50 or similar).
+
+------------------------------------------------------------------------
+STEP 2: START THE REAL-TIME SOCKET.IO SERVER
+------------------------------------------------------------------------
+1. Open a terminal / command prompt.
+2. Navigate to:
+   cd C:\xampp\htdocs\StudyQuest\socketserver
+3. Start the server:
+   npm start
+   (or `node server.js`)
+   
+You should see:
+   [StudyQuest Socket.IO Server running on port 3001]
+   [Ready for LAN multiplayer connections!]
+
+* Firewall note: If testing across 2 physical PCs on LAN, make sure port
+  3001 and port 80 (Apache) are permitted in Windows Firewall.
+
+------------------------------------------------------------------------
+STEP 3: ACCESS STUDYQUEST ON BROWSER OR LAN DEVICES
+------------------------------------------------------------------------
+- On the host machine:
+  http://localhost/StudyQuest/
+
+- On a second device connected to the same Wi-Fi / LAN:
+  http://<HOST_IP>/StudyQuest/
+  (e.g., http://192.168.1.50/StudyQuest/)
+
+------------------------------------------------------------------------
+STEP 4: HOW TO TEST 1v1 MULTIPLAYER
+------------------------------------------------------------------------
+1. Open Window 1 (or Device 1):
+   - Go to http://localhost/StudyQuest/#/login
+   - Log in with Account 1.
+2. Open Window 2 in Incognito / Private Window (or Device 2):
+   - Go to http://localhost/StudyQuest/#/login
+   - Log in with Account 2 (or register a second account).
+3. On both sessions, click "Multiplayer" in the sidebar.
+4. Click "Ranked Matchmaking" -> "Enter Matchmaking Queue".
+5. The matchmaking engine will pair both students and automatically 
+   transition into the real-time Psychology Duel arena!
+6. Click "I'm Ready!" on both screens to start the battle.
+7. Answer the 15-second timer psychology questions, watch the real-time
+   spell attacks, damage bursts, and earn ELO ratings, XP, and gold coins!
+========================================================================
+ARCHITECTURE & OFFLINE CONFIGURATION NOTES
+========================================================================
+- 100% Offline Self-Hosted Dependencies:
+  All typography (Press Start 2P, Crimson Text, Courier Prime, Outfit, Inter)
+  is hosted locally in `fonts/` as self-contained WOFF2 assets. Zero external
+  Google Fonts CDN or third-party web fonts are requested.
+- Local Gothic Scholar Portraits:
+  All external avatar API dependencies (DiceBear) have been completely removed.
+  Portraits are rendered via local vector scholar artwork supporting dynamic
+  character skins (Default Scholar, Crimson Prodigy, Midnight Sage, Auric Genius),
+  auras, and equipment effects with zero external network overhead.
+- Virtual Garden Module Removed:
+  Obsolete garden tables, controllers, and scenes have been eliminated.
+  The Main World Hub is organized into 8 balanced locations: Study Hall,
+  Adventure Gate, Arena, Market, Hall of Records, Achievement Hall,
+  Chronicle Hall, and Settings.
+========================================================================

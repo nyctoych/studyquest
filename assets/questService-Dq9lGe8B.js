@@ -1,0 +1,1 @@
+import{c as e}from"./index-IjXy9BH6.js";var t={getAll:(t={})=>e.get(`/quests`,{params:t}),getById:t=>e.get(`/quests/${t}`),create:t=>e.post(`/quests`,t),update:(t,n)=>e.put(`/quests/${t}`,n),complete:t=>e.post(`/quests/${t}/complete`),delete:t=>e.delete(`/quests/${t}`),today:()=>e.get(`/quests/today`),toggleSubtask:(t,n)=>e.post(`/quests/${t}/subtasks/${n}`)};export{t};
