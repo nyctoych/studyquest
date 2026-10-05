@@ -60,7 +60,7 @@ const showHUD = computed(() =>
 )
 
 // Full-screen views that manage their own full-bleed canvas or custom internal layouts
-const FULL_SCREEN_PREFIXES = ['/world', '/dashboard', '/battle', '/special-event/exam']
+const FULL_SCREEN_PREFIXES = ['/world', '/dashboard', '/battle', '/special-event/exam', '/studyhall']
 const isFullScreenView = computed(() => {
   const p = route.path
   if (NO_HUD_ROUTES.includes(p)) return true
@@ -99,7 +99,7 @@ watch(() => route.path, (p) => {
 
 onMounted(async () => {
   bgmService.init(gameStore.musicEnabled, route.path)
-  await authStore.fetchUser()
+  await authStore.init()
 })
 </script>
 

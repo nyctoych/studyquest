@@ -4,7 +4,7 @@
     <div class="panel-prompt-bar">
       <div class="prompt-left">
         <span class="prompt-icon">⚔️</span>
-        <span class="prompt-title">KNOWLEDGE INQUIRY {{ questionIndex + 1 }} OF {{ totalQuestions }}</span>
+        <span class="prompt-title">KNOWLEDGE INQUIRY {{ questionIndex + 1 }}</span>
       </div>
       <div v-if="difficulty" class="prompt-badge" :class="'diff-' + difficulty.toLowerCase()">
         {{ formatDifficulty(difficulty) }}

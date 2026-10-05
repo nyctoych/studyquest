@@ -30,6 +30,11 @@ export const shopService = {
   async getEquipped() {
     const res = await api.get('/shop/equipped')
     return res.data
+  },
+
+  async getHealth() {
+    const res = await api.get('/adventure/health')
+    return res.data
   }
 }
 

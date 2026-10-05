@@ -1,92 +1,113 @@
 <template>
-  <div class="leaderboard-container game-module-env module-env-records">
-    <div class="leaderboard-header">
-      <div class="header-tag flex items-center justify-center gap-1.5"><PixelEmoji emoji="trophy" size="xs" /> LAN Board Exam Rankings</div>
-      <h1 class="header-title">Psychology Champions</h1>
-      <p class="header-desc">
-        Top contenders preparing for the licensure exam ranked by battle rating, wins, and knowledge streak.
-      </p>
+  <div class="hall-of-records-page">
+    <!-- Dedicated Grand Hall Background Environment -->
+    <div class="hall-bg-environment" aria-hidden="true">
+      <img
+        src="/assets/game/hall_of_records_bg.jpg"
+        alt=""
+        class="hall-bg-image"
+        @error="onBgError"
+      />
+      <!-- Atmospheric Gradient & Vignette Overlays (keeps artwork visible while ensuring readability) -->
+      <div class="hall-bg-overlay-radial"></div>
+      <div class="hall-bg-overlay-linear"></div>
+      <div class="hall-bg-vignette"></div>
 
-      <!-- Tabs -->
-      <div class="leaderboard-tabs">
-        <button
-          class="tab-btn flex items-center gap-1.5"
-          :class="{ active: currentType === 'rating' }"
-          @click="changeTab('rating')"
-        >
-          <PixelEmoji emoji="lightning" size="xs" /> Battle Rating (ELO)
-        </button>
-        <button
-          class="tab-btn flex items-center gap-1.5"
-          :class="{ active: currentType === 'level' }"
-          @click="changeTab('level')"
-        >
-          <PixelEmoji emoji="star" size="xs" /> Scholar Level
-        </button>
-      </div>
+      <!-- Subtle Ambient Magical Embers / Particles -->
+      <div class="ambient-ember ember-1"></div>
+      <div class="ambient-ember ember-2"></div>
+      <div class="ambient-ember ember-3"></div>
+      <div class="ambient-ember ember-4"></div>
     </div>
 
-    <!-- Leaderboard Table -->
-    <div class="table-card">
-      <div v-if="loading" class="loading-box">
-        Loading rankings…
+    <!-- Main Content Container (Proper Max-Width & Vertical Rhythm) -->
+    <main class="hall-content-container" ref="hallContainerRef">
+      <!-- 1. Grand Monumental Hall Header -->
+      <HallHeader />
+
+      <!-- 2. Gamified Ranking Mode Selector + Search -->
+      <RankingModeSelector
+        v-model="currentType"
+        v-model:searchQuery="searchQuery"
+        @update:modelValue="onTypeChange"
+      />
+
+      <!-- Loading State -->
+      <div v-if="loading" class="hall-loading-state glass-card animate-scale-up">
+        <div class="loading-rune-spinner">❖</div>
+        <h3 class="loading-title">CONSULTING THE ANCIENT ARCHIVE…</h3>
+        <p class="loading-sub">Retrieving the inscribed deeds of Mindrealm contenders</p>
       </div>
 
-      <div v-else-if="leaderboard.length === 0" class="empty-box">
-        No contenders found yet. Play your first match to claim a rank!
+      <!-- Main Ranking Content -->
+      <div v-else class="hall-main-content">
+        <!-- 3. TOP 3 CHAMPIONS PODIUM (Always visible unless filtered out) -->
+        <ChampionPodium
+          :champions="top3Champions"
+          :ranking-type="currentType"
+          :current-user-id="auth.user?.id"
+          @inspect="openDossier"
+        />
+
+        <!-- 4. CHAMPION ROSTER (RANKS 4 ONWARD) -->
+        <RankingRoster
+          :players="rosterPlayers"
+          :start-index="3"
+          :ranking-type="currentType"
+          :current-user-id="auth.user?.id"
+          :has-search-query="Boolean(searchQuery.trim())"
+          @inspect="openDossier"
+        />
       </div>
 
-      <table v-else class="ranking-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Candidate</th>
-            <th>Level</th>
-            <th>ELO Rating</th>
-            <th>Win Rate</th>
-            <th>Total Battles</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(row, idx) in leaderboard"
-            :key="row.id"
-            :class="{ 'highlight-user': row.id === auth.user?.id }"
-          >
-            <td class="rank-col">
-              <span v-if="idx === 0" class="crown gold flex items-center gap-1"><PixelEmoji emoji="crown" size="xs" /> 1</span>
-              <span v-else-if="idx === 1" class="crown silver flex items-center gap-1"><PixelEmoji emoji="trophy" size="xs" /> 2</span>
-              <span v-else-if="idx === 2" class="crown bronze flex items-center gap-1"><PixelEmoji emoji="shield" size="xs" /> 3</span>
-              <span v-else class="rank-num">#{{ idx + 1 }}</span>
-            </td>
-            <td class="candidate-col">
-              <span class="user-avatar"><PixelEmoji emoji="person" size="xs" /></span>
-              <strong class="candidate-name">{{ row.username }}</strong>
-              <span v-if="row.id === auth.user?.id" class="you-badge">YOU</span>
-            </td>
-            <td>Lvl {{ row.level }}</td>
-            <td class="rating-col">{{ row.battle_rating || 1200 }}</td>
-            <td>
-              {{ calculateWinRate(row.wins, row.total_battles) }}%
-            </td>
-            <td>{{ row.total_battles || 0 }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- 5. Current Player Sticky Standing Banner -->
+      <CurrentPlayerBanner
+        v-if="userRankData"
+        :user-rank-data="userRankData"
+        :user-rank-number="currentUserRankNumber"
+        :ranking-type="currentType"
+        :is-in-visible-list="isCurrentUserInList"
+        @jump-to-user="jumpToUserPosition"
+      />
+
+      <!-- 6. Champion Dossier Inspection Modal -->
+      <ChampionDossierModal
+        v-if="selectedPlayer"
+        :player="selectedPlayer"
+        :rank="selectedRank"
+        @close="closeDossier"
+      />
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import multiplayerService from '../services/multiplayerService'
+import HallHeader from '../components/leaderboard/HallHeader.vue'
+import RankingModeSelector from '../components/leaderboard/RankingModeSelector.vue'
+import ChampionPodium from '../components/leaderboard/ChampionPodium.vue'
+import RankingRoster from '../components/leaderboard/RankingRoster.vue'
+import CurrentPlayerBanner from '../components/leaderboard/CurrentPlayerBanner.vue'
+import ChampionDossierModal from '../components/leaderboard/ChampionDossierModal.vue'
 
 const auth = useAuthStore()
+
+// State
 const currentType = ref('rating')
+const searchQuery = ref('')
 const leaderboard = ref([])
 const loading = ref(true)
+const myRankNumber = ref(null)
 
+// Inspection modal state
+const selectedPlayer = ref(null)
+const selectedRank = ref(1)
+
+const hallContainerRef = ref(null)
+
+// Fetch server leaderboard data (Preserves exact backend formulas & order)
 async function fetchLeaderboard(type = 'rating') {
   loading.value = true
   try {
@@ -95,239 +116,239 @@ async function fetchLeaderboard(type = 'rating') {
       leaderboard.value = res.leaderboard || []
     }
   } catch (e) {
-    console.error('Failed to load leaderboard:', e)
+    console.error('Failed to load Hall of Records leaderboard:', e)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  fetchLeaderboard(currentType.value)
+// Fetch current user's individual rank if available
+async function fetchMyRank() {
+  try {
+    const res = await multiplayerService.getMyRank()
+    if (res.success && res.rank) {
+      myRankNumber.value = res.rank
+    }
+  } catch {
+    // Non-blocking
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    fetchLeaderboard(currentType.value),
+    fetchMyRank()
+  ])
 })
 
-function changeTab(type) {
+function onTypeChange(type) {
   currentType.value = type
   fetchLeaderboard(type)
 }
 
-function calculateWinRate(wins, total) {
-  if (!total || total === 0) return 0
-  return Math.round(((wins || 0) / total) * 100)
+// Filtered list based on search query without altering order
+const filteredLeaderboard = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return leaderboard.value
+
+  return leaderboard.value.filter(p => {
+    const name = (p.nickname || p.username || '').toLowerCase()
+    return name.includes(query)
+  })
+})
+
+// Top 3 Podium champions
+const top3Champions = computed(() => {
+  return filteredLeaderboard.value.slice(0, 3)
+})
+
+// Roster players (Rank 4+)
+const rosterPlayers = computed(() => {
+  return filteredLeaderboard.value.slice(3)
+})
+
+// Current user standing detection
+const userRankData = computed(() => {
+  if (!auth.user) return null
+  const currentInList = leaderboard.value.find(p => Number(p.id) === Number(auth.user.id))
+  return currentInList || auth.user
+})
+
+const currentUserRankNumber = computed(() => {
+  if (!auth.user) return '-'
+  const idx = leaderboard.value.findIndex(p => Number(p.id) === Number(auth.user.id))
+  if (idx >= 0) return idx + 1
+  return myRankNumber.value || '-'
+})
+
+const isCurrentUserInList = computed(() => {
+  if (!auth.user) return false
+  return leaderboard.value.some(p => Number(p.id) === Number(auth.user.id))
+})
+
+// Modal controls
+function openDossier(player, rank) {
+  selectedPlayer.value = player
+  selectedRank.value = rank
+}
+
+function closeDossier() {
+  selectedPlayer.value = null
+}
+
+// Jump to user position in page
+function jumpToUserPosition() {
+  nextTick(() => {
+    const el = document.querySelector('.highlight-user, .is-current-user')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  })
+}
+
+// Fallback if background image fails
+function onBgError(e) {
+  // Graceful fallback to forbidden archive if needed
+  if (!e.target.src.includes('chapter-08')) {
+    e.target.src = '/assets/adventure/backgrounds/chapter-08-forbidden-archive.jpg'
+  }
 }
 </script>
 
 <style scoped>
-.leaderboard-container {
-  padding: 0;
-  max-width: 1100px;
-  margin: 0 auto;
+.hall-of-records-page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
   color: #e2d9cc;
+  padding-bottom: 5rem;
+  overflow-x: hidden;
+}
+
+/* ── Full-Bleed Atmospheric Background ── */
+.hall-bg-environment {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hall-bg-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  filter: brightness(0.65) contrast(1.1) saturate(1.1);
+  transform: scale(1.02);
+  transition: transform 10s ease-out;
+}
+
+/* Multi-layered overlays to guarantee text readability while preserving artwork */
+.hall-bg-overlay-radial {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 25%,
+    rgba(20, 14, 28, 0.45) 0%,
+    rgba(8, 9, 14, 0.8) 60%,
+    rgba(4, 5, 8, 0.95) 100%
+  );
+}
+
+.hall-bg-overlay-linear {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 6, 10, 0.7) 0%,
+    rgba(10, 11, 16, 0.5) 30%,
+    rgba(8, 9, 13, 0.85) 75%,
+    rgba(4, 4, 7, 0.98) 100%
+  );
+}
+
+.hall-bg-vignette {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+}
+
+/* Floating ambient embers */
+.ambient-ember {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #e6c845;
+  box-shadow: 0 0 10px #e6c845, 0 0 20px #dc2626;
+  opacity: 0.6;
+  animation: floatEmber 6s infinite ease-in-out;
+}
+.ember-1 { top: 20%; left: 15%; animation-duration: 7s; }
+.ember-2 { top: 35%; right: 18%; animation-duration: 9s; animation-delay: 1.5s; }
+.ember-3 { top: 60%; left: 22%; animation-duration: 8s; animation-delay: 3s; }
+.ember-4 { top: 75%; right: 25%; animation-duration: 11s; animation-delay: 2s; }
+
+@keyframes floatEmber {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+  50% { transform: translateY(-30px) scale(1.4); opacity: 0.8; }
+}
+
+/* ── Content Container (Proper Max-Width & Layering) ── */
+.hall-content-container {
   position: relative;
   z-index: 1;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
 }
 
-.leaderboard-header {
+/* Loading Box */
+.hall-loading-state {
+  max-width: 600px;
+  margin: 4rem auto;
+  padding: 3rem 2rem;
   text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.header-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #b59410;
-  background: rgba(181, 148, 16, 0.12);
-  padding: 0.35rem 0.9rem;
-  margin-bottom: 0.8rem;
+  background: rgba(14, 15, 23, 0.88);
   border: 1px solid rgba(181, 148, 16, 0.35);
-  box-shadow: 0 0 0 1px #050608;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
 }
 
-.header-title {
-  font-family: 'Cinzel', serif;
-  font-size: 2.6rem;
-  font-weight: 800;
-  margin: 0 0 0.5rem;
-  color: #e2d9cc;
-  letter-spacing: 0.04em;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 20px rgba(181, 148, 16, 0.25);
-}
-
-.header-desc {
-  color: #a09789;
-  max-width: 620px;
-  margin: 0 auto 1.75rem;
-  font-family: 'VT323', monospace;
-  font-size: 1.15rem;
-  letter-spacing: 0.03em;
-  line-height: 1.45;
-}
-
-.leaderboard-tabs {
-  display: inline-flex;
-  gap: 0.5rem;
-  background: #08090c;
-  padding: 0.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 2px #050608;
-}
-
-.tab-btn {
-  padding: 0.65rem 1.4rem;
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  background: none;
-  border: 1px solid transparent;
-  color: #8b8070;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tab-btn.active {
-  background: linear-gradient(180deg, #8b1a1a 0%, #4a0e0e 100%);
-  color: #f5efe6;
-  border-color: #b91c1c;
-  box-shadow: 0 0 0 1px #050608;
-}
-
-.table-card {
-  background: linear-gradient(180deg, #141318 0%, #0c0d12 100%);
-  border: 1px solid rgba(181, 148, 16, 0.3);
-  box-shadow: 0 0 0 2px #050608, 0 12px 35px rgba(0, 0, 0, 0.85);
-  border-radius: 4px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-}
-
-.table-card::before {
-  content: "❖";
-  position: absolute;
-  top: 8px;
-  left: 12px;
-  color: #b59410;
-  font-size: 11px;
-}
-
-.table-card::after {
-  content: "❖";
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  color: #b59410;
-  font-size: 11px;
-}
-
-.ranking-table {
-  width: 100%;
-  min-width: 540px;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.ranking-table th {
-  padding: 1.25rem 1.5rem;
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #b59410;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  white-space: nowrap;
-}
-
-.ranking-table td {
-  padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-family: 'VT323', monospace;
-  font-size: 1.15rem;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.ranking-table tr:hover {
-  background: rgba(139, 26, 26, 0.12);
-}
-
-.highlight-user {
-  background: rgba(181, 148, 16, 0.12) !important;
-  border-left: 3px solid #b59410;
-}
-
-.crown.gold { color: #e6c845; font-weight: 800; text-shadow: 0 0 8px rgba(230, 200, 69, 0.5); }
-.crown.silver { color: #cbd5e1; font-weight: 800; text-shadow: 0 0 6px rgba(203, 213, 225, 0.4); }
-.crown.bronze { color: #d97706; font-weight: 800; text-shadow: 0 0 6px rgba(217, 119, 6, 0.4); }
-.rank-num { font-family: 'Press Start 2P', monospace; font-size: 0.7rem; color: #8b8070; }
-
-.candidate-col {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.candidate-name {
-  font-family: 'Cinzel', serif;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
-  color: #f5efe6;
-}
-
-.user-avatar { font-size: 1.2rem; filter: drop-shadow(0 0 4px rgba(181, 148, 16, 0.4)); }
-
-.you-badge {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.6rem;
-  background: #8b1a1a;
-  border: 1px solid #b91c1c;
-  color: #fff;
-  padding: 0.2rem 0.45rem;
-}
-
-.rating-col {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.75rem;
+.loading-rune-spinner {
+  font-size: 2.2rem;
   color: #e6c845;
-  text-shadow: 0 0 6px rgba(230, 200, 69, 0.4);
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  animation: runeSpin 3s infinite linear;
 }
 
-.loading-box, .empty-box {
-  padding: 3rem;
-  text-align: center;
-  font-family: 'VT323', monospace;
-  font-size: 1.25rem;
+.loading-title {
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.95rem;
+  color: #f7f3eb;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.5rem;
+}
+
+.loading-sub {
+  font-size: 1rem;
   color: #8b8070;
+  margin: 0;
+  font-family: var(--font-gothic, serif);
+}
+
+@keyframes runeSpin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.15); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
 @media (max-width: 768px) {
-  .leaderboard-container {
-    padding: 0;
-  }
-  .leaderboard-header {
-    margin-bottom: 1.5rem;
-  }
-  .header-title {
-    font-size: 1.8rem;
-  }
-  .leaderboard-tabs {
-    width: 100%;
-    display: flex;
-  }
-  .tab-btn {
-    flex: 1;
-    padding: 0.5rem 0.25rem;
-    font-size: 0.75rem;
-  }
-  .ranking-table th, .ranking-table td {
-    padding: 0.85rem 1rem;
-    font-size: 0.95rem;
+  .hall-content-container {
+    padding: 1rem 0.75rem;
   }
 }
 </style>

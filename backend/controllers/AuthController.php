@@ -125,6 +125,13 @@ class AuthController {
 
     public function logout(): void {
         $_SESSION = [];
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params["path"], $params["domain"],
+                $params["secure"], $params["httponly"]
+            );
+        }
         session_destroy();
         echo json_encode(['success' => true, 'message' => 'Logged out successfully']);
     }
@@ -144,6 +151,14 @@ class AuthController {
         }
 
         $stats = $this->userModel->getStats($_SESSION['user_id']);
-        echo json_encode(['success' => true, 'user' => $user, 'stats' => $stats]);
+
+        // Load authoritative Adventure health state
+        require_once __DIR__ . '/../services/AdventureHealthService.php';
+        $healthState = AdventureHealthService::getInstance()->syncAndGetHealth((int)$_SESSION['user_id']);
+        $user['adventure_current_hp'] = $healthState['current_hp'];
+        $user['adventure_max_hp'] = $healthState['max_hp'];
+        $user['adventure_health'] = $healthState;
+
+        echo json_encode(['success' => true, 'user' => $user, 'stats' => $stats, 'health' => $healthState]);
     }
 }

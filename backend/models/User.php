@@ -9,7 +9,7 @@ class User {
     }
 
     public function findById(int $id): ?array {
-        $stmt = $this->db->prepare("SELECT id, username, nickname, email, points, xp, level, streak, longest_streak, coins, battle_rating, wins, losses, draws, total_battles, last_quest_date, avatar_style, avatar_seed, avatar_options, is_new_player, created_at FROM users WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT id, username, nickname, email, points, xp, level, streak, longest_streak, coins, battle_rating, wins, losses, draws, total_battles, last_quest_date, avatar_style, avatar_seed, avatar_options, is_new_player, selected_character_id, created_at FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $user = $stmt->fetch();
         if ($user) {
@@ -26,6 +26,10 @@ class User {
             );
             $eqStmt->execute([$id]);
             $user['equipped'] = $eqStmt->fetchAll() ?: [];
+
+            require_once __DIR__ . '/Character.php';
+            $charModel = new Character();
+            $user['selected_character'] = $charModel->getUserSelectedCharacter($id) ?: $charModel->findById(1);
         }
         return $user ?: null;
     }
@@ -158,7 +162,7 @@ class User {
             $level++;
             $required = $level * 1000;
         }
-        return $level;
+        return min(50, $level);
     }
 
     public function getXpForNextLevel(int $level): int {

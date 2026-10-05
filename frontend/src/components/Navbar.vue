@@ -15,6 +15,18 @@
     </div>
 
     <div class="navbar-right">
+      <!-- Health (Adventure HP) -->
+      <router-link
+        to="/shop"
+        class="navbar-stat health-chip flex items-center gap-1.5"
+        :class="['state-' + healthStore.statusState]"
+        :title="healthTooltip"
+      >
+        <PixelEmoji emoji="heart" size="sm" />
+        <span class="stat-value font-pixel">{{ healthStore.currentHp }} / {{ healthStore.maxHp }}</span>
+        <span v-if="healthStore.isDefeated" class="health-recovering-tag">RECOVERING</span>
+      </router-link>
+
       <!-- Points -->
       <div class="navbar-stat points-chip flex items-center gap-1.5" title="Your Points">
         <PixelEmoji emoji="coin" size="sm" />
@@ -87,10 +99,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useHealthStore } from '../stores/health'
 import { formatXP, formatPoints } from '../utils/formatters'
 import AvatarImg from './AvatarImg.vue'
 
@@ -98,30 +111,39 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
+const healthStore = useHealthStore()
 
 const mobileMenuOpen = ref(false)
 
 const navItems = [
-  { path: '/dashboard',    icon: 'chart', label: 'Dashboard' },
-  { path: '/practice',     icon: 'target', label: 'Practice' },
-  { path: '/quests',       icon: 'sword',  label: 'Quests' },
-  { path: '/multiplayer',  icon: 'lightning', label: 'Multiplayer' },
-  { path: '/leaderboard',  icon: 'trophy', label: 'Leaderboard' },
-  { path: '/shop',         icon: 'cart', label: 'Shop' },
-  { path: '/rewards',      icon: 'coin', label: 'Rewards' },
-  { path: '/chronicle',    icon: 'scroll', label: 'Chronicle' },
-  { path: '/boss',         icon: 'ogre', label: 'Boss Quest' },
+  { path: '/world',        icon: 'castle', label: 'Main World' },
+  { path: '/studyhall',    icon: 'scroll', label: 'Study Hall' },
+  { path: '/adventure',    icon: 'sword',  label: 'Adventure Gate' },
+  { path: '/arena',        icon: 'lightning', label: 'Arena' },
+  { path: '/market',       icon: 'cart', label: 'Market' },
+  { path: '/leaderboard',  icon: 'trophy', label: 'Hall of Records' },
   { path: '/achievements', icon: 'shield', label: 'Achievements' },
   { path: '/profile',      icon: 'person', label: 'Profile' },
 ]
 
 const pageTitles = {
-  '/dashboard': { title: 'Dashboard', sub: 'Your quest progress at a glance' },
+  '/world': { title: 'Citadel Hub', sub: 'The Central Bastion of Mindrealm' },
+  '/dashboard': { title: 'Citadel Hub', sub: 'The Central Bastion of Mindrealm' },
+  '/studyhall': { title: 'Study Hall', sub: 'Grand Library of Psychiatric Knowledge' },
+  '/studyhall/shelves': { title: 'Study Hall — Shelves', sub: 'Select a volume of knowledge' },
+  '/studyhall/reading-room': { title: 'Study Hall — Reading Room', sub: 'Explore chapters and clinical pages' },
+  '/adventure': { title: 'Adventure Gate', sub: 'Journey through the 12 Fractured Domains' },
+  '/arena': { title: 'Arena', sub: 'Battle fellow scholars in real-time PvP' },
+  '/multiplayer': { title: 'Arena', sub: 'Battle fellow scholars in real-time PvP' },
+  '/market': { title: 'The Raven Market', sub: 'Equip Attack & Splash Effects for battle' },
+  '/shop': { title: 'The Raven Market', sub: 'Equip Attack & Splash Effects for battle' },
+  '/leaderboard': { title: 'Hall of Records', sub: 'Grand Hall of Champions and Scholars' },
+  '/records': { title: 'Hall of Records', sub: 'Grand Hall of Champions and Scholars' },
+  '/special-event': { title: 'The Daily Trial', sub: '140-Question Board-Exam Assessment' },
   '/quests': { title: 'Psychology Study Paths', sub: 'Follow your structured board-exam reviewer' },
   '/quests/create': { title: 'Forge Quest', sub: 'Create a new study challenge' },
   '/rewards': { title: 'Reward Shop', sub: 'Spend your hard-earned points' },
   '/chronicle': { title: 'Chronicle Hall', sub: 'Scholarly accomplishments & world records' },
-  '/boss': { title: 'Boss Quest', sub: 'Face the academic bosses' },
   '/achievements': { title: 'Achievements', sub: 'Your milestone collection' },
   '/profile': { title: 'Adventurer Profile', sub: 'Your student identity and statistics' },
   '/settings': { title: 'Settings', sub: 'Manage your account preferences' },
@@ -145,6 +167,17 @@ const pageSubtitle = computed(() => {
 })
 
 const isActive = (path) => route.path.startsWith(path)
+
+const healthTooltip = computed(() => {
+  if (healthStore.isDefeated) {
+    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\n+${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
+  }
+  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRegeneration: +${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion`
+})
+
+onMounted(() => {
+  healthStore.fetchHealth()
+})
 
 async function handleLogout() {
   mobileMenuOpen.value = false
@@ -263,6 +296,57 @@ async function handleLogout() {
   background: rgba(245,158,11,0.15);
   border: 1px solid rgba(245,158,11,0.3);
   color: #fbbf24;
+}
+
+/* Health Chip */
+.health-chip {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.health-chip:hover {
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+}
+.health-chip.state-normal {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+.health-chip.state-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fde047;
+}
+.health-chip.state-critical {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.85);
+  color: #fca5a5;
+  animation: navPulseCritical 1.2s infinite ease-in-out;
+}
+.health-chip.state-defeated {
+  background: rgba(185, 28, 28, 0.3);
+  border-color: rgba(220, 38, 38, 0.9);
+  color: #f87171;
+}
+
+.health-recovering-tag {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.5rem;
+  background: rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.7);
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #fca5a5;
+  letter-spacing: 0.04em;
+}
+
+@keyframes navPulseCritical {
+  0%, 100% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.7); }
 }
 
 .xp-chip {

@@ -173,7 +173,7 @@
           <!-- 2. STUDY HALL (Psychology Study Paths & Quests) -->
           <div
             class="town-building spot-quests"
-            @click="handleSpotClick('/quests')"
+            @click="handleSpotClick('/studyhall')"
             @mouseenter="hoveredSpot = 'quests'"
             @mouseleave="hoveredSpot = null"
           >
@@ -203,7 +203,7 @@
           <!-- 4. MARKET (Cosmetics Boutique & Bazaar) -->
           <div
             class="town-building spot-shop"
-            @click="handleSpotClick('/shop')"
+            @click="handleSpotClick('/market')"
             @mouseenter="hoveredSpot = 'shop'"
             @mouseleave="hoveredSpot = null"
           >
@@ -535,11 +535,11 @@ function navigateModule(path) {
 }
 
 const modulesList = [
-  { name: 'Study Hall',        path: '/quests',        icon: 'scroll' },
+  { name: 'Study Hall',        path: '/studyhall',     icon: 'scroll' },
   { name: 'Adventure Gate',    path: '/adventure',     icon: 'sword' },
   { name: 'The Daily Trial',   path: '/special-event', icon: 'crown' },
   { name: 'Arena',             path: '/multiplayer',   icon: 'lightning' },
-  { name: 'Market',            path: '/shop',          icon: 'cart' },
+  { name: 'Market',            path: '/market',        icon: 'cart' },
   { name: 'Hall of Records',   path: '/leaderboard',   icon: 'trophy' },
   { name: 'Achievement Hall',  path: '/achievements',  icon: 'shield' },
   { name: 'Chronicle Hall',    path: '/chronicle',     icon: 'book' },

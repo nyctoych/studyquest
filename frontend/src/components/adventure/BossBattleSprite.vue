@@ -147,9 +147,21 @@ const activeBossSprite = computed(() => {
   const m = props.bossMeta
   if (!m) return ''
 
+  // Defeated end-state (e.g. The Creator): static defeated pose, never restarts idle
+  if (props.battleState === 'defeated' && m.defeatedSprite) {
+    return resolveAsset(m.defeatedSprite)
+  }
+  // Boss-specific hit / dialogue animations when the asset set provides them
+  if (props.battleState === 'hit' && m.animatedHit) {
+    return resolveAsset(m.animatedHit)
+  }
+  if (props.battleState === 'laughing' && m.animatedTaunt) {
+    return resolveAsset(m.animatedTaunt)
+  }
+
   // When boss HP drops to 50% or lower, shift to angry mode (angry GIF)!
-  // Also shift when mocking / laughing
-  if (isEnragedMode.value || props.battleState === 'laughing') {
+  // Also shift when mocking / laughing (skipped for bosses that keep their idle stance)
+  if (!m.keepIdleWhenEnraged && (isEnragedMode.value || props.battleState === 'laughing')) {
     const angryAsset = getAngryGifAsset(m)
     return resolveAsset(angryAsset)
   }
@@ -162,18 +174,29 @@ const activeBossSprite = computed(() => {
 const battleStateClass = computed(() => `state-${props.battleState}`)
 
 const animClass = computed(() => {
+  if (props.battleState === 'defeated') return 'anim-boss-defeated'
   if (props.battleState === 'hit') return 'anim-boss-hit'
   if (props.battleState === 'laughing') return 'anim-boss-laugh'
   return 'anim-boss-idle'
 })
 
 const hitFilter = computed(() => {
+  if (props.battleState === 'defeated') return 'grayscale(0.55) brightness(0.85) drop-shadow(0 0 18px rgba(167, 139, 250, 0.6))'
+  if (props.battleState === 'hit' && props.bossMeta?.keepIdleWhenEnraged) return 'brightness(1.35) drop-shadow(0 0 18px rgba(251, 191, 36, 0.75))'
   if (props.battleState === 'hit') return 'brightness(2.2) saturate(1.8) drop-shadow(0 0 20px #ef4444)'
   if (isEnragedMode.value) return 'drop-shadow(0 0 16px rgba(239, 68, 68, 0.75)) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.8))'
   return 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.65))'
 })
 
 const bossReactionLabel = computed(() => {
+  const custom = props.bossMeta?.reactionLabels
+  if (custom) {
+    if (props.battleState === 'defeated') return custom.defeated
+    if (props.battleState === 'hit') return custom.hit
+    if (props.battleState === 'laughing') return custom.laughing
+    if (isEnragedMode.value) return custom.enraged
+    return props.bossMeta.roleLabel || 'GUARDIAN'
+  }
   if (props.battleState === 'hit') return '💥 FRACTURED'
   if (props.battleState === 'laughing') return '🔥 ENRAGED MOCKERY'
   if (isEnragedMode.value) return '🔥 ENRAGED'
@@ -451,5 +474,15 @@ const bossReactionLabel = computed(() => {
 @keyframes enraged-aura-pulse {
   0%, 100% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 16px #ef4444); }
+}
+/* The Creator: defeated pose dissolves into ink/pages */
+.anim-boss-defeated {
+  animation: boss-ink-dissolve 3.4s ease-in forwards;
+}
+
+@keyframes boss-ink-dissolve {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  70% { opacity: 0.75; transform: translateY(6px) scale(1.01); }
+  100% { opacity: 0.35; transform: translateY(14px) scale(0.98); filter: blur(1.5px); }
 }
 </style>

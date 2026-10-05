@@ -174,6 +174,7 @@ class AdventureProgressService {
             'discovered_fracture_shards' => $discoveredShards,
             'total_mind_seals_count' => count($recoveredSeals),
             'black_archive_unlocked' => $blackArchiveUnlocked,
+            'final_boss' => $this->getFinalBossState($userId),
             'story_flags' => $userFlags,
         ];
     }
@@ -587,6 +588,14 @@ class AdventureProgressService {
 
         $user = $this->userModel->findById($userId);
 
+        // Maintain persistent Adventure HP for the next battle (45% of current scaled max health)
+        require_once __DIR__ . '/../models/Character.php';
+        $charModel = new Character();
+        $userChar = $charModel->getUserSelectedCharacter($userId) ?: $charModel->findByKey('mage');
+        $scaledStats = Character::calculateScaledStats($userChar ?: ['health' => 150], (int)$user['level']);
+        $nextAdventureStartHp = (int)round($scaledStats['max_health'] * 0.45);
+        $this->db->prepare("UPDATE users SET adventure_current_hp = ?, adventure_hp_persisted = 1 WHERE id = ?")->execute([$nextAdventureStartHp, $userId]);
+
         return [
             'success'       => true,
             'score'         => $score,
@@ -599,6 +608,7 @@ class AdventureProgressService {
             'new_level'     => (int)$user['level'],
             'new_xp'        => (int)$user['xp'],
             'new_coins'     => (int)($user['coins'] ?? 0),
+            'adventure_start_hp' => $nextAdventureStartHp,
         ];
     }
 
@@ -784,6 +794,7 @@ class AdventureProgressService {
                     'fracture_shard_recovered'=> $boss['fracture_shard_name'] ?? '',
                     'restoration_text'        => $boss['restoration_text'] ?? '',
                     'dialogue_defeat'         => $boss['dialogue_defeat'] ?? '',
+                    'story_clue'              => self::STORY_CLUES[$currentOrder][0] ?? null,
                     'rewards' => [
                         'xp'     => 0,
                         'coins'  => 0,
@@ -796,7 +807,9 @@ class AdventureProgressService {
                     'next_chapter_unlocked'   => ($nextChapter !== false),
                     'all_chapters_completed'  => ($nextChapter === false),
                     'black_archive_unlocked'  => ($nextChapter === false || $currentOrder === 12),
+                    'final_boss_unlocked'     => ($currentOrder === 12),
                     'user'                    => $user,
+                    'adventure_start_hp'      => (int)round((Character::calculateScaledStats((new Character())->getUserSelectedCharacter($userId) ?: ['health' => 150], (int)($user['level'] ?? 1)))['max_health'] * 0.45),
                 ];
             }
 
@@ -835,6 +848,17 @@ class AdventureProgressService {
                 $flagStmt->execute([$userId, "fracture_shard_ch_{$currentOrder}", $boss['fracture_shard_name']]);
             }
             $flagStmt->execute([$userId, "chapter_{$currentOrder}_restored", '1']);
+
+            // 3b. Story clue + Chronicle milestone (first clear only, so reloads never duplicate)
+            $storyClue = self::STORY_CLUES[$currentOrder][0] ?? null;
+            if ($storyClue && $this->setFlagOnce($userId, "story_clue_ch_{$currentOrder}", $storyClue)) {
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    self::STORY_CLUES[$currentOrder][1],
+                    $storyClue,
+                    ['event' => "guardian_defeated_ch_{$currentOrder}", 'chapter' => $currentOrder]
+                );
+            }
 
             // 4. Grant XP & Coins
             $this->userModel->addXP($userId, $xpReward);
@@ -915,6 +939,7 @@ class AdventureProgressService {
                 'fracture_shard_recovered'=> $boss['fracture_shard_name'] ?? '',
                 'restoration_text'        => $boss['restoration_text'] ?? '',
                 'dialogue_defeat'         => $boss['dialogue_defeat'] ?? '',
+                'story_clue'              => $storyClue,
                 'rewards' => [
                     'xp'     => $xpReward,
                     'coins'  => $coinReward,
@@ -927,7 +952,9 @@ class AdventureProgressService {
                 'next_chapter_unlocked'   => $nextChapterUnlocked,
                 'all_chapters_completed'  => $allChaptersCompleted,
                 'black_archive_unlocked'  => ($allChaptersCompleted || $currentOrder === 12),
+                'final_boss_unlocked'     => ($currentOrder === 12),
                 'user'                    => $freshUser,
+                'adventure_start_hp'      => (int)round((Character::calculateScaledStats((new Character())->getUserSelectedCharacter($userId) ?: ['health' => 150], (int)($freshUser['level'] ?? 1)))['max_health'] * 0.45),
             ];
 
         } catch (Throwable $e) {
@@ -994,151 +1021,382 @@ class AdventureProgressService {
             'recovered_mind_seals' => $recoveredSeals,
             'discovered_fracture_shards' => $discoveredShards,
             'black_archive_unlocked' => $blackArchiveUnlocked,
-            'creator_defeated' => isset($flags['creator_defeated']),
+            'creator_defeated' => isset($flags['creator_defeated']) || (($flags['final_boss_completed'] ?? '') === '1'),
+            'merchant_stage' => $this->getMerchantStage($userId),
             'flags' => $flags,
         ];
     }
 
+
+    // ══════════════════════════════════════════════════════════════
+    // FINAL ENCOUNTER: THE CREATOR (THE BLACK ARCHIVE)
+    // Separate from Chapter 12. Never a "Chapter 13".
+    // Server is the sole authority on unlock, battle result, rewards.
+    // ══════════════════════════════════════════════════════════════
+
     /**
-     * Requirement 21 & 22: The Black Archive & The Creator encounter data.
+     * Ordered story clues, one per chapter. Revealed only after that chapter's
+     * Guardian is defeated (server-side). Guardians are symbolic, never literal
+     * representations of people with mental disorders.
      */
-    public function getBlackArchiveData(int $userId): array {
-        $storyState = $this->getStoryState($userId);
+    public const STORY_CLUES = [
+        1  => ['One clock keeps ticking after the Keeper of Growth falls silent.', 'The Keeper of Growth defeated'],
+        2  => ['Some of the scenery was never there at all.', 'The Veiled Witness defeated'],
+        3  => ['Two contradictory versions of the same world exist side by side.', 'The Mind in Flux defeated'],
+        4  => ['One darkness remains, and restoration does not undo it.', 'The Hollow Heart defeated'],
+        5  => ['A handwritten line appears: "I don\'t know how this story ends."', 'The Archive of Worry defeated'],
+        6  => ['The world keeps rewriting itself. "Again."', 'The Unending Ritual defeated'],
+        7  => ['A memory of an unfamiliar person surfaces. It is not yours.', 'The Shattered Shadow defeated'],
+        8  => ['Mindrealm can create sensations that feel completely real.', 'The Body That Speaks defeated'],
+        9  => ['A surviving text reads: "A perfect world cannot contain everything human."', 'The Forbidden Tome defeated'],
+        10 => ['"You were written before you knew you existed."', 'The Dreamer defeated'],
+        11 => ['Hundreds of unfinished manuscripts, written and rewritten without end.', 'The Hungering Mind defeated'],
+        12 => ['"You were never the first draft. You were simply the latest." The Mask cracks.', 'The Mask of a Thousand Selves defeated'],
+    ];
 
-        // Fetch user's current phase progress from story_flags
-        $phaseFlag = $storyState['flags']['creator_phase'] ?? '1';
-        $currentPhase = (int)$phaseFlag;
+    /**
+     * Merchant story stage derived purely from server flags.
+     * normal -> clues (after chapter 4) -> unusual (after chapter 8) -> vanished (Mask defeated)
+     * -> father (identity revealed).
+     */
+    public function getMerchantStage(int $userId): string {
+        $flags = $this->getUserFlags($userId);
+        if (($flags['merchant_identity_revealed'] ?? '') === '1') return 'father';
+        if (isset($flags['chapter_12_restored'])) return 'vanished';
+        if (isset($flags['chapter_8_restored'])) return 'unusual';
+        if (isset($flags['chapter_4_restored'])) return 'clues';
+        return 'normal';
+    }
 
-        $phases = [
-            1 => [
-                'phase' => 1,
-                'name' => 'Phase I — The Author',
-                'title' => 'Architect of the Fractured Mindrealm',
-                'description' => 'The Creator manifests as the meticulous scholar who attempted to rigidly categorize all human consciousness into impermeable compartments.',
-                'boss_hp' => 500,
-                'asset' => 'assets/bosses/hat/2happyhat.png',
-                'animated' => 'assets/bosses/hat/2HappyHat.gif',
-                'dialogue_intro' => 'I sought only perfection! Order! Certainty! Why must human minds resist the sacred boundaries of taxonomy?!',
-                'dialogue_outro' => 'The boundaries shatter... but the Fracture remains woven into the very fabric of the archives!',
-            ],
-            2 => [
-                'phase' => 2,
-                'name' => 'Phase II — The Fracture',
-                'title' => 'The Void of Forced Certainty',
-                'description' => 'The anomaly itself manifests, fueled by the impossible paradox of trying to eliminate uncertainty from organic human psychology.',
-                'boss_hp' => 650,
-                'asset' => 'assets/bosses/shadows/2happyshad.png',
-                'animated' => 'assets/bosses/shadows/2happyshadows.gif',
-                'dialogue_intro' => 'When you force complex souls into rigid boxes, the edges tear! Behold the fury of the Fracture!',
-                'dialogue_outro' => 'The darkness recoils... yet the guardians you saved still call from the echoes!',
-            ],
-            3 => [
-                'phase' => 3,
-                'name' => 'Phase III — The Lost Guardians',
-                'title' => 'Echoes of the Twelve Realms',
-                'description' => 'The Creator channels the lingering echoes of all twelve corrupted guardians in a tempest of psychiatric complexity.',
-                'boss_hp' => 800,
-                'asset' => 'assets/bosses/purplebrain/2happypurplebrain.png',
-                'animated' => 'assets/bosses/purplebrain/happy.gif',
-                'dialogue_intro' => 'Recall the Cradle! The City of Warnings! The Palace of Identity! Can you synthesize all twelve doctrines against me?!',
-                'dialogue_outro' => 'The guardians stand with you... their harmony rejects my control!',
-            ],
-            4 => [
-                'phase' => 4,
-                'name' => 'Phase IV — Final Mastery',
-                'title' => 'The Creator Unmasked',
-                'description' => 'The climactic final test of psychiatric licensure mastery. Defeating the Creator liberates the Mindrealm forever.',
-                'boss_hp' => 1000,
-                'asset' => 'assets/bosses/brain/2happy-brain.png',
-                'animated' => 'assets/bosses/brain/2happybrain.gif',
-                'dialogue_intro' => 'Mindkeeper... if you truly understand human suffering, prove that empathy and diagnostic science can co-exist without tyranny!',
-                'dialogue_outro' => 'I see it now... The mind cannot be caged. It must be nurtured, understood, and healed. The Mindrealm is restored.',
-            ],
-        ];
+    public const FINAL_BOSS_KEY      = 'final_creator';
+    public const FINAL_BOSS_MAX_HP   = 1500;
+    public const FINAL_BOSS_XP       = 2500;
+    public const FINAL_BOSS_COINS    = 1500;
+    public const FINAL_STORY_STAGES  = ['locked', 'unlocked', 'world_collapse', 'merchant_reveal', 'epilogue', 'complete'];
 
-        // Draw 10 comprehensive mastery questions across all 12 domains
-        $questionsStmt = $this->db->prepare("
-            SELECT q.id, q.question, q.choice_a, q.choice_b, q.choice_c, q.choice_d,
-                   q.correct_answer, q.explanation, q.difficulty, pd.name as domain_name
-            FROM questions q
-            LEFT JOIN psychology_parts pp ON pp.id = q.part_id
-            LEFT JOIN psychology_domains pd ON pd.id = COALESCE(q.domain_id, pp.domain_id)
-            WHERE q.status = 'approved' AND q.difficulty IN ('advanced', 'board_exam', 'intermediate')
-            ORDER BY RAND()
-            LIMIT 10
+    /**
+     * Inserts a story flag only if it does not exist yet.
+     * Returns true when the flag was newly created (first time reached).
+     */
+    private function setFlagOnce(int $userId, string $key, string $value = '1'): bool {
+        $sel = $this->db->prepare("SELECT id FROM story_flags WHERE user_id = ? AND flag_key = ? LIMIT 1 FOR UPDATE");
+        $sel->execute([$userId, $key]);
+        if ($sel->fetchColumn()) return false;
+        $this->db->prepare("INSERT INTO story_flags (user_id, flag_key, flag_value) VALUES (?, ?, ?)")
+                 ->execute([$userId, $key, $value]);
+        return true;
+    }
+
+    private function setFlag(int $userId, string $key, string $value): void {
+        $this->db->prepare("
+            INSERT INTO story_flags (user_id, flag_key, flag_value) VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE flag_value = VALUES(flag_value), updated_at = NOW()
+        ")->execute([$userId, $key, $value]);
+    }
+
+    private function getUserFlags(int $userId): array {
+        $stmt = $this->db->prepare("SELECT flag_key, flag_value FROM story_flags WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    private function addChronicle(int $userId, string $type, string $title, string $body, array $meta = []): void {
+        $this->db->prepare("
+            INSERT INTO chronicle_posts (user_id, post_type, title, body, metadata, is_public)
+            VALUES (?, ?, ?, ?, ?, 1)
+        ")->execute([$userId, $type, $title, $body, json_encode($meta)]);
+    }
+
+    /**
+     * Unlocks a story achievement (creating the definition once if needed).
+     * Returns the achievement array only when newly unlocked.
+     */
+    private function unlockStoryAchievement(int $userId, string $name, string $description, string $icon, int $xp, int $points): ?array {
+        $sel = $this->db->prepare("SELECT * FROM achievements WHERE name = ? LIMIT 1");
+        $sel->execute([$name]);
+        $ach = $sel->fetch(PDO::FETCH_ASSOC);
+        if (!$ach) {
+            $this->db->prepare("
+                INSERT INTO achievements (name, description, icon, category, condition_type, condition_value, xp_reward, point_reward, rarity)
+                VALUES (?, ?, ?, 'special', 'story_final_boss', 1, ?, ?, 'legendary')
+            ")->execute([$name, $description, $icon, $xp, $points]);
+            $sel->execute([$name]);
+            $ach = $sel->fetch(PDO::FETCH_ASSOC);
+        }
+        if (!$ach) return null;
+        return $this->achievementModel->unlock($userId, (int)$ach['id']) ? $ach : null;
+    }
+
+    /**
+     * SERVER-SIDE unlock rule: Chapter 12 boss defeated AND chapter completed.
+     */
+    public function isFinalBossUnlocked(int $userId): bool {
+        $stmt = $this->db->prepare("
+            SELECT acp.boss_defeated, acp.status
+            FROM psychology_domains pd
+            JOIN adventure_chapter_progress acp ON acp.domain_id = pd.id AND acp.user_id = ?
+            WHERE pd.display_order = 12 AND pd.status = 'active'
+            LIMIT 1
         ");
-        $questionsStmt->execute();
-        $questions = array_map(function($q) {
-            return [
-                'id' => $q['id'],
-                'question' => $q['question'],
-                'domain' => $q['domain_name'],
-                'choices' => [
-                    'A' => $q['choice_a'],
-                    'B' => $q['choice_b'],
-                    'C' => $q['choice_c'],
-                    'D' => $q['choice_d'],
-                ],
-                'difficulty' => $q['difficulty'] ?? 'board_exam',
-                'correct_answer' => strtoupper($q['correct_answer']),
-                'explanation' => $q['explanation'] ?? '',
-            ];
-        }, $questionsStmt->fetchAll(PDO::FETCH_ASSOC));
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return false;
+        return (int)$row['boss_defeated'] === 1 && in_array($row['status'], ['completed', 'mastered'], true);
+    }
+
+    /**
+     * LOCKED / UNLOCKED / COMPLETED summary for the Adventure Gate.
+     */
+    public function getFinalBossState(int $userId): array {
+        $flags     = $this->getUserFlags($userId);
+        $unlocked  = $this->isFinalBossUnlocked($userId);
+        $completed = ($flags['final_boss_completed'] ?? '') === '1';
+        $stage     = $flags['final_story_stage'] ?? ($unlocked ? 'unlocked' : 'locked');
+        if (!$unlocked && !$completed) $stage = 'locked';
 
         return [
-            'success' => true,
-            'unlocked' => $storyState['black_archive_unlocked'],
-            'current_phase' => $currentPhase,
-            'phase_data' => $phases[$currentPhase] ?? $phases[1],
-            'all_phases' => $phases,
-            'questions' => $questions,
-            'creator_defeated' => $storyState['creator_defeated'],
+            'key'                => self::FINAL_BOSS_KEY,
+            'name'               => 'The Creator',
+            'label'              => 'THE BLACK ARCHIVE — FINAL ENCOUNTER',
+            'status'             => $completed ? 'completed' : ($unlocked ? 'unlocked' : 'locked'),
+            'unlocked'           => $unlocked || $completed,
+            'completed'          => $completed,
+            'adventure_complete' => ($flags['adventure_complete'] ?? '') === '1',
+            'story_stage'        => $stage,
+            'max_hp'             => self::FINAL_BOSS_MAX_HP,
         ];
     }
 
     /**
-     * Requirement 22: Complete a Phase of The Creator battle.
+     * GET /adventure/final-boss — encounter data. Rejects when still locked.
+     * Question lists are issued by the battle session (hidden count, no answers).
      */
-    public function completeBlackArchivePhase(int $userId, int $phase, array $battleData): array {
-        $playerHp = (int)($battleData['player_hp'] ?? 100);
-        $bossHp   = (int)($battleData['boss_hp'] ?? 0);
-
-        if ($bossHp > 0 || $playerHp <= 0) {
-            return ['success' => false, 'message' => 'Phase battle incomplete.'];
+    public function getFinalBossBattle(int $userId): array {
+        if (!$this->isFinalBossUnlocked($userId)) {
+            return [
+                'success'     => false,
+                'locked'      => true,
+                'status_code' => 403,
+                'message'     => 'The Black Archive remains sealed. Defeat The Mask of a Thousand Selves in Chapter 12 first.',
+            ];
         }
 
-        $nextPhase = $phase + 1;
-        $isFinal = ($phase >= 4);
+        $discovered = false;
+        $this->db->beginTransaction();
+        try {
+            if ($this->setFlagOnce($userId, 'black_archive_discovered', '1')) {
+                $discovered = true;
+                $this->setFlag($userId, 'final_story_stage', 'unlocked');
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    'The Black Archive Discovered',
+                    'Beyond the Mask lay a hidden place behind Mindrealm\'s written reality.',
+                    ['event' => 'black_archive_discovered']
+                );
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    'The Creator Revealed',
+                    'A figure at a writing desk knew your name, your journey, and the ending meant for you.',
+                    ['event' => 'creator_revealed']
+                );
+            }
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            error_log('getFinalBossBattle error: ' . $e->getMessage());
+        }
 
-        $flagStmt = $this->db->prepare("
-            INSERT INTO story_flags (user_id, flag_key, flag_value)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE flag_value = VALUES(flag_value), updated_at = NOW()
+        $state = $this->getFinalBossState($userId);
+
+        return [
+            'success'    => true,
+            'first_entry'=> $discovered,
+            'state'      => $state,
+            'chapter'    => [
+                'name'       => 'The Black Archive',
+                'act_title'  => 'THE FINAL ENCOUNTER',
+                'act_number' => 5,
+            ],
+            'boss'       => [
+                'id'           => self::FINAL_BOSS_KEY,
+                'type'         => 'final_boss',
+                'name'         => 'The Creator',
+                'story_title'  => 'Author of Mindrealm',
+                'max_hp'       => self::FINAL_BOSS_MAX_HP,
+                'xp_reward'    => self::FINAL_BOSS_XP,
+                'point_reward' => self::FINAL_BOSS_COINS,
+            ],
+            'questions'  => [],
+        ];
+    }
+
+    /**
+     * POST /adventure/final-boss/complete
+     * Victory is verified from the SERVER battle session. Client HP is ignored.
+     * Rewards and completion are granted once only.
+     */
+    public function completeFinalBoss(int $userId, array $battleData): array {
+        if (!$this->isFinalBossUnlocked($userId)) {
+            return ['success' => false, 'locked' => true, 'status_code' => 403, 'message' => 'The Black Archive remains sealed.'];
+        }
+
+        $battleId = (int)($battleData['battle_id'] ?? 0);
+        $bStmt = $this->db->prepare("
+            SELECT * FROM adventure_active_battles
+            WHERE user_id = ? AND encounter_type = 'final_boss' AND status = 'victory'
+              AND enemy_current_health <= 0 AND player_current_health > 0
+              " . ($battleId ? "AND id = ?" : "") . "
+            ORDER BY id DESC LIMIT 1
         ");
+        $bStmt->execute($battleId ? [$userId, $battleId] : [$userId]);
+        $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($isFinal) {
-            $flagStmt->execute([$userId, 'creator_defeated', '1']);
-            $flagStmt->execute([$userId, 'creator_phase', 'completed']);
+        if (!$battle) {
+            return ['success' => false, 'status_code' => 400, 'message' => 'The Creator has not been defeated in a verified battle.'];
+        }
 
-            // Grant apex reward
-            $this->userModel->addXP($userId, 2500);
-            $this->userModel->addCoins($userId, 1500);
+        $this->db->beginTransaction();
+        try {
+            $firstClear = $this->setFlagOnce($userId, 'final_boss_completed', '1');
+            $newAchievements = [];
 
-            // Record chronicle
-            $this->db->prepare("
-                INSERT INTO chronicle_posts (user_id, post_type, title, body, metadata, is_public)
-                VALUES (?, 'game_mastery', 'The Mindrealm Restored: The Creator Defeated', 'Through diagnostic mastery and empathetic understanding, the Fracture has been healed.', '{}', 1)
-            ")->execute([$userId]);
-        } else {
-            $flagStmt->execute([$userId, 'creator_phase', (string)$nextPhase]);
+            if ($firstClear) {
+                $this->setFlag($userId, 'creator_defeated', '1');
+                $this->setFlag($userId, 'creator_phase', 'completed');
+                $this->setFlag($userId, 'final_story_stage', 'world_collapse');
+
+                $this->userModel->addXP($userId, self::FINAL_BOSS_XP);
+                $this->userModel->addCoins($userId, self::FINAL_BOSS_COINS);
+
+                $this->addChronicle(
+                    $userId, 'boss_victory',
+                    'The Creator Defeated',
+                    'The author of Mindrealm lost control of his own story. Mindrealm\'s true nature was revealed.',
+                    ['event' => 'creator_defeated', 'xp' => self::FINAL_BOSS_XP, 'coins' => self::FINAL_BOSS_COINS]
+                );
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    'Mindrealm\'s True Nature Revealed',
+                    'Everything was written. The choices were not.',
+                    ['event' => 'true_nature_revealed']
+                );
+
+                $ach = $this->unlockStoryAchievement(
+                    $userId, 'THE FINAL AUTHOR', 'Defeat The Creator in the Black Archive.', '🖋️', 500, 500
+                );
+                if ($ach) $newAchievements[] = $ach;
+            }
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            error_log('completeFinalBoss error: ' . $e->getMessage());
+            return ['success' => false, 'status_code' => 500, 'message' => 'Failed to record Final Boss completion.'];
         }
 
         return [
-            'success' => true,
-            'phase_completed' => $phase,
-            'next_phase' => $isFinal ? null : $nextPhase,
-            'is_final_victory' => $isFinal,
-            'rewards' => $isFinal ? ['xp' => 2500, 'coins' => 1500] : ['xp' => 250, 'coins' => 150],
+            'success'         => true,
+            'first_clear'     => $firstClear,
+            'already_completed' => !$firstClear,
+            'rewards'         => $firstClear
+                ? ['xp' => self::FINAL_BOSS_XP, 'coins' => self::FINAL_BOSS_COINS, 'points' => self::FINAL_BOSS_COINS]
+                : ['xp' => 0, 'coins' => 0, 'points' => 0],
+            'new_achievements'=> $newAchievements,
+            'state'           => $this->getFinalBossState($userId),
+            'user'            => $this->userModel->findById($userId),
+        ];
+    }
+
+    /**
+     * POST /adventure/final-boss/story-stage
+     * Forward-only narrative progress after the Creator is defeated.
+     * Stages: merchant_reveal -> epilogue -> complete
+     */
+    public function advanceFinalStory(int $userId, string $stage): array {
+        $order = ['world_collapse' => 0, 'merchant_reveal' => 1, 'epilogue' => 2, 'complete' => 3];
+        if (!isset($order[$stage]) || $stage === 'world_collapse') {
+            return ['success' => false, 'status_code' => 400, 'message' => 'Unknown story stage.'];
+        }
+
+        $flags = $this->getUserFlags($userId);
+        if (($flags['final_boss_completed'] ?? '') !== '1') {
+            return ['success' => false, 'status_code' => 403, 'message' => 'The Creator has not been defeated.'];
+        }
+
+        $current = $flags['final_story_stage'] ?? 'world_collapse';
+        $currentRank = $order[$current] ?? 0;
+        $newAchievements = [];
+
+        if ($order[$stage] > $currentRank + 1) {
+            return ['success' => false, 'status_code' => 409, 'message' => 'Story scenes must be viewed in order.'];
+        }
+
+        $this->db->beginTransaction();
+        try {
+            if ($order[$stage] > $currentRank) {
+                $this->setFlag($userId, 'final_story_stage', $stage);
+
+                if ($stage === 'merchant_reveal' && $this->setFlagOnce($userId, 'merchant_identity_revealed', '1')) {
+                    $this->addChronicle(
+                        $userId, 'adventure_victory',
+                        'The Merchant\'s Identity Revealed',
+                        'The Merchant was the Creator\'s father, and Mindrealm had been his son\'s world.',
+                        ['event' => 'merchant_revealed']
+                    );
+                }
+
+                if ($stage === 'complete' && $this->setFlagOnce($userId, 'adventure_complete', '1')) {
+                    $this->addChronicle(
+                        $userId, 'adventure_victory',
+                        'The Mindrealm Adventure Completed',
+                        'Some stories end unfinished. Others continue in the people who remember them.',
+                        ['event' => 'adventure_complete']
+                    );
+                    $ach = $this->unlockStoryAchievement(
+                        $userId, 'THE LAST PAGE', 'Complete the Mindrealm Adventure.', '📜', 500, 500
+                    );
+                    if ($ach) $newAchievements[] = $ach;
+                }
+            }
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            error_log('advanceFinalStory error: ' . $e->getMessage());
+            return ['success' => false, 'status_code' => 500, 'message' => 'Failed to save story progress.'];
+        }
+
+        return [
+            'success'          => true,
+            'new_achievements' => $newAchievements,
+            'state'            => $this->getFinalBossState($userId),
+        ];
+    }
+
+    /**
+     * Legacy Black Archive endpoint. The old client-trusted quiz is retired;
+     * it now only reports unlock state and points to the Final Encounter.
+     */
+    public function getBlackArchiveData(int $userId): array {
+        $state = $this->getFinalBossState($userId);
+        return [
+            'success'         => true,
+            'unlocked'        => $state['unlocked'],
+            'creator_defeated'=> $state['completed'],
+            'final_boss'      => $state,
+            'final_route'     => '/adventure/final-boss',
+            'questions'       => [],
+        ];
+    }
+
+    /**
+     * Legacy phase completion is retired: it trusted client HP and could
+     * falsely mark The Creator defeated.
+     */
+    public function completeBlackArchivePhase(int $userId, int $phase, array $battleData): array {
+        return [
+            'success'     => false,
+            'status_code' => 410,
+            'message'     => 'The Black Archive is now entered through the Final Encounter.',
         ];
     }
 }

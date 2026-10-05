@@ -44,6 +44,19 @@
 
     <!-- Center / Right: Real Resources & Status -->
     <div class="hud-resources">
+      <!-- Health (Adventure HP) -->
+      <div
+        class="rpg-res-pill res-health"
+        :class="['state-' + healthStore.statusState]"
+        :title="healthTooltip"
+        @click="onHealthPillClick"
+      >
+        <span class="res-icon health-icon"><PixelEmoji emoji="heart" size="sm" /></span>
+        <span class="res-label font-pixel">HP</span>
+        <span class="res-val">{{ healthStore.currentHp }} / {{ healthStore.maxHp }}</span>
+        <span v-if="healthStore.isDefeated" class="health-status-badge">RECOVERING</span>
+      </div>
+
       <!-- Streak -->
       <div class="rpg-res-pill res-streak" v-if="auth.streak > 0" title="Daily Study Streak">
         <span class="res-icon"><PixelEmoji emoji="fire" size="sm" /></span>
@@ -124,12 +137,13 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useGameStore } from '../stores/game'
 import { useToastStore } from '../stores/toast'
 import { useTransitionStore } from '../stores/transition'
+import { useHealthStore } from '../stores/health'
 import AvatarImg from './AvatarImg.vue'
 
 const route = useRoute()
@@ -138,6 +152,7 @@ const auth = useAuthStore()
 const game = useGameStore()
 const toast = useToastStore()
 const transitionStore = useTransitionStore()
+const healthStore = useHealthStore()
 
 const menuOpen = ref(false)
 const windowWidth = ref(window.innerWidth)
@@ -190,6 +205,37 @@ async function handleLogout() {
   toast.info('Farewell, traveler!')
   transitionStore.triggerTravel('/', router)
 }
+
+const healthTooltip = computed(() => {
+  if (healthStore.isDefeated) {
+    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\n+${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
+  }
+  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRegeneration: +${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion`
+})
+
+function onHealthPillClick() {
+  navigateTo('/shop')
+}
+
+// Fetch health on mount and sync on navigation
+onMounted(() => {
+  if (auth.user) {
+    healthStore.syncFromUser(auth.user)
+  }
+  healthStore.fetchHealth()
+})
+
+// React immediately if auth.user changes (e.g. login, level up, character selection)
+watch(() => auth.user, (u) => {
+  if (u) {
+    healthStore.syncFromUser(u)
+  }
+}, { deep: true })
+
+// Keep health fresh on route change (e.g., returning from battles, market, etc.)
+watch(() => route.path, () => {
+  healthStore.fetchHealth()
+})
 </script>
 
 <style scoped>
@@ -348,6 +394,102 @@ async function handleLogout() {
 .res-streak { border-color: var(--crimson-deep); }
 .res-gold   { border-color: var(--aged-gold-dim); }
 .res-rating { border-color: var(--shadow-teal); }
+
+/* Health Pill */
+.res-health {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(24, 10, 16, 0.95);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 0.55rem;
+  gap: 0.35rem;
+}
+.res-health:hover {
+  border-color: rgba(239, 68, 68, 0.85);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.res-health .res-label {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  color: #f87171;
+  letter-spacing: 0.05em;
+}
+
+/* Health states (Rules 34 & 35) */
+.res-health.state-normal {
+  border-color: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.15);
+}
+.res-health.state-normal .res-val {
+  color: #86efac;
+}
+.res-health.state-normal .res-label {
+  color: #4ade80;
+}
+
+.res-health.state-warning {
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+.res-health.state-warning .res-val {
+  color: #fde047;
+}
+.res-health.state-warning .res-label {
+  color: #f59e0b;
+}
+
+.res-health.state-critical {
+  border-color: rgba(239, 68, 68, 0.9);
+  background: rgba(45, 8, 12, 0.95);
+  animation: hpPulseCritical 1.2s infinite ease-in-out;
+}
+.res-health.state-critical .res-val {
+  color: #fca5a5;
+}
+.res-health.state-critical .res-label {
+  color: #ef4444;
+}
+
+.res-health.state-defeated {
+  border-color: rgba(185, 28, 28, 0.95);
+  background: rgba(35, 6, 10, 0.95);
+}
+.res-health.state-defeated .res-val {
+  color: #f87171;
+}
+.res-health.state-defeated .res-label {
+  color: #dc2626;
+}
+
+.health-status-badge {
+  font-family: var(--font-pixel);
+  font-size: 5px;
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+  padding: 1px 3px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+  animation: hpPulseRecovering 1.8s infinite ease-in-out;
+}
+
+@keyframes hpPulseCritical {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.85); }
+}
+
+@keyframes hpPulseRecovering {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .res-health .res-label { display: none; }
+  .res-health .res-val { font-size: 6px; }
+  .res-health .health-status-badge { display: none; }
+}
 
 .res-icon { font-size: 1rem; }
 .res-val {

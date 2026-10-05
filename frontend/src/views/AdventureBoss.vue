@@ -15,14 +15,14 @@
         <div class="locked-icon-crest">
           <PixelEmoji emoji="lock" size="lg" />
         </div>
-        <h2 class="locked-title">CHAMBER RUNES UNFULFILLED</h2>
+        <h2 class="locked-title">{{ isFinalBoss ? "THE CREATOR'S DOMAIN SEALED" : "CHAMBER RUNES UNFULFILLED" }}</h2>
         <p class="locked-sub">
-          The sanctuary seal remains unbroken. You must conquer all 10 preliminary episodes of this chapter before the Aberration awakens.
+          {{ lockedMessage || (isFinalBoss ? "The final gate into the Black Archive remains sealed. You must defeat Chapter 12's normal boss: The Mask of a Thousand Selves before confronting The Creator." : "The sanctuary seal remains unbroken. You must conquer all 10 preliminary episodes of this chapter before the Aberration awakens.") }}
         </p>
-        <div class="locked-parts-status">
+        <div v-if="!isFinalBoss" class="locked-parts-status">
           <span class="status-num">{{ partsCompletedCount }} / 10 EPISODES COMPLETED</span>
         </div>
-        <router-link :to="'/adventure/' + chapterId" class="btn btn-gothic-crimson btn-lg">
+        <router-link :to="'/adventure/' + (isFinalBoss ? '12' : chapterId)" class="btn btn-gothic-crimson btn-lg">
           ← RETURN TO CHAPTER MAP
         </router-link>
       </div>
@@ -30,17 +30,17 @@
       <!-- PHASE: CINEMATIC INTRO ─────────────────────────── -->
       <template v-else-if="phase === 'intro'">
         <BossIntro
-          :act-title="bossData?.chapter?.act_title || ('ACT ' + toRoman(bossData?.chapter?.act_number || 1))"
+          :act-title="bossData?.chapter?.act_title || (isFinalBoss ? 'APEX CONFRONTATION' : ('ACT ' + toRoman(bossData?.chapter?.act_number || 1)))"
           :chapter-story-title="bossData?.chapter?.chapter_story_title || bossData?.chapter?.name"
           :boss-name="boss?.name || bossMeta.name"
-          :boss-title="boss?.story_title || bossMeta.title || 'Guardian of the Mindrealm'"
+          :boss-title="boss?.story_title || bossMeta.title || (isFinalBoss ? 'Architect of the Mindrealm & Origin of the Fracture' : 'Guardian of the Mindrealm')"
           :boss-img="bossMeta.animated || bossMeta.happy"
           :dialogue-intro="boss?.dialogue_intro || boss?.flavor_text || bossMeta.description"
           :mind-seal-name="boss?.mind_seal_name || bossData?.chapter?.mind_seal_name"
           :fracture-shard-name="boss?.fracture_shard_name || bossData?.chapter?.fracture_shard_name"
-          :max-hp="Number(boss?.max_hp) || 300"
-          :xp-reward="Number(boss?.xp_reward) || 500"
-          :coin-reward="Number(boss?.point_reward) || 300"
+          :max-hp="Number(boss?.max_hp) || (isFinalBoss ? 500 : 300)"
+          :xp-reward="Number(boss?.xp_reward) || (isFinalBoss ? 2500 : 500)"
+          :coin-reward="Number(boss?.point_reward) || (isFinalBoss ? 1500 : 300)"
           @retreat="goToMap"
           @start="startBossBattle"
         />
@@ -49,18 +49,27 @@
       <!-- PHASE: BATTLE ─────────────────────────────────── -->
       <template v-else-if="phase === 'battle'">
         <div class="boss-battle-arena animate-scale-up">
-          <!-- Classic Turn-Based RPG Battlefield (Pokemon-inspired layout with Chapter Boss) -->
+          <!-- Classic Turn-Based RPG Battlefield (Pokemon-inspired layout with Chapter Boss / Final Boss) -->
           <AdventureBattlefield
             v-if="!battleComplete"
             :is-boss="true"
+            :is-final-boss="isFinalBoss"
             :chapter-id="chapterId"
-            :chapter-title="bossData?.chapter?.name || 'Sanctum'"
-            :part-title="'CLIMAX GUARDIAN TRIAL'"
+            :chapter-title="isFinalBoss ? 'Deepest Chamber of the Black Archive' : (bossData?.chapter?.name || 'Sanctum')"
+            :part-title="isFinalBoss ? 'APEX TRIAL — CONFRONTATION WITH THE CREATOR' : 'CLIMAX GUARDIAN TRIAL'"
             :enemy-name="boss?.name || bossMeta.name"
             :enemy-title="boss?.story_title || bossMeta.title"
             :boss-meta="bossMeta"
             :boss-hp="bossHP"
             :boss-max-hp="bossMaxHP"
+            :player-hp="playerHP"
+            :player-max-hp="playerMaxHP"
+            :player-level="adventure.playerLevel"
+            :attack-power="adventure.characterDamage"
+            :critical-attack-power="adventure.characterCritDamage"
+            :damage-dealt="dmgToEnemy"
+            :damage-taken="dmgToPlayer"
+            :damage-type="lastDmgType"
             :questions="questions"
             :current-q-index="currentQIdx"
             :current-q="currentQ"
@@ -69,43 +78,75 @@
             :last-correct="lastCorrect"
             :is-last-question="currentQIdx >= questions.length - 1"
             @answer="handleAnswer"
+            @answered="onQuestionAnswered"
             @next="nextBossQuestion"
           />
 
           <!-- Submitting Victory Notice -->
           <div v-if="battleComplete && battleResult === 'victory' && submittingVictory" class="boss-submitting gothic-panel animate-scale-up">
             <div class="loading-spinner"></div>
-            <p class="pixel-text">COMMUNING WITH ARCHIVES & UNLOCKING DESTINY…</p>
+            <p class="pixel-text">{{ isFinalBoss ? 'COMMUNING WITH GENESIS ARCHIVE & HEALING THE FRACTURE…' : 'COMMUNING WITH ARCHIVES & UNLOCKING DESTINY…' }}</p>
           </div>
 
           <!-- VICTORY STATE ──────────────────────────────────── -->
           <BossDefeat
             v-else-if="battleComplete && battleResult === 'victory'"
+            :is-final-boss="isFinalBoss"
             :boss-name="boss?.name || bossMeta.name"
             :boss-img="bossMeta.animated || bossMeta.happy"
-            :dialogue-defeat="completionResult?.dialogue_defeat || boss?.dialogue_defeat || 'You have freed my consciousness from the Fracture with your psychological insight.'"
-            :restoration-text="completionResult?.restoration_text || boss?.restoration_text || 'The cognitive distortion fades as the Mindrealm region returns to equilibrium.'"
+            :dialogue-defeat="completionResult?.dialogue_defeat || boss?.dialogue_defeat || (isFinalBoss ? 'The archive... was never mine to control. Consciousness cannot be bound by rigid taxonomy.' : 'You have freed my consciousness from the Fracture with your psychological insight.')"
+            :restoration-text="completionResult?.restoration_text || boss?.restoration_text || (isFinalBoss ? 'The Genesis Singularity steadies. The shattered fragments of the Mindrealm fuse into enduring cognitive harmony.' : 'The cognitive distortion fades as the Mindrealm region returns to equilibrium.')"
             :mind-seal-recovered="completionResult?.mind_seal_recovered || boss?.mind_seal_name || bossData?.chapter?.mind_seal_name"
             :fracture-shard-recovered="completionResult?.fracture_shard_recovered || boss?.fracture_shard_name || bossData?.chapter?.fracture_shard_name"
             :is-first-completion="completionResult?.is_first_completion ?? true"
-            :rewards="completionResult?.rewards || { xp: boss?.xp_reward || 500, coins: boss?.point_reward || 300 }"
+            :rewards="completionResult?.rewards || { xp: boss?.xp_reward || (isFinalBoss ? 2500 : 500), coins: boss?.point_reward || (isFinalBoss ? 1500 : 300) }"
             :next-chapter-unlocked="Boolean(completionResult?.next_chapter_unlocked && completionResult?.next_chapter_id)"
             :next-chapter-order="completionResult?.next_chapter_order || (chapterOrder + 1)"
             :next-chapter-name="completionResult?.next_chapter_name || ''"
             :black-archive-unlocked="Boolean(completionResult?.black_archive_unlocked || completionResult?.all_chapters_completed)"
+            :final-boss-unlocked="Boolean(completionResult?.final_boss_unlocked)"
             @next-chapter="continueToNextChapter"
             @open-black-archive="showBlackArchive = true"
+            @open-final-boss="goToFinalBoss"
+            @open-campaign-complete="showCampaignCompleteModal = true"
             @return-map="goToMap"
           />
 
           <!-- DEFEAT STATE ──────────────────────────────────── -->
           <div v-if="battleComplete && battleResult === 'defeat'" class="boss-defeat gothic-panel animate-scale-up">
-            <div class="defeat-icon"><PixelEmoji emoji="skull" size="xl" /></div>
-            <h2 class="defeat-title">YOUR MIND WAS CONSUMED</h2>
-            <p class="defeat-sub">The trial overwhelms unprepared scholars. Delve into the archives and return.</p>
+            <!-- Primary Animated Battle Result Character (Player Character Defeat: Death GIF -> Static PNG) -->
+            <BattleResultCharacter result="defeat" size="xl" />
+            <h2 class="defeat-title font-pixel text-crimson">{{ isFinalBoss ? 'THE ARCHIVE OVERWHELMED YOU' : 'YOU ARE DEFEATED' }}</h2>
+            <p class="defeat-sub">{{ isFinalBoss ? 'The Creator\'s cognitive synthesis demands flawless psychiatric reasoning. Recover and prepare to challenge the singularity again.' : 'Your strength has been exhausted. Recover at least 1 HP before returning to battle.' }}</p>
+
+            <!-- Recovery Information (Rules 2, 9, 10) -->
+            <div class="defeat-boss-recovery-box">
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">HEALTH</span>
+                <span class="rec-val text-red font-pixel">0 / {{ healthStore.maxHp }} HP</span>
+              </div>
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">RECOVERY</span>
+                <span class="rec-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+              </div>
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">NEXT RECOVERY</span>
+                <span class="rec-val text-teal font-pixel">{{ healthStore.formattedCountdown }}</span>
+              </div>
+            </div>
+
             <div class="defeat-actions">
-              <button class="btn btn-gothic-crimson" @click="retryBoss">RE-ATTEMPT TRIAL</button>
-              <router-link :to="'/adventure/' + chapterId" class="btn btn-gothic-stone">← CHAPTER SANCTUM</router-link>
+              <button
+                class="btn btn-gothic-crimson"
+                :disabled="healthStore.isDefeated"
+                @click="retryBoss"
+              >
+                {{ healthStore.isDefeated ? '🔒 RETRY LOCKED (0 HP)' : 'RE-ATTEMPT TRIAL' }}
+              </button>
+              <button class="btn btn-gothic-crimson" @click="goToShop">
+                🧪 USE HEALTH POTION (+200 HP)
+              </button>
+              <router-link :to="'/adventure/' + (isFinalBoss ? '12' : chapterId)" class="btn btn-gothic-stone">← CHAPTER SANCTUM</router-link>
             </div>
           </div>
         </div>
@@ -113,6 +154,14 @@
 
       <!-- Black Archive Apex Encounter Modal -->
       <BlackArchiveModal v-if="showBlackArchive" @close="showBlackArchive = false" />
+
+      <!-- Campaign Completion Apex Victory Modal -->
+      <CampaignCompletionModal
+        v-if="showCampaignCompleteModal"
+        :results="completionResult"
+        @close="showCampaignCompleteModal = false"
+        @navigate="onCampaignNavigate"
+      />
 
     </div>
   </div>
@@ -125,14 +174,17 @@ import { useAuthStore } from '../stores/auth'
 import { useAdventureStore } from '../stores/adventure'
 import { useTransitionStore } from '../stores/transition'
 import { useToastStore } from '../stores/toast'
+import { useHealthStore } from '../stores/health'
 import AvatarImg from '../components/AvatarImg.vue'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
 import api from '../services/api'
-import { getBossForChapter } from '../services/bossMapping'
+import { getBossForChapter, getFinalBoss } from '../services/bossMapping'
 import BossIntro from '../components/adventure/BossIntro.vue'
 import BossDefeat from '../components/adventure/BossDefeat.vue'
 import BlackArchiveModal from '../components/adventure/BlackArchiveModal.vue'
+import CampaignCompletionModal from '../components/adventure/CampaignCompletionModal.vue'
 import AdventureBattlefield from '../components/adventure/AdventureBattlefield.vue'
+import BattleResultCharacter from '../components/adventure/BattleResultCharacter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -140,14 +192,18 @@ const auth = useAuthStore()
 const adventure = useAdventureStore()
 const transitionStore = useTransitionStore()
 const toast = useToastStore()
+const healthStore = useHealthStore()
 
-const chapterId = computed(() => Number(route.params.chapterId) || 1)
-const bossMeta = computed(() => getBossForChapter(chapterId.value))
+const isFinalBoss = computed(() => route.path.includes('/final-boss'))
+const chapterId = computed(() => Number(route.params.chapterId) || 12)
+const bossMeta = computed(() => isFinalBoss.value ? getFinalBoss() : getBossForChapter(chapterId.value))
 
 const phase = ref('intro')
 const loading = ref(true)
 const partsIncomplete = ref(false)
+const lockedMessage = ref('')
 const showBlackArchive = ref(false)
+const showCampaignCompleteModal = ref(false)
 const partsCompletedCount = ref(0)
 const boss = ref(null)
 const questions = ref([])
@@ -185,6 +241,30 @@ function toRoman(num) {
 }
 
 onMounted(async () => {
+  if (isFinalBoss.value) {
+    chapterOrder.value = 12
+    const finalRes = await adventure.loadFinalBoss()
+    if (!finalRes.success) {
+      if (finalRes.locked) {
+        partsIncomplete.value = true
+        lockedMessage.value = finalRes.message || 'You must conquer Chapter 12: The Mask of a Thousand Selves before challenging The Creator.'
+        loading.value = false
+        return
+      }
+      toast.warning(finalRes.message || 'Failed to load Final Boss encounter.')
+      router.push('/adventure/12')
+      return
+    }
+    bossData.value = {
+      chapter: finalRes.chapter || { name: 'Deepest Chamber of the Black Archive', act_title: 'THE APEX CONFRONTATION', act_number: 12 },
+      boss: finalRes.boss
+    }
+    boss.value = finalRes.boss
+    questions.value = finalRes.questions || []
+    loading.value = false
+    return
+  }
+
   try {
     const res = await api.get(`/adventure/chapters/${chapterId.value}`)
     if (res.data.success) {
@@ -269,46 +349,128 @@ onMounted(async () => {
   loading.value = false
 })
 
-function startBossBattle() {
+const lastDmgType = ref('normal')
+
+function getCharacterBaseHealth() {
+  const c = auth.selectedCharacter || auth.user?.selected_character
+  if (c?.health) return Number(c.health)
+  const code = (c?.code || c?.class_type || 'mage').toLowerCase()
+  if (code === 'melee') return 200
+  if (code === 'range') return 110
+  return 150
+}
+
+async function startBossBattle() {
+  if (healthStore.isDefeated) {
+    toast.error('Your strength has been exhausted! Recover at least 1 HP before challenging the boss.')
+    return
+  }
+
+  const charBaseHealth = getCharacterBaseHealth()
+  const userLvl = Math.max(1, Math.min(50, Number(auth.level || 1)))
+  const charScaledMaxHP = Math.round(charBaseHealth * (1 + (userLvl - 1) * 0.10))
   bossHP.value = boss.value?.max_hp || 300
   bossMaxHP.value = boss.value?.max_hp || 300
-  playerHP.value = 100
-  playerMaxHP.value = 100
+  playerMaxHP.value = healthStore.maxHp || charScaledMaxHP
+  playerHP.value = healthStore.currentHp || charScaledMaxHP
   currentQIdx.value = 0
   battleComplete.value = false
   battleResult.value = null
   completionResult.value = null
+  dmgToEnemy.value = 0
+  dmgToPlayer.value = 0
+  lastDmgType.value = 'normal'
+
+  // Start backend server-authoritative battle session
+  const startRes = await adventure.startBattleSession({
+    encounter_type: 'boss',
+    encounter_id: boss.value?.id || 1,
+    chapter_id: chapterId.value,
+    is_boss: true
+  })
+
+  if (startRes && startRes.allowed === false) {
+    healthStore.applyHealthData(startRes)
+    toast.error(startRes.message || 'Your health is 0. Recover at least 1 HP to battle.')
+    phase.value = 'intro'
+    return
+  }
+
   phase.value = 'battle'
+
+  if (startRes && startRes.success) {
+    if (startRes.player_current_health !== undefined) playerHP.value = Number(startRes.player_current_health)
+    if (startRes.player_max_health !== undefined) playerMaxHP.value = Number(startRes.player_max_health)
+    if (startRes.enemy_current_health !== undefined) bossHP.value = Number(startRes.enemy_current_health)
+    if (startRes.enemy_max_health !== undefined) bossMaxHP.value = Number(startRes.enemy_max_health)
+    healthStore.updateFromBattleAction(startRes)
+  }
 }
 
-async function handleAnswer(key) {
-  if (answered.value) return
-  answered.value = true
+async function handleAnswer(payload) {
+  const key = typeof payload === 'object' ? payload.key : payload
+  const isCritical = typeof payload === 'object' ? Boolean(payload.isCritical) : false
+  const resolve = typeof payload === 'object' ? payload.resolve : null
+
   selectedKey.value = key
-  const correct = currentQ.value.correct_answer || currentQ.value.correct
-  const isCorrect = key === correct
-  lastCorrect.value = isCorrect
-  answers.value.push({ question_id: currentQ.value?.id, chosen: key })
+  answers.value.push({ 
+    question_id: currentQ.value?.id, 
+    chosen: key, 
+    is_critical: isCritical,
+    critical_active: isCritical 
+  })
 
-  // Knowledge Battle: Player takes NO damage from incorrect answers!
-  // Boss HP is tracked for defeat progress ONLY on correct answers:
-  const qCount = questions.value?.length || 1
+  // Submit to server-authoritative combat API
+  const serverRes = await adventure.submitBattleAction({
+    battle_id: adventure.activeBattleId,
+    question_id: currentQ.value?.id,
+    question_index: currentQIdx.value,
+    selected_choice: key,
+    expected_correct: currentQ.value?.correct_answer || currentQ.value?.correct,
+    expected_explanation: currentQ.value?.explanation,
+    is_critical: isCritical,
+    critical_active: isCritical,
+    chapter_id: chapterId.value,
+    is_boss: true
+  })
 
-  if (isCorrect) {
-    const correctCount = answers.value.filter(a => {
-      const q = questions.value.find(item => item.id === a.question_id)
-      return q && (q.correct_answer || q.correct) === a.chosen
-    }).length
+  // Hand off authoritative server result to AdventureBattlefield so it plays the animation BEFORE applying damage!
+  if (resolve) {
+    resolve(serverRes)
+  }
+}
 
-    const targetHp = correctCount >= qCount
-      ? 0
-      : Math.max(0, Math.round(bossMaxHP.value * (1 - (correctCount / qCount))))
-    const dmg = Math.max(1, bossHP.value - targetHp)
-    dmgToEnemy.value = dmg
-    bossHP.value = targetHp
-  } else {
-    // Incorrect answer: Boss takes ZERO damage, life remains untouched
-    dmgToEnemy.value = 0
+async function onQuestionAnswered(serverRes) {
+  answered.value = true
+  lastCorrect.value = Boolean(serverRes?.is_correct ?? serverRes?.correct)
+
+  if (serverRes) {
+    healthStore.updateFromBattleAction(serverRes)
+    if (serverRes.player_current_health !== undefined) playerHP.value = Number(serverRes.player_current_health)
+    if (serverRes.player_max_health !== undefined) playerMaxHP.value = Number(serverRes.player_max_health)
+    if (serverRes.enemy_current_health !== undefined) bossHP.value = Number(serverRes.enemy_current_health)
+    if (serverRes.enemy_max_health !== undefined) bossMaxHP.value = Number(serverRes.enemy_max_health)
+    dmgToEnemy.value = Number(serverRes.damage_dealt || 0)
+    dmgToPlayer.value = Number(serverRes.player_damage_taken || 0)
+    lastDmgType.value = serverRes.damage_type || 'normal'
+
+    if (serverRes.correct_answer && currentQ.value) {
+      currentQ.value.correct_answer = serverRes.correct_answer
+    }
+    if (serverRes.explanation && currentQ.value) {
+      currentQ.value.explanation = serverRes.explanation
+    }
+  }
+
+  // Check victory / defeat conditions after animations and damage application have completed
+  if (playerHP.value <= 0) {
+    battleComplete.value = true
+    battleResult.value = 'defeat'
+    healthStore.currentHp = 0
+  } else if (bossHP.value <= 0) {
+    battleComplete.value = true
+    battleResult.value = 'victory'
+    await finalizeBossVictory()
   }
 }
 
@@ -320,14 +482,26 @@ async function finalizeBossVictory() {
       boss_hp: 0,
       answers: answers.value
     }
-    const res = await adventure.completeBossBattle(chapterId.value, boss.value?.id || 1, battleData)
-    if (res.success) {
-      completionResult.value = res
-      if (res.is_first_completion) {
-        toast.success(`Chapter Completed! +${res.rewards?.xp || 500} XP awarded!`)
+
+    if (isFinalBoss.value) {
+      const res = await adventure.completeFinalBossBattle(battleData)
+      if (res.success) {
+        completionResult.value = res
+        showCampaignCompleteModal.value = true
+        toast.success('THE CAMPAIGN IS CONQUERED! The Creator has been pacified.')
+      } else {
+        toast.warning(res.message || 'Victory recording issue')
       }
     } else {
-      toast.warning(res.message || 'Victory recording issue')
+      const res = await adventure.completeBossBattle(chapterId.value, boss.value?.id || 1, battleData)
+      if (res.success) {
+        completionResult.value = res
+        if (res.is_first_completion) {
+          toast.success(`Chapter Completed! +${res.rewards?.xp || 500} XP awarded!`)
+        }
+      } else {
+        toast.warning(res.message || 'Victory recording issue')
+      }
     }
   } catch (err) {
     console.error('Error finalizing victory', err)
@@ -377,15 +551,15 @@ async function nextBossQuestion() {
 }
 
 function retryBoss() {
-  playerHP.value = playerMaxHP.value
-  bossHP.value = bossMaxHP.value
-  currentQIdx.value = 0
-  answered.value = false
-  selectedKey.value = null
-  battleComplete.value = false
-  battleResult.value = null
-  answers.value = []
-  completionResult.value = null
+  if (healthStore.isDefeated) {
+    toast.error('Your health is 0! Recover at least 1 HP before challenging the boss again.')
+    return
+  }
+  startBossBattle()
+}
+
+function goToShop() {
+  transitionStore.triggerTravel('/shop', router)
 }
 
 async function continueToNextChapter() {
@@ -397,8 +571,17 @@ async function continueToNextChapter() {
   }
 }
 
+async function goToFinalBoss() {
+  await transitionStore.triggerTravel('/adventure/final-boss', router)
+}
+
+async function onCampaignNavigate(dest) {
+  showCampaignCompleteModal.value = false
+  await transitionStore.triggerTravel(dest, router)
+}
+
 async function goToMap() {
-  await transitionStore.triggerTravel(`/adventure/${chapterId.value}`, router)
+  await transitionStore.triggerTravel(`/adventure/${isFinalBoss.value ? 12 : chapterId.value}`, router)
 }
 </script>
 
@@ -406,10 +589,43 @@ async function goToMap() {
 .adv-boss-screen {
   min-height: 100vh;
   position: relative;
-  padding-top: 68px;
+  padding-top: 0;
   background: var(--gothic-void, #050608);
   user-select: none;
 }
+
+/* Defeat Boss Recovery Box */
+.defeat-boss-recovery-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  background: rgba(18, 5, 10, 0.95);
+  border: 1px solid rgba(225, 29, 72, 0.5);
+  border-radius: 6px;
+  padding: 0.65rem;
+  margin: 1rem 0;
+  width: 100%;
+  max-width: 480px;
+}
+.rec-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.rec-label {
+  font-size: 0.48rem;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+}
+.rec-val {
+  font-size: 0.65rem;
+}
+.text-red { color: #f87171; }
+.text-gold { color: #fbbf24; }
+.text-teal { color: #2dd4bf; }
+.text-crimson { color: #f43f5e; }
+
 .boss-bg {
   position: fixed;
   inset: 0;
@@ -420,7 +636,8 @@ async function goToMap() {
   pointer-events: none;
 }
 .adv-boss-screen.is-in-battle {
-  padding-top: 56px;
+  padding-top: 0;
+  margin-top: -0.75rem;
 }
 
 .boss-content {
@@ -432,11 +649,18 @@ async function goToMap() {
   transition: max-width 0.25s ease, padding 0.25s ease;
 }
 
+.adv-boss.is-in-battle {
+  padding-top: 0;
+  min-height: auto;
+  box-sizing: border-box;
+}
+
 .boss-content.is-battle-mode {
   max-width: 100% !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0.25rem 0.75rem 2rem !important;
+  padding: 0 0.5rem 0.25rem !important;
+  box-sizing: border-box;
 }
 
 .boss-loading {

@@ -1,5 +1,19 @@
 <template>
   <div class="rpg-adventure-screen">
+    <!-- Persistent Defeat Status Ribbon (Rule 22) -->
+    <div v-if="healthStore.isDefeated" class="adv-map-defeat-ribbon animate-slide-down">
+      <div class="ribbon-inner">
+        <span class="ribbon-skull">💀</span>
+        <div class="ribbon-info">
+          <strong class="font-pixel">ADVENTURE UNAVAILABLE — YOU ARE DEFEATED</strong>
+          <span class="ribbon-sub">HP: 0 / {{ healthStore.maxHp }} • +{{ healthStore.regenRate }} HP/Hour • Next Recovery: {{ healthStore.formattedCountdown }} • Recover at least 1 HP to battle</span>
+        </div>
+        <button class="btn btn-gothic-crimson btn-xs ribbon-btn" @click="goToMarketForPotion">
+          🧪 RESTORE (+200 HP)
+        </button>
+      </div>
+    </div>
+
     <!-- Map Landscape Canvas / Backdrop — Gothic pixel art adventure environment -->
     <div class="map-landscape-wrapper">
       <div class="map-viewport-stage">
@@ -100,6 +114,68 @@
               </span>
             </div>
           </div>
+
+          <!-- 12th Episode (Chapter 12 Exclusive): FINAL BOSS — THE CREATOR (The Black Archive Void Singularity) -->
+          <div
+            v-if="activeChapterNum === 12"
+            class="stage-node-wrapper final-boss-node-wrapper node-pos-final-boss"
+            :class="{
+              'node-unlocked': finalBossState === 'unlocked' || finalBossState === 'completed',
+              'node-locked': finalBossState === 'locked',
+              'node-current': finalBossState === 'unlocked',
+              'node-completed': finalBossState === 'completed'
+            }"
+            :style="getFinalBossNodeStyle()"
+            @click="openFinalBossEncounter"
+          >
+            <!-- Final Boss Stage Pill Tag -->
+            <div
+              class="stage-pill-tag final-boss-pill-tag"
+              :class="{
+                'tag-fb-ready': finalBossState === 'unlocked',
+                'tag-fb-completed': finalBossState === 'completed',
+                'tag-fb-locked': finalBossState === 'locked'
+              }"
+            >
+              <PixelEmoji :emoji="finalBossState === 'completed' ? 'crown' : (finalBossState === 'unlocked' ? 'sparkles' : 'lock')" size="xs" />
+              <span>{{ finalBossState === 'completed' ? 'CREATOR PACIFIED' : (finalBossState === 'unlocked' ? 'FINAL BOSS: THE CREATOR' : 'FINAL BOSS LOCKED') }}</span>
+            </div>
+
+            <!-- The Creator Unit with Portal Aura & Floating Sprite -->
+            <div class="final-boss-unit">
+              <div
+                class="final-boss-portal-aura"
+                :class="{
+                  'aura-active': finalBossState === 'unlocked',
+                  'aura-completed': finalBossState === 'completed'
+                }"
+              ></div>
+
+              <div class="boss-sprite-container" :class="{ 'boss-sprite-locked': finalBossState === 'locked' }">
+                <img
+                  :src="resolveAsset(finalBossMeta.animated || finalBossMeta.idle || finalBossMeta.sprite)"
+                  :alt="finalBossMeta.name"
+                  class="boss-sprite-img pixel-art animate-boss-float final-boss-sprite-img"
+                  @error="onBossImgError"
+                />
+                <div v-if="finalBossState === 'locked'" class="boss-floating-lock-glyph">
+                  <PixelEmoji emoji="lock" size="sm" />
+                </div>
+              </div>
+
+              <!-- Void Singularity Pedestal -->
+              <div class="final-boss-pedestal" :class="{ 'pedestal-active': finalBossState === 'unlocked' }">
+                <span class="fb-pedestal-label">THE BLACK ARCHIVE</span>
+              </div>
+            </div>
+
+            <!-- Stars / Complete Badge -->
+            <div class="stage-stars-row boss-stars-row">
+              <span v-for="s in 3" :key="s" class="stage-star" :class="{ 'star-lit': finalBossState === 'completed' }">
+                <PixelEmoji emoji="star" size="xs" />
+              </span>
+            </div>
+          </div>
         </div>
       </Transition>
     </div>
@@ -136,6 +212,17 @@
             <div class="star-crest-info">
               <span class="stars-fraction">{{ recoveredSealsCount }}/12</span>
               <span class="stars-label">Mind Seals</span>
+            </div>
+          </div>
+
+          <!-- Adventure Health & Recovery Status -->
+          <div class="total-stars-medal adv-health-recovery-badge" :title="`Adventure Health: ${advHp} / ${advMaxHp} (+50 HP / hour)`">
+            <div class="star-crest-icon health-crest-icon">
+              <span class="health-icon-symbol">💖</span>
+            </div>
+            <div class="star-crest-info">
+              <span class="stars-fraction">{{ advHp }}/{{ advMaxHp }}</span>
+              <span class="stars-label health-regen-sub">+50 HP/hr</span>
             </div>
           </div>
         </div>
@@ -188,13 +275,18 @@
         <div class="top-right-group">
           <!-- Black Archive Portal Button -->
           <button
-            v-if="blackArchiveUnlocked"
-            class="black-archive-top-btn animate-pulse"
+            class="black-archive-top-btn"
+            :class="{
+              'is-locked': finalBossState === 'locked',
+              'is-unlocked animate-pulse': finalBossState === 'unlocked',
+              'is-completed': finalBossState === 'completed'
+            }"
             @click="showBlackArchiveModal = true"
-            title="Confront The Creator in The Black Archive"
+            title="The Black Archive — Final Encounter"
           >
-            <span class="ba-key-icon">🗝️</span>
-            <span class="ba-key-text">THE BLACK ARCHIVE</span>
+            <span class="ba-key-icon">{{ finalBossState === 'completed' ? '🕊️' : (finalBossState === 'unlocked' ? '🗝️' : '🔒') }}</span>
+            <span class="ba-key-text">THE BLACK ARCHIVE — FINAL ENCOUNTER</span>
+            <span class="ba-status-badge">{{ finalBossState.toUpperCase() }}</span>
           </button>
 
           <!-- Quest Objective Banner -->
@@ -335,10 +427,45 @@
           </span>
         </div>
 
+        <!-- Defeat Warning Box (when 0 HP) -->
+        <div v-if="healthStore.isDefeated" class="stage-defeat-alert-box animate-scale-up">
+          <div class="defeat-alert-header">
+            <span class="defeat-alert-skull">💀</span>
+            <div class="defeat-alert-title-wrap">
+              <h4 class="defeat-alert-title font-pixel">YOU ARE DEFEATED</h4>
+              <p class="defeat-alert-subtitle">Your strength has been exhausted. Recover at least 1 HP before returning to battle.</p>
+            </div>
+          </div>
+          <div class="defeat-stats-grid">
+            <div class="stat-cell">
+              <span class="cell-label font-pixel">CURRENT HP</span>
+              <span class="cell-val text-red font-pixel">0 / {{ healthStore.maxHp }}</span>
+            </div>
+            <div class="stat-cell">
+              <span class="cell-label font-pixel">RECOVERY</span>
+              <span class="cell-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+            </div>
+            <div class="stat-cell">
+              <span class="cell-label font-pixel">NEXT RECOVERY</span>
+              <span class="cell-val text-teal font-pixel">{{ healthStore.formattedCountdown }}</span>
+            </div>
+          </div>
+          <button class="btn btn-gothic-crimson btn-sm w-full mt-2" @click="goToMarketForPotion">
+            🧪 RESTORE WITH HEALTH POTION (+200 HP)
+          </button>
+        </div>
+
         <div class="stage-modal-actions">
           <button class="btn btn-gothic-stone" @click="selectedEpisodeData = null">← RETURN</button>
           <button
-            v-if="selectedEpisodeData.unlocked"
+            v-if="healthStore.isDefeated"
+            class="btn btn-gothic-crimson btn-lg enter-battle-btn btn-exhausted"
+            @click="showDefeatModal = true"
+          >
+            💀 YOU ARE DEFEATED
+          </button>
+          <button
+            v-else-if="selectedEpisodeData.unlocked"
             class="btn btn-gothic-crimson btn-lg enter-battle-btn"
             @click="launchBattle"
           >
@@ -409,6 +536,66 @@
       @close="showBlackArchiveModal = false"
     />
 
+    <!-- ── DEFEAT & HEALTH RECOVERY MODAL (Rules 9, 10, 22) ── -->
+    <div v-if="showDefeatModal" class="modal-backdrop rpg-modal-backdrop" @click.self="showDefeatModal = false">
+      <div class="stage-modal-card rpg-stage-modal defeat-recovery-modal animate-scale-up">
+        <div class="stage-modal-header">
+          <div class="modal-badge-group">
+            <span class="stage-code-badge badge-crimson">
+              💀 DEFEAT STATE
+            </span>
+          </div>
+          <button class="close-modal-btn modal-close-btn" @click="showDefeatModal = false">✕</button>
+        </div>
+
+        <div class="defeat-hero-icon-wrap">
+          <span class="defeat-skull-art">💀</span>
+        </div>
+
+        <h3 class="stage-modal-title modal-stage-name text-crimson text-center">YOU ARE DEFEATED</h3>
+        <p class="stage-topic-desc text-center">
+          Your strength has been exhausted. Recover at least 1 HP before returning to battle.
+        </p>
+
+        <div class="defeat-recovery-dashboard">
+          <div class="recovery-metric-card">
+            <span class="metric-label font-pixel">CURRENT HEALTH</span>
+            <div class="metric-val text-red font-pixel">
+              {{ healthStore.currentHp }} / {{ healthStore.maxHp }} HP
+            </div>
+            <div class="health-mini-bar-track">
+              <div class="health-mini-bar-fill" :style="{ width: healthStore.hpPercent + '%' }"></div>
+            </div>
+          </div>
+
+          <div class="recovery-metric-card">
+            <span class="metric-label font-pixel">HEALTH RECOVERY</span>
+            <div class="metric-val text-gold font-pixel">
+              +{{ healthStore.regenRate }} HP / HOUR
+            </div>
+            <span class="metric-sub">Passive recovery runs continuously (online & offline)</span>
+          </div>
+
+          <div class="recovery-metric-card">
+            <span class="metric-label font-pixel">NEXT RECOVERY</span>
+            <div class="metric-val text-teal font-pixel">
+              {{ healthStore.formattedCountdown }}
+            </div>
+            <span class="metric-sub">Authoritative server checkpoint synchronization</span>
+          </div>
+        </div>
+
+        <div class="stage-modal-actions mt-4">
+          <button class="btn btn-gothic-stone" @click="showDefeatModal = false">
+            ← CLOSE
+          </button>
+          <button class="btn btn-gothic-crimson btn-lg" @click="goToMarketForPotion">
+            🧪 RESTORE WITH HEALTH POTION (+200 HP)
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -416,19 +603,39 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdventureStore } from '../stores/adventure'
+import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useTransitionStore } from '../stores/transition'
+import api from '../services/api'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
-import { getBossForChapter, resolveAsset } from '../services/bossMapping'
+import { getBossForChapter, getFinalBoss, resolveAsset } from '../services/bossMapping'
 import ChapterIntro from '../components/adventure/ChapterIntro.vue'
 import BlackArchiveModal from '../components/adventure/BlackArchiveModal.vue'
 import { getChapterEnvironment, preloadAdjacentBackgrounds } from '../config/chapterEnvironments'
+import { useHealthStore } from '../stores/health'
 
 const route = useRoute()
 const router = useRouter()
 const adventure = useAdventureStore()
+const auth = useAuthStore()
 const toast = useToastStore()
 const transitionStore = useTransitionStore()
+const healthStore = useHealthStore()
+
+const showDefeatModal = ref(false)
+
+const advHp = computed(() => healthStore.currentHp)
+const advMaxHp = computed(() => healthStore.maxHp)
+
+async function loadAdvHealth() {
+  await healthStore.fetchHealth()
+}
+
+function goToMarketForPotion() {
+  selectedEpisodeData.value = null
+  showDefeatModal.value = false
+  transitionStore.triggerTravel('/shop', router)
+}
 
 const ALL_CHAPTERS_FALLBACK = [
   { id: 1, display_order: 1, name: 'Neurodevelopmental Disorders', chapter_status: 'available' },
@@ -518,6 +725,34 @@ function getBossNodeStyle() {
   }
 }
 
+const finalBossMeta = computed(() => getFinalBoss())
+
+function getFinalBossNodeStyle() {
+  return {
+    top: '19%',
+    left: 'calc(80% - 52px)'
+  }
+}
+
+function openFinalBossEncounter() {
+  if (finalBossState.value === 'locked') {
+    toast.error('The Black Archive remains sealed! Defeat Chapter 12 Boss first.')
+    return
+  }
+  showBlackArchiveModal.value = true
+}
+
+function openQuestModal() {
+  if (activeChapterNum.value >= 12 && activeBossDefeated.value) {
+    openFinalBossEncounter()
+  } else if (canFightBoss.value && bossEpisode.value?.unlocked) {
+    selectEpisode(bossEpisode.value)
+  } else {
+    const nextPart = regularEpisodes.value.find(e => !e.isCompleted)
+    if (nextPart) selectEpisode(nextPart)
+  }
+}
+
 const activeChapterStoryTitle = computed(() => {
   return activeChapterDetails.value?.chapter_story_title || activeChapterDetails.value?.story_title || activeChapter.value?.chapter_story_title || ''
 })
@@ -531,7 +766,13 @@ const recoveredSealsCount = computed(() => {
 })
 
 const blackArchiveUnlocked = computed(() => {
-  return adventure.blackArchiveUnlocked || adventure.allChaptersCompleted || (chapters.value.length >= 12 && chapters.value.every(c => c.boss_defeated))
+  return adventure.finalBoss?.unlocked || adventure.blackArchiveUnlocked || adventure.allChaptersCompleted || (chapters.value.length >= 12 && chapters.value.every(c => c.boss_defeated))
+})
+
+const finalBossState = computed(() => {
+  if (adventure.finalBoss?.status) return adventure.finalBoss.status
+  if (blackArchiveUnlocked.value) return 'unlocked'
+  return 'locked'
 })
 
 const isViewedChapterLocked = computed(() => {
@@ -650,6 +891,18 @@ const activeObjective = computed(() => {
     }
   }
   if (activeBossDefeated.value) {
+    if (ch >= 12) {
+      if (finalBossState.value === 'completed') {
+        return {
+          title: 'The Creator Pacified!',
+          sub: 'Mindrealm Restored — Campaign Complete'
+        }
+      }
+      return {
+        title: 'The Final Climax Beckons!',
+        sub: 'Confront The Creator in The Black Archive'
+      }
+    }
     return {
       title: `Chapter ${ch} Conquered!`,
       sub: `Proceed to Chapter ${ch + 1}`
@@ -712,6 +965,7 @@ onMounted(() => {
 
   // Load active chapter data immediately for the target chapter
   loadActiveChapterData()
+  loadAdvHealth()
 
   // Load all chapters in background and re-verify index
   loadAllChapters().then(() => {
@@ -853,6 +1107,11 @@ function launchBattle() {
   if (!ep || !ep.unlocked || isViewedChapterLocked.value) {
     return
   }
+  if (healthStore.isDefeated) {
+    toast.error('Your strength has been exhausted! Recover at least 1 HP before returning to battle.')
+    showDefeatModal.value = true
+    return
+  }
   selectedEpisodeData.value = null
   const chId = activeChapter.value?.id || 1
 
@@ -865,10 +1124,6 @@ function launchBattle() {
 
 function openBonusModal() {
   toast.info('Bonus Stage: Complete daily episodes to earn bonus reviewer drop cards!')
-}
-
-function openQuestModal() {
-  toast.info(`Objective: ${activeObjective.value.title} — ${activeObjective.value.sub}`)
 }
 </script>
 
@@ -1041,6 +1296,20 @@ function openQuestModal() {
   font-family: var(--font-body, serif);
   font-size: 0.7rem;
   color: var(--color-bone-dark, #8c8273);
+}
+
+.adv-health-recovery-badge {
+  border-left: 3px solid #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.health-crest-icon {
+  font-size: 0.85rem;
+}
+.health-regen-sub {
+  color: #86efac !important;
+  font-size: 0.58rem !important;
+  font-weight: 700;
+  text-shadow: 0 0 4px rgba(34, 197, 94, 0.6);
 }
 
 .chapter-nav-pill-wrap {
@@ -1921,6 +2190,25 @@ function openQuestModal() {
   transform: scale(1.05);
   box-shadow: 0 0 25px rgba(244, 63, 94, 0.8);
 }
+.black-archive-top-btn.is-locked {
+  background: linear-gradient(135deg, #101017 0%, #1c1c28 100%);
+  border-color: #3f3f50;
+  box-shadow: none;
+  color: #94a3b8;
+}
+.black-archive-top-btn.is-completed {
+  background: linear-gradient(135deg, #051412 0%, #064e3b 100%);
+  border-color: #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+.ba-status-badge {
+  font-size: 0.52rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid currentColor;
+}
 .ch-card-act-pill {
   font-family: var(--font-pixel, monospace);
   font-size: 0.58rem;
@@ -2061,5 +2349,282 @@ function openQuestModal() {
   .map-top-bar { top: 60px; left: 0.6rem; right: 0.6rem; }
   .ch-nav-pill { padding: 0.3rem 0.5rem; gap: 0.4rem; }
   .chapter-bottom-summary { display: none; }
+}
+
+/* ── FINAL BOSS NODE (CHAPTER 12 EXCLUSIVE) ───────────────── */
+.final-boss-node-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 25;
+}
+.node-pos-final-boss {
+  top: 19%;
+  left: calc(80% - 52px);
+}
+.final-boss-unit {
+  position: relative;
+  width: 120px;
+  height: 135px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.final-boss-portal-aura {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 125px;
+  height: 125px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.45) 0%, rgba(245, 158, 11, 0.25) 45%, rgba(139, 92, 246, 0.1) 70%, transparent 80%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.final-boss-portal-aura.aura-active {
+  opacity: 1;
+  animation: creatorVortexPulse 2.8s infinite ease-in-out;
+}
+.final-boss-portal-aura.aura-completed {
+  opacity: 0.9;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 75%);
+}
+@keyframes creatorVortexPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 15px rgba(225, 29, 72, 0.6));
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15) rotate(180deg);
+    filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.85));
+  }
+}
+.final-boss-sprite-img {
+  width: 95px;
+  height: 95px;
+  filter: drop-shadow(0 0 14px rgba(225, 29, 72, 0.8));
+}
+.final-boss-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.tag-fb-ready {
+  border-color: #fb7185;
+  color: #fff;
+  background: linear-gradient(90deg, rgba(136, 19, 55, 0.95), rgba(159, 18, 57, 0.95));
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.85);
+  animation: finalBossPillPulse 2s infinite ease-in-out;
+}
+@keyframes finalBossPillPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(225, 29, 72, 0.7); transform: scale(1); }
+  50% { box-shadow: 0 0 22px rgba(251, 113, 133, 1); transform: scale(1.05); }
+}
+.tag-fb-completed {
+  border-color: #f59e0b;
+  color: #fde68a;
+  background: rgba(30, 20, 5, 0.95);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+}
+.tag-fb-locked {
+  border-color: #4b5563;
+  color: #9ca3af;
+  background: rgba(17, 24, 39, 0.95);
+}
+.final-boss-pedestal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  background: linear-gradient(180deg, #2b1117 0%, #0d0406 100%);
+  border: 1.5px solid #881337;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.85);
+  margin-top: -4px;
+}
+.final-boss-pedestal.pedestal-active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+.fb-pedestal-label {
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.5rem;
+  letter-spacing: 0.5px;
+  color: #fb7185;
+}
+
+/* ── DEFEAT RIBBON & RECOVERY MODAL STYLES (Rules 9, 10, 22) ── */
+.adv-map-defeat-ribbon {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  z-index: 45;
+  background: linear-gradient(90deg, rgba(136, 19, 55, 0.95) 0%, rgba(30, 7, 13, 0.95) 50%, rgba(136, 19, 55, 0.95) 100%);
+  border-top: 1px solid rgba(244, 63, 94, 0.6);
+  border-bottom: 1.5px solid rgba(244, 63, 94, 0.8);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.85);
+  padding: 0.4rem 1.25rem;
+}
+.ribbon-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.ribbon-skull {
+  font-size: 1.4rem;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.8));
+}
+.ribbon-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+.ribbon-info strong {
+  font-size: 0.62rem;
+  color: #fecdd3;
+  letter-spacing: 0.05em;
+}
+.ribbon-sub {
+  font-size: 0.72rem;
+  color: #fda4af;
+  font-family: 'Outfit', sans-serif;
+}
+.ribbon-btn {
+  white-space: nowrap;
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.5);
+}
+
+/* Defeat Alert inside Stage Modal */
+.stage-defeat-alert-box {
+  background: rgba(30, 8, 14, 0.95);
+  border: 1.5px solid rgba(225, 29, 72, 0.7);
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.25);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+.defeat-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.defeat-alert-skull {
+  font-size: 1.3rem;
+}
+.defeat-alert-title {
+  font-size: 0.65rem;
+  color: #f43f5e;
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+.defeat-alert-subtitle {
+  font-size: 0.75rem;
+  color: #fecdd3;
+  margin: 0.15rem 0 0;
+  line-height: 1.3;
+}
+.defeat-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.stat-cell {
+  background: rgba(15, 4, 7, 0.8);
+  border: 1px solid rgba(225, 29, 72, 0.35);
+  border-radius: 4px;
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+}
+.cell-label {
+  display: block;
+  font-size: 0.45rem;
+  color: #9ca3af;
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.04em;
+}
+.cell-val {
+  font-size: 0.6rem;
+}
+.text-red { color: #f87171; }
+.text-gold { color: #fbbf24; }
+.text-teal { color: #2dd4bf; }
+.text-crimson { color: #f43f5e; }
+
+.btn-exhausted {
+  background: #3f0d18 !important;
+  border-color: #881337 !important;
+  color: #fda4af !important;
+  box-shadow: none !important;
+}
+
+/* Defeat & Recovery Modal */
+.defeat-recovery-modal {
+  max-width: 520px;
+}
+.defeat-hero-icon-wrap {
+  text-align: center;
+  font-size: 2.8rem;
+  margin: 0.5rem 0;
+  filter: drop-shadow(0 0 16px rgba(244, 63, 94, 0.75));
+}
+.defeat-recovery-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.recovery-metric-card {
+  background: rgba(20, 6, 12, 0.85);
+  border: 1px solid rgba(225, 29, 72, 0.4);
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+}
+.metric-label {
+  font-size: 0.52rem;
+  color: #9ca3af;
+  display: block;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
+}
+.metric-val {
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.metric-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: block;
+}
+.health-mini-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(225, 29, 72, 0.5);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+.health-mini-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e11d48, #22c55e);
+  transition: width 0.3s ease;
+}
+.badge-crimson {
+  background: rgba(225, 29, 72, 0.25);
+  border-color: rgba(225, 29, 72, 0.7);
+  color: #fecdd3;
 }
 </style>

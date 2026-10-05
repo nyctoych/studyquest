@@ -20,9 +20,15 @@ api.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      // Redirect to login if not already there
-      if (!window.location.hash.includes('/login')) {
-        window.location.hash = '/login'
+      const url = error.config?.url || ''
+      const isAuthEndpoint = url.includes('/auth/me') || url.includes('/auth/login') || url.includes('/auth/register')
+      if (!isAuthEndpoint) {
+        try { localStorage.removeItem('sq_user') } catch (_) {}
+        const currentHash = window.location.hash || ''
+        const isGuestRoute = currentHash.includes('/login') || currentHash.includes('/register') || currentHash === '#/' || currentHash === ''
+        if (!isGuestRoute) {
+          window.location.hash = '/login'
+        }
       }
     }
     return Promise.reject(error)

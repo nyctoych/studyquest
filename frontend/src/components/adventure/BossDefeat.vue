@@ -7,18 +7,15 @@
       <h1 class="crest-boss-name">{{ bossName }}</h1>
     </div>
 
-    <!-- Restored Guardian Portrait (Happy / Peaceful) -->
-    <div class="restored-boss-frame">
-      <img
-        :src="bossImg"
-        :alt="bossName"
-        class="restored-boss-img pixel-art animate-boss-float"
-      />
-      <div class="restored-halo"></div>
-    </div>
+    <!-- Primary Animated Battle Result Character (Player Character Victory) -->
+    <BattleResultCharacter result="victory" size="xl" />
 
-    <!-- Boss Gratitude & Defeat Dialogue -->
+    <!-- Boss Gratitude & Defeat Dialogue (with restored guardian token) -->
     <div v-if="dialogueDefeat" class="restoration-dialogue-wrap">
+      <div v-if="bossImg" class="restored-boss-mini-badge">
+        <img :src="bossImg" :alt="bossName" class="restored-mini-img pixel-art" />
+        <span class="restored-mini-label font-pixel">RESTORED GUARDIAN: {{ bossName }}</span>
+      </div>
       <DialogueBox
         :speaker="bossName + ' (Restored)'"
         speaker-title="Guardian of the Mindrealm"
@@ -70,9 +67,18 @@
       <span class="replay-desc">Regional balance reaffirmed. Rewards granted on initial conquest.</span>
     </div>
 
-    <!-- Next Chapter / Black Archive Transition Button -->
+    <!-- Next Chapter / Black Archive / Final Boss Transition Button -->
     <div class="defeat-actions">
-      <button v-if="blackArchiveUnlocked" class="btn btn-gothic-crimson btn-lg black-archive-btn" @click="$emit('openBlackArchive')">
+      <button v-if="isFinalBoss" class="btn btn-gothic-crimson btn-lg campaign-complete-btn" @click="$emit('openCampaignComplete')">
+        <span>🏆 VIEW CAMPAIGN VICTORY ARCHIVES</span>
+      </button>
+
+      <button v-else-if="finalBossUnlocked" class="btn btn-gothic-crimson btn-lg black-archive-btn" @click="$emit('openFinalBoss')">
+        <span>🗝️ CONFRONT THE CREATOR (FINAL BOSS)</span>
+        <span class="btn-arrow">→</span>
+      </button>
+
+      <button v-else-if="blackArchiveUnlocked" class="btn btn-gothic-crimson btn-lg black-archive-btn" @click="$emit('openBlackArchive')">
         <span>🗝️ ENTER THE BLACK ARCHIVE</span>
         <span class="btn-arrow">→</span>
       </button>
@@ -90,6 +96,7 @@
 
 <script setup>
 import DialogueBox from './DialogueBox.vue'
+import BattleResultCharacter from './BattleResultCharacter.vue'
 
 defineProps({
   bossName: { type: String, required: true },
@@ -104,9 +111,11 @@ defineProps({
   nextChapterOrder: { type: [Number, String], default: 2 },
   nextChapterName: { type: String, default: '' },
   blackArchiveUnlocked: { type: Boolean, default: false },
+  finalBossUnlocked: { type: Boolean, default: false },
+  isFinalBoss: { type: Boolean, default: false },
 })
 
-defineEmits(['nextChapter', 'openBlackArchive', 'returnMap'])
+defineEmits(['nextChapter', 'openBlackArchive', 'openFinalBoss', 'openCampaignComplete', 'returnMap'])
 </script>
 
 <style scoped>
@@ -179,6 +188,30 @@ defineEmits(['nextChapter', 'openBlackArchive', 'returnMap'])
 .restoration-dialogue-wrap {
   text-align: left;
   margin: 1rem 0;
+}
+
+.restored-boss-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(30, 27, 45, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 4px;
+  padding: 0.3rem 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.restored-mini-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+}
+
+.restored-mini-label {
+  font-size: 0.55rem;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
 }
 
 .region-restoration-box {

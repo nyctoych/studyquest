@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 function copyDir(src, dest) {
+  if (!fs.existsSync(src)) return
   if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true })
   const entries = fs.readdirSync(src, { withFileTypes: true })
   for (const entry of entries) {
@@ -10,58 +11,46 @@ function copyDir(src, dest) {
     if (entry.isDirectory()) {
       copyDir(srcPath, destPath)
     } else {
-      fs.copyFileSync(srcPath, destPath)
+      if (!fs.existsSync(destPath) || fs.statSync(srcPath).mtimeMs > fs.statSync(destPath).mtimeMs) {
+        fs.copyFileSync(srcPath, destPath)
+      }
     }
   }
 }
 
-const srcDir = path.resolve('public/assets/dotto')
-if (fs.existsSync(srcDir)) {
-  copyDir(srcDir, path.resolve('../assets/dotto'))
-  try {
-    copyDir(srcDir, 'C:/xampp/htdocs/assets/dotto')
-  } catch (err) {
-    // Non-blocking if permissions differ
-  }
-  console.log('[Assets] Successfully synced Dotto pixel emoji assets.')
-}
+const folders = [
+  'dotto',
+  'bosses',
+  'adventure',
+  'game',
+  'CHARACTERS',
+  'BOSS',
+  'ATTACK EFFECTS',
+  'SPLASH EFFECTS',
+  'POTIONS',
+  'MUSIC'
+]
 
-const bossesDir = path.resolve('public/assets/bosses')
-if (fs.existsSync(bossesDir)) {
-  copyDir(bossesDir, path.resolve('../assets/bosses'))
-  try {
-    copyDir(bossesDir, 'C:/xampp/htdocs/assets/bosses')
-  } catch (err) {
-    // Non-blocking if permissions differ
-  }
-  console.log('[Assets] Successfully synced Chapter Boss assets.')
-}
+for (const folder of folders) {
+  const rootDir = path.resolve('../assets', folder)
+  const publicDir = path.resolve('public/assets', folder)
 
-const adventureBgsDir = path.resolve('public/assets/adventure')
-if (fs.existsSync(adventureBgsDir)) {
-  copyDir(adventureBgsDir, path.resolve('../assets/adventure'))
-  try {
-    copyDir(adventureBgsDir, 'C:/xampp/htdocs/assets/adventure')
-  } catch (err) {
-    // Non-blocking if permissions differ
+  // Sync root assets -> frontend public
+  if (fs.existsSync(rootDir)) {
+    copyDir(rootDir, publicDir)
   }
-  console.log('[Assets] Successfully synced Adventure chapter backgrounds.')
+  // Sync frontend public -> root assets
+  if (fs.existsSync(publicDir)) {
+    copyDir(publicDir, rootDir)
+    try {
+      copyDir(publicDir, path.join('C:/xampp/htdocs/assets', folder))
+    } catch (err) {}
+  }
 }
 
 const fontsDir = path.resolve('public/fonts')
 if (fs.existsSync(fontsDir)) {
   copyDir(fontsDir, path.resolve('../fonts'))
-  console.log('[Assets] Successfully synced local font assets.')
 }
 
-const musicDir = path.resolve('public/assets/MUSIC')
-if (fs.existsSync(musicDir)) {
-  copyDir(musicDir, path.resolve('../assets/MUSIC'))
-  try {
-    copyDir(musicDir, 'C:/xampp/htdocs/assets/MUSIC')
-  } catch (err) {
-    // Non-blocking
-  }
-  console.log('[Assets] Successfully synced Music assets.')
-}
-
+console.log('[Assets] Comprehensive asset synchronization complete.')

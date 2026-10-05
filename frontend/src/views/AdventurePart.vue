@@ -9,7 +9,7 @@
     <div class="adv-part-content" :class="{ 'is-battle-mode': phase === 'battle' }">
 
       <!-- Loading -->
-      <div v-if="loading" class="part-loading">
+      <div v-if="loading || (!part && !error)" class="part-loading">
         <div class="loading-spinner"></div>
         <p class="pixel-text">COMMUNING WITH THE ARCHIVES…</p>
       </div>
@@ -40,6 +40,7 @@
           :enemy-hp="Number(part?.enemy_max_hp) || 100"
           :boss-name="part?.boss_name"
           @proceed="phase = 'learn'"
+          @skip-to-battle="startBattle"
           @retreat="$router.push('/adventure/' + chapterId)"
         />
       </template>
@@ -97,9 +98,15 @@
       <!-- PHASE: BATTLE ─────────────────────────────────── -->
       <template v-else-if="phase === 'battle'">
         <div class="phase-battle animate-scale-up">
+          <!-- Loading placeholder if preparing battle questions -->
+          <div v-if="!currentQ && !adventure.battleComplete" class="part-loading">
+            <div class="loading-spinner"></div>
+            <p class="pixel-text">SUMMONING ABERRATION TO ARENA…</p>
+          </div>
+
           <!-- Classic Turn-Based RPG Battlefield (Pokemon-inspired layout) -->
           <AdventureBattlefield
-            v-if="!adventure.battleComplete"
+            v-else-if="!adventure.battleComplete || (!['victory', 'defeat'].includes(adventure.battleResult))"
             :is-boss="false"
             :chapter-id="chapterId"
             :part-num="partNum"
@@ -107,8 +114,16 @@
             :part-title="part?.title || ('Part ' + partNum)"
             :enemy-name="part?.enemy_name || 'Fracture Specter'"
             :enemy-title="part?.enemy_flavor || 'Cognitive Aberration'"
-            :boss-hp="adventure.enemyHP"
-            :boss-max-hp="adventure.enemyMaxHP"
+            :player-hp="adventure.playerHP"
+            :player-max-hp="adventure.playerMaxHP"
+            :player-level="adventure.playerLevel"
+            :attack-power="adventure.characterDamage"
+            :critical-attack-power="adventure.characterCritDamage"
+            :enemy-hp="adventure.enemyHP"
+            :enemy-max-hp="adventure.enemyMaxHP"
+            :damage-dealt="adventure.lastDamageDealt"
+            :damage-taken="adventure.lastPlayerDamageTaken"
+            :damage-type="adventure.lastDamageType"
             :questions="adventure.questions"
             :current-q-index="adventure.currentQuestionIndex"
             :current-q="currentQ"
@@ -117,12 +132,14 @@
             :last-correct="lastCorrect"
             :is-last-question="isLastQuestion"
             @answer="handleAnswer"
+            @answered="onQuestionAnswered"
             @next="nextQuestion"
           />
 
           <!-- Battle complete (victory) -->
           <div v-if="adventure.battleComplete && adventure.battleResult === 'victory'" class="battle-victory gothic-panel animate-scale-up">
-            <div class="victory-emoji">🏆</div>
+            <!-- Primary Animated Battle Result Character (Player Character Victory) -->
+            <BattleResultCharacter result="victory" size="xl" />
             <h3 class="victory-title">SPECTER BANISHED!</h3>
             <p class="victory-desc">{{ part?.story_after || 'You have cleansed this trial of falsehood.' }}</p>
             <button class="btn btn-gothic-crimson btn-lg" @click="claimRewards">
@@ -132,11 +149,38 @@
 
           <!-- Battle complete (defeat) -->
           <div v-if="adventure.battleComplete && adventure.battleResult === 'defeat'" class="battle-defeat gothic-panel animate-scale-up">
-            <div class="defeat-emoji">💀</div>
-            <h3 class="defeat-title">CONSCIOUSNESS FRACTURED</h3>
-            <p class="defeat-desc">The psychological aberration proved too intense. Study the compendium and try again.</p>
+            <!-- Primary Animated Battle Result Character (Player Character Defeat: Death GIF -> Static PNG) -->
+            <BattleResultCharacter result="defeat" size="xl" />
+            <h3 class="defeat-title font-pixel text-crimson">YOU ARE DEFEATED</h3>
+            <p class="defeat-desc">Your strength has been exhausted. Recover at least 1 HP before returning to battle.</p>
+
+            <!-- Recovery Information (Rules 2, 9, 10) -->
+            <div class="defeat-part-recovery-box">
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">HEALTH</span>
+                <span class="rec-val text-red font-pixel">0 / {{ healthStore.maxHp }} HP</span>
+              </div>
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">RECOVERY</span>
+                <span class="rec-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+              </div>
+              <div class="rec-metric">
+                <span class="rec-label font-pixel">NEXT RECOVERY</span>
+                <span class="rec-val text-teal font-pixel">{{ healthStore.formattedCountdown }}</span>
+              </div>
+            </div>
+
             <div class="defeat-btn-row">
-              <button class="btn btn-gothic-crimson" @click="retryBattle">RETRY TRIAL</button>
+              <button
+                class="btn btn-gothic-crimson"
+                :disabled="healthStore.isDefeated"
+                @click="retryBattle"
+              >
+                {{ healthStore.isDefeated ? '🔒 RETRY LOCKED (0 HP)' : 'RETRY TRIAL' }}
+              </button>
+              <button class="btn btn-gothic-crimson" @click="goToShop">
+                🧪 USE HEALTH POTION (+200 HP)
+              </button>
               <router-link :to="'/adventure/' + chapterId" class="btn btn-gothic-stone">← CHAPTER MAP</router-link>
             </div>
           </div>
@@ -201,25 +245,31 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAdventureStore } from '../stores/adventure'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useHealthStore } from '../stores/health'
+import { useTransitionStore } from '../stores/transition'
 import { resolveAsset } from '../services/bossMapping'
 import AvatarImg from '../components/AvatarImg.vue'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
 import StoryScene from '../components/adventure/StoryScene.vue'
 import AdventureBattlefield from '../components/adventure/AdventureBattlefield.vue'
+import BattleResultCharacter from '../components/adventure/BattleResultCharacter.vue'
 
 const route = useRoute()
+const router = useRouter()
 const adventure = useAdventureStore()
 const auth = useAuthStore()
 const toast = useToastStore()
+const healthStore = useHealthStore()
+const transitionStore = useTransitionStore()
 
 const chapterId = computed(() => Number(route.params.chapterId))
 const partNum = computed(() => Number(route.params.partNum))
 
-const phase = ref('story')
+const phase = ref(route.query.phase || (route.query.battle ? 'battle' : 'story'))
 const loading = computed(() => adventure.loading)
 const error = computed(() => adventure.error)
 const part = computed(() => adventure.currentPart)
@@ -285,79 +335,152 @@ const keyConcepts = computed(() => {
 onMounted(async () => {
   const data = await adventure.loadPart(chapterId.value, partNum.value)
   if (!data) return
+  if (phase.value === 'battle' || route.query.battle || route.query.phase === 'battle') {
+    startBattle()
+  }
 })
 
-function startBattle() {
-  adventure.resetBattle()
-  phase.value = 'battle'
+function getCharacterBaseHealth() {
+  const c = auth.selectedCharacter || auth.user?.selected_character
+  if (c?.health) return Number(c.health)
+  const code = (c?.code || c?.class_type || 'mage').toLowerCase()
+  if (code === 'melee') return 200
+  if (code === 'range') return 110
+  return 150 // Mage base health
+}
+
+async function startBattle() {
+  if (healthStore.isDefeated) {
+    toast.error('Your strength has been exhausted! Recover at least 1 HP before returning to battle.')
+    return
+  }
+
+  const charBaseHealth = getCharacterBaseHealth()
+  const enemyMax = part.value?.enemy_max_hp || 100
+  adventure.battleComplete = false
+  adventure.battleResult = null
   answered.value = false
   selectedKey.value = null
   answers.value = []
   battleStartTime.value = Date.now()
+
+  // Start backend server-authoritative combat session
+  const res = await adventure.startBattleSession({
+    encounter_type: 'part',
+    encounter_id: partNum.value,
+    part_id: part.value?.id,
+    chapter_id: chapterId.value
+  })
+
+  if (res && res.allowed === false) {
+    healthStore.applyHealthData(res)
+    toast.error(res.message || 'Your health is 0. Recover at least 1 HP to battle.')
+    return
+  }
+
+  if (res && res.success) {
+    healthStore.updateFromBattleAction(res)
+  }
+
+  phase.value = 'battle'
 }
 
 function choiceClass(key) {
   if (!answered.value) return ''
   const correct = currentQ.value?.correct_answer
-  if (key === correct) return 'correct'
-  if (key === selectedKey.value && key !== correct) return 'wrong'
+  const normKey = String(key || '').trim().toUpperCase()
+  const normCorrect = String(correct || '').trim().toUpperCase()
+  const normSelected = String(selectedKey.value || '').trim().toUpperCase()
+  if (normKey === normCorrect) return 'correct'
+  if (normKey === normSelected && normKey !== normCorrect) return 'wrong'
   return 'dimmed'
 }
 
-function handleAnswer(key) {
-  if (answered.value) return
-  answered.value = true
-  selectedKey.value = key
-  const correct = currentQ.value?.correct_answer
-  lastCorrect.value = key === correct
+async function handleAnswer(payload) {
+  const key = typeof payload === 'object' ? payload.key : payload
+  const isCritical = typeof payload === 'object' ? Boolean(payload.isCritical) : false
+  const resolve = typeof payload === 'object' ? payload.resolve : null
 
-  // Track answer
+  selectedKey.value = key
+
+  // Track answer history
   answers.value.push({
     question_id: currentQ.value?.id,
     chosen: key,
+    is_critical: isCritical,
+    critical_active: isCritical
   })
 
-  // Knowledge Battle: Player takes NO damage!
-  // Enemy HP is updated ONLY on correct answers to track defeat progress:
-  if (lastCorrect.value) {
-    const qCount = adventure.questions?.length || 1
-    const correctCount = answers.value.filter(a => {
-      const q = adventure.questions.find(item => item.id === a.question_id)
-      return q && q.correct_answer === a.chosen
-    }).length
+  // Submit to server-authoritative combat API
+  let serverRes = null
+  try {
+    serverRes = await adventure.submitBattleAction({
+      battle_id: adventure.activeBattleId,
+      question_id: currentQ.value?.id,
+      question_index: adventure.currentQuestionIndex,
+      selected_choice: key,
+      expected_correct: currentQ.value?.correct_answer || currentQ.value?.correct,
+      expected_explanation: currentQ.value?.explanation,
+      is_critical: isCritical,
+      critical_active: isCritical,
+      chapter_id: chapterId.value,
+      part_id: part.value?.id
+    })
+  } catch (err) {
+    console.error('[AdventurePart] submitBattleAction error:', err)
+  }
 
-    const targetHp = correctCount >= qCount
-      ? 0
-      : Math.max(0, Math.round(adventure.enemyMaxHP * (1 - (correctCount / qCount))))
-    const dmg = Math.max(1, adventure.enemyHP - targetHp)
-    dmgToEnemy.value = dmg
-    adventure.enemyHP = targetHp
-  } else {
-    // Incorrect answer: enemy takes NO damage, HP remains untouched
-    dmgToEnemy.value = 0
+  // Pass authoritative server result to AdventureBattlefield so it plays the animation BEFORE applying damage!
+  if (resolve) {
+    resolve(serverRes)
+  }
+}
+
+function onQuestionAnswered(serverRes) {
+  answered.value = true
+  lastCorrect.value = Boolean(serverRes?.is_correct ?? serverRes?.correct)
+
+  if (serverRes) {
+    healthStore.updateFromBattleAction(serverRes)
+    if (serverRes.player_current_health !== undefined) adventure.playerHP = Number(serverRes.player_current_health)
+    if (serverRes.player_max_health !== undefined) adventure.playerMaxHP = Number(serverRes.player_max_health)
+    if (serverRes.enemy_current_health !== undefined) adventure.enemyHP = Number(serverRes.enemy_current_health)
+    if (serverRes.enemy_max_health !== undefined) adventure.enemyMaxHP = Number(serverRes.enemy_max_health)
+    adventure.lastDamageDealt = Number(serverRes.damage_dealt || 0)
+    adventure.lastPlayerDamageTaken = Number(serverRes.player_damage_taken || 0)
+    adventure.lastDamageType = serverRes.damage_type || 'normal'
+
+    if (serverRes.correct_answer && currentQ.value) {
+      currentQ.value.correct_answer = serverRes.correct_answer
+    }
+    if (serverRes.explanation && currentQ.value) {
+      currentQ.value.explanation = serverRes.explanation
+    }
+  }
+
+  // Check victory / defeat conditions after animation and damage have fully completed
+  if (adventure.playerHP <= 0) {
+    adventure.battleComplete = true
+    adventure.battleResult = 'defeat'
+    healthStore.currentHp = 0
+  } else if (adventure.enemyHP <= 0) {
+    adventure.battleComplete = true
+    adventure.battleResult = 'victory'
   }
 }
 
 function nextQuestion() {
+  if (adventure.battleComplete) return
+
   const qCount = adventure.questions?.length || 1
   const isFinal = adventure.currentQuestionIndex >= qCount - 1
 
   if (isFinal) {
-    // Grade answers: Knowledge battle!
-    const correctCount = answers.value.filter(a => {
-      const q = adventure.questions.find(item => item.id === a.question_id)
-      return q && q.correct_answer === a.chosen
-    }).length
-    const score = Math.round((correctCount / qCount) * 100)
-
-    // Victory if score >= 60% (e.g. 2 of 3 questions correct)
-    const isWin = score >= 60
-
-    if (isWin) {
-      adventure.enemyHP = 0
-      adventure.battleResult = 'victory'
-    } else {
+    // End of inquiries: if player survived without dying, victory!
+    if (adventure.playerHP <= 0) {
       adventure.battleResult = 'defeat'
+    } else {
+      adventure.battleResult = 'victory'
     }
     adventure.battleComplete = true
     return
@@ -381,7 +504,15 @@ async function claimRewards() {
 }
 
 function retryBattle() {
+  if (healthStore.isDefeated) {
+    toast.error('Your health is 0! Recover at least 1 HP before attempting this trial again.')
+    return
+  }
   startBattle()
+}
+
+function goToShop() {
+  transitionStore.triggerTravel('/shop', router)
 }
 </script>
 
@@ -389,7 +520,7 @@ function retryBattle() {
 .adv-part {
   min-height: 100vh;
   position: relative;
-  padding-top: 68px;
+  padding-top: 0;
   background: var(--gothic-void, #050608);
   user-select: none;
 }
@@ -415,6 +546,38 @@ function retryBattle() {
     radial-gradient(ellipse at 50% 30%, rgba(139, 26, 26, 0.18) 0%, transparent 60%),
     radial-gradient(ellipse at 50% 90%, rgba(10, 11, 15, 0.8) 0%, #050608 95%);
 }
+
+/* Defeat Recovery Box inside Battle Result Card */
+.defeat-part-recovery-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  background: rgba(18, 5, 10, 0.95);
+  border: 1px solid rgba(225, 29, 72, 0.5);
+  border-radius: 6px;
+  padding: 0.65rem;
+  margin: 1rem 0;
+  width: 100%;
+  max-width: 480px;
+}
+.rec-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.rec-label {
+  font-size: 0.48rem;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+}
+.rec-val {
+  font-size: 0.65rem;
+}
+.text-red { color: #f87171; }
+.text-gold { color: #fbbf24; }
+.text-teal { color: #2dd4bf; }
+.text-crimson { color: #f43f5e; }
 .adv-part-content {
   position: relative;
   z-index: 1;
@@ -425,14 +588,18 @@ function retryBattle() {
 }
 
 .adv-part.is-in-battle {
-  padding-top: 56px;
+  padding-top: 0;
+  margin-top: -0.75rem;
+  min-height: auto;
+  box-sizing: border-box;
 }
 
 .adv-part-content.is-battle-mode {
   max-width: 100% !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0.25rem 0.75rem 2rem !important;
+  padding: 0 0.5rem 0.25rem !important;
+  box-sizing: border-box;
 }
 
 .part-loading, .part-error {

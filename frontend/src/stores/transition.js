@@ -17,6 +17,13 @@ export const useTransitionStore = defineStore('transition', () => {
 
   // Destination metadata mapping
   const DESTINATION_META = {
+    '/adventure/final-boss': {
+      title: 'ENTERING THE BLACK ARCHIVE',
+      subtitle: 'Beyond the Mask, a door that was never written...',
+      icon: 'castle',
+      themeColor: 'crimson',
+      type: 'gate'
+    },
     '/world': {
       title: 'RETURNING TO CITADEL',
       subtitle: 'The sanctuary realm awaits...',
@@ -70,6 +77,27 @@ export const useTransitionStore = defineStore('transition', () => {
       title: 'ENTERING STUDY HALL',
       subtitle: 'Mastering psychological concepts and theories...',
       icon: 'books',
+      themeColor: 'violet',
+      type: 'library'
+    },
+    '/studyhall': {
+      title: 'ENTERING STUDY HALL',
+      subtitle: 'The Grand Library of Psychiatric Knowledge...',
+      icon: 'books',
+      themeColor: 'violet',
+      type: 'library'
+    },
+    '/studyhall/shelves': {
+      title: 'ARCHIVE OF THE TWELVE VOLUMES',
+      subtitle: 'Approaching the ancient grimoire shelves...',
+      icon: 'books',
+      themeColor: 'violet',
+      type: 'library'
+    },
+    '/studyhall/reading-room': {
+      title: 'READING ROOM & GRIMOIRE',
+      subtitle: 'Opening psychiatric case records...',
+      icon: 'book',
       themeColor: 'violet',
       type: 'library'
     },

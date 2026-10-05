@@ -1,6 +1,7 @@
 /**
- * StudyQuest — Web Audio Synthesizer for Retro RPG Battle Sounds
- * Provides zero-dependency, local synthesized SFX for attack, hit, wrong, and button clicks.
+ * StudyQuest — Web Audio Synthesizer for Retro RPG Battle Sounds & Academic SFX
+ * Provides zero-dependency, local synthesized SFX for attacks, hits, wrong answers,
+ * UI clicks, library navigation, and market purchases.
  * Gracefully silences if Web Audio is unsupported or audio is disabled.
  */
 
@@ -23,7 +24,7 @@ function getAudioContext() {
   return audioCtx
 }
 
-export const battleAudio = {
+const baseAudio = {
   setSfxEnabled(val) {
     sfxEnabled = Boolean(val)
   },
@@ -56,7 +57,7 @@ export const battleAudio = {
       osc.start()
       osc.stop(ctx.currentTime + 0.08)
     } catch {
-      // Audio error suppressed
+      // Suppressed
     }
   },
 
@@ -68,8 +69,6 @@ export const battleAudio = {
       const ctx = getAudioContext()
       if (!ctx) return
       const now = ctx.currentTime
-
-      // Fast frequency sweep for slash
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'sawtooth'
@@ -82,7 +81,7 @@ export const battleAudio = {
       osc.start(now)
       osc.stop(now + 0.18)
     } catch {
-      // Audio error suppressed
+      // Suppressed
     }
   },
 
@@ -94,8 +93,6 @@ export const battleAudio = {
       const ctx = getAudioContext()
       if (!ctx) return
       const now = ctx.currentTime
-
-      // Impact bass
       const osc1 = ctx.createOscillator()
       const gain1 = ctx.createGain()
       osc1.type = 'triangle'
@@ -108,7 +105,6 @@ export const battleAudio = {
       osc1.start(now)
       osc1.stop(now + 0.25)
 
-      // Chime resonance for victory of knowledge
       const osc2 = ctx.createOscillator()
       const gain2 = ctx.createGain()
       osc2.type = 'sine'
@@ -121,7 +117,7 @@ export const battleAudio = {
       osc2.start(now + 0.08)
       osc2.stop(now + 0.35)
     } catch {
-      // Audio error suppressed
+      // Suppressed
     }
   },
 
@@ -133,8 +129,6 @@ export const battleAudio = {
       const ctx = getAudioContext()
       if (!ctx) return
       const now = ctx.currentTime
-
-      // Two descending mocking tones
       const notes = [311.13, 277.18, 233.08] // Eb4, C#4, Bb3
       notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator()
@@ -149,7 +143,7 @@ export const battleAudio = {
         osc.stop(now + (idx + 1) * 0.1)
       })
     } catch {
-      // Audio error suppressed
+      // Suppressed
     }
   },
 
@@ -175,7 +169,7 @@ export const battleAudio = {
         osc.stop(now + 0.8)
       })
     } catch {
-      // Audio error suppressed
+      // Suppressed
     }
   },
 
@@ -187,8 +181,6 @@ export const battleAudio = {
       const ctx = getAudioContext()
       if (!ctx) return
       const now = ctx.currentTime
-
-      // Deep rumble roar
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'sawtooth'
@@ -201,9 +193,171 @@ export const battleAudio = {
       osc.start(now)
       osc.stop(now + 0.6)
     } catch {
-      // Audio error suppressed
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound when entering the Study Hall Library
+   */
+  playLibraryEnter() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const chord = [261.63, 329.63, 392.00, 523.25] // C Major warm chord
+      chord.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, now)
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.4)
+        gain.gain.setValueAtTime(0.08 * masterVolume, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + i * 0.04)
+        osc.stop(now + 0.5)
+      })
+    } catch {
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound when opening a grimoire/volume book
+   */
+  playBookOpen() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(320, now)
+      osc.frequency.exponentialRampToValueAtTime(540, now + 0.15)
+      gain.gain.setValueAtTime(0.07 * masterVolume, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.15)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.15)
+    } catch {
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound when turning a page in the Study Hall reading room
+   */
+  playPageTurn() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(480, now)
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.1)
+      gain.gain.setValueAtTime(0.05 * masterVolume, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.1)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.1)
+    } catch {
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound for collecting or spending coins
+   */
+  playCoin() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(987.77, now) // B5
+      osc.frequency.setValueAtTime(1318.51, now + 0.08) // E6
+      gain.gain.setValueAtTime(0.12 * masterVolume, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.3)
+    } catch {
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound on completing a purchase
+   */
+  playPurchase() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const freqs = [659.25, 783.99, 1046.50]
+      freqs.forEach((freq, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(freq, now + idx * 0.07)
+        gain.gain.setValueAtTime(0.09 * masterVolume, now + idx * 0.07)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + idx * 0.07)
+        osc.stop(now + 0.35)
+      })
+    } catch {
+      // Suppressed
+    }
+  },
+
+  /**
+   * Sound on equipping cosmetic item
+   */
+  playEquip() {
+    try {
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(440, now)
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12)
+      gain.gain.setValueAtTime(0.08 * masterVolume, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.12)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.12)
+    } catch {
+      // Suppressed
     }
   }
 }
+
+/**
+ * Proxy wrapper: prevents ANY unknown audio method call from throwing a runtime TypeError
+ */
+export const battleAudio = new Proxy(baseAudio, {
+  get(target, prop) {
+    if (prop in target) {
+      return target[prop]
+    }
+    // Return a safe no-op function for any unmapped sound method
+    return () => {}
+  }
+})
 
 export default battleAudio

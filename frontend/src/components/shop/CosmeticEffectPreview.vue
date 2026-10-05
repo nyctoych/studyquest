@@ -6,8 +6,52 @@
 <template>
   <div class="effect-preview" :class="[item.category_slug, item.effect_key, item.rarity]">
 
+    <!-- ══ ATTACK EFFECT & SPLASH EFFECT (PNG STATIC -> GIF HOVER) ══ -->
+    <div
+      v-if="isEffectType"
+      class="cosmetic-effect-asset-preview"
+      :class="{
+        'is-hovered': shouldPlayGif,
+        'is-splash': item.category_slug === 'splash_effect',
+        'is-potion': item.category_slug === 'potion' || item.category_slug === 'potions' || item.type === 'potion',
+        'is-attack': item.category_slug === 'attack_effect' || (!item.category_slug && item.type !== 'potion') || item.type === 'attack_effect'
+      }"
+      @mouseenter="onHover(true)"
+      @mouseleave="onHover(false)"
+      @click="onClick"
+      @touchstart.passive="toggleMobilePreview"
+    >
+      <div class="effect-img-container">
+        <!-- Static PNG default (Centered when not hovering, or if GIF is missing) -->
+        <img
+          v-if="hasPng && (!shouldPlayGif || !hasGif)"
+          :src="pngSrc"
+          :alt="item.name"
+          class="effect-asset-img effect-png pixel-art"
+          loading="lazy"
+        />
+        <!-- Animated GIF on Hover or when Clicked, or as fallback if PNG is missing -->
+        <img
+          v-else-if="hasGif"
+          :src="gifSrc"
+          :alt="`${item.name} animation`"
+          class="effect-asset-img effect-gif pixel-art"
+        />
+        <!-- Safe Fallback if both assets missing -->
+        <div v-else class="effect-asset-fallback">
+          <span class="fallback-icon">✨</span>
+        </div>
+      </div>
+
+      <!-- Point / Hover Prompt -->
+      <div v-if="hasGif" class="effect-hover-indicator font-pixel">
+        <span class="indicator-icon">{{ shouldPlayGif ? '⚡' : '🔮' }}</span>
+        <span class="indicator-text">{{ shouldPlayGif ? 'ANIMATING' : 'HOVER TO PREVIEW' }}</span>
+      </div>
+    </div>
+
     <!-- ══ CHARACTER SKIN ══ -->
-    <div v-if="item.category_slug === 'character_skin'" class="skin-preview">
+    <div v-else-if="item.category_slug === 'character_skin'" class="skin-preview">
       <div class="skin-disc" :style="skinDiscStyle">
         <span class="skin-icon">🧬</span>
       </div>
@@ -96,11 +140,76 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { resolveAsset } from '../../services/bossMapping'
+import { COSMETIC_EFFECTS } from '../../config/cosmeticEffects'
 
 const props = defineProps({
-  item: { type: Object, required: true }
+  item: { type: Object, required: true },
+  isHovered: { type: Boolean, default: false },
+  autoplay: { type: Boolean, default: false }
 })
+
+const localHovered = ref(false)
+const isClicked = ref(false)
+
+const shouldPlayGif = computed(() => {
+  return Boolean(props.autoplay || props.isHovered || localHovered.value || isClicked.value)
+})
+
+const isEffectType = computed(() => {
+  const cat = props.item?.category_slug
+  return cat === 'attack_effect' || cat === 'splash_effect' || Boolean(props.item?.png_path)
+})
+
+// Match catalog metadata if missing on raw DB item
+const catalogMeta = computed(() => {
+  return COSMETIC_EFFECTS.find(
+    e => e.id === props.item?.effect_key || e.id === props.item?.id || e.name === props.item?.name
+  )
+})
+
+const ASSET_VERSION = 'v=20261005_c3'
+
+const pngSrc = computed(() => {
+  const path = props.item?.png_path || catalogMeta.value?.png_path
+  if (path) {
+    const base = resolveAsset(path)
+    return base.includes('?') ? `${base}&${ASSET_VERSION}` : `${base}?${ASSET_VERSION}`
+  }
+  return ''
+})
+
+const gifSrc = computed(() => {
+  const path = props.item?.gif_path || catalogMeta.value?.gif_path
+  if (path) {
+    const base = resolveAsset(path)
+    return base.includes('?') ? `${base}&${ASSET_VERSION}` : `${base}?${ASSET_VERSION}`
+  }
+  return ''
+})
+
+const hasPng = computed(() => Boolean(pngSrc.value))
+const hasGif = computed(() => Boolean(gifSrc.value))
+
+onMounted(() => {
+  if (gifSrc.value) {
+    const img = new Image()
+    img.src = gifSrc.value
+  }
+})
+
+function onHover(state) {
+  localHovered.value = state
+}
+
+function onClick(e) {
+  isClicked.value = !isClicked.value
+}
+
+function toggleMobilePreview() {
+  onClick()
+}
 
 const SKIN_COLORS = {
   'skin-default':  { bg: '#f2d3b1', glow: 'rgba(242,211,177,0.4)' },
@@ -153,6 +262,121 @@ function rayStyle(i) {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+/* ══ ATTACK EFFECT & SPLASH EFFECT PREVIEW CONTAINER ══ */
+.cosmetic-effect-asset-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.effect-img-container {
+  position: relative;
+  width: 100%;
+  height: 105px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.effect-asset-img {
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+}
+
+/* Static PNG preview (centerized horizontally & vertically when not hovering) */
+.effect-asset-img.effect-png {
+  max-width: 80px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: auto;
+  display: block;
+  transform: none !important;
+}
+
+/* Animated GIF preview on hover */
+.effect-asset-img.effect-gif {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: auto;
+  display: block;
+}
+
+/* Attack effect GIF scaled on hover (reduced into half again -> scale(1.25)) */
+.cosmetic-effect-asset-preview.is-attack .effect-asset-img.effect-gif {
+  transform: scale(1.25) !important;
+  transform-origin: center center;
+  filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.75));
+}
+
+.cosmetic-effect-asset-preview.is-splash .effect-asset-img {
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.4));
+}
+
+.cosmetic-effect-asset-preview.is-splash:hover .effect-asset-img,
+.cosmetic-effect-asset-preview.is-splash.is-hovered .effect-asset-img {
+  transform: scale(1.18);
+  filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.7));
+}
+
+.cosmetic-effect-asset-preview.is-potion .effect-asset-img {
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.45));
+}
+
+.cosmetic-effect-asset-preview.is-potion:hover .effect-asset-img,
+.cosmetic-effect-asset-preview.is-potion.is-hovered .effect-asset-img {
+  transform: scale(1.15) !important;
+  filter: drop-shadow(0 0 18px rgba(248, 113, 113, 0.8));
+}
+
+.effect-asset-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.effect-asset-fallback .fallback-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.effect-hover-indicator {
+  margin-top: 4px;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.cosmetic-effect-asset-preview.is-hovered .effect-hover-indicator {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.25);
 }
 
 /* ══ CHARACTER SKIN ══ */

@@ -77,15 +77,15 @@ class BattleRating {
 
     public function getLeaderboard(string $type = 'rating', int $limit = 50): array {
         if ($type === 'rating') {
-            $sql = "SELECT u.id, u.username, u.avatar_style, u.avatar_seed, u.avatar_options,
-                           u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.level
+            $sql = "SELECT u.id, u.username, u.nickname, u.avatar_style, u.avatar_seed, u.avatar_options,
+                           u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.level, u.xp, u.created_at
                     FROM users u
                     WHERE u.total_battles > 0
                     ORDER BY u.battle_rating DESC, u.wins DESC
                     LIMIT ?";
         } elseif ($type === 'level') {
-            $sql = "SELECT u.id, u.username, u.avatar_style, u.avatar_seed, u.avatar_options,
-                           u.level, u.xp, u.battle_rating, u.wins
+            $sql = "SELECT u.id, u.username, u.nickname, u.avatar_style, u.avatar_seed, u.avatar_options,
+                           u.level, u.xp, u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.created_at
                     FROM users u
                     ORDER BY u.level DESC, u.xp DESC
                     LIMIT ?";

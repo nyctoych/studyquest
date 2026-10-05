@@ -249,6 +249,29 @@ export const BATTLEFIELD_ENVIRONMENTS = {
 }
 
 /**
+ * THE BLACK ARCHIVE — dedicated Final Boss battlefield (The Creator).
+ * Deepest layer of Mindrealm; independent from any chapter environment.
+ */
+export const FINAL_BLACK_ARCHIVE_ENVIRONMENT = {
+  environmentId: 'final_black_archive',
+  chapterId: 0,
+  partId: 'final-boss',
+  name: 'The Black Archive',
+  backgroundAsset: 'assets/adventure/battlefields/final-black-archive.jpg?v=1',
+  foregroundAsset: null,
+  groundType: 'monolithic_obsidian_floor',
+  lighting: 'monolithic_violet',
+  weather: 'deep_sanctuary',
+  playerPosition: { x: 18, y: 70 },
+  enemyPosition: { x: 73, y: 24 },
+  playerScale: 1.0,
+  enemyScale: 1.15,
+  shadowStyle: 'rgba(8, 4, 16, 0.88)',
+  ambientEffects: ['runic_shimmer', 'void_pulses'],
+  bossVariant: true
+}
+
+/**
  * Global Emergency Fallback Battlefield
  */
 export const DEFAULT_BATTLEFIELD_FALLBACK = {
@@ -285,7 +308,11 @@ export const DEFAULT_BATTLEFIELD_FALLBACK = {
  * @param {boolean} isBoss - Whether encounter is a boss climax trial
  * @returns {Object} Complete environment configuration
  */
-export function resolveBattlefieldEnvironment(chapterId, partId = null, isBoss = false) {
+export function resolveBattlefieldEnvironment(chapterId, partId = null, isBoss = false, isFinalBoss = false) {
+  // The Creator's Black Archive is a dedicated final environment (never a chapter battlefield)
+  if (isFinalBoss) {
+    return { ...FINAL_BLACK_ARCHIVE_ENVIRONMENT }
+  }
   const chNum = Number(chapterId) || 1
   const key = `chapter${chNum}`
   const chapterConfig = BATTLEFIELD_ENVIRONMENTS[key] || BATTLEFIELD_ENVIRONMENTS.chapter1

@@ -7,8 +7,17 @@ require_once __DIR__ . '/routes/api.php';
 // Set CORS headers and handle preflight
 setCorsHeaders();
 
-// Start session
+// Configure session cookie parameters (7 days retention, root path, httponly, lax)
+ini_set('session.gc_maxlifetime', 604800);
 session_name('studyquest_session');
+session_set_cookie_params([
+    'lifetime' => 604800,
+    'path'     => '/',
+    'domain'   => '',
+    'secure'   => false,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
 
 // Parse request

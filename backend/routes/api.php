@@ -13,9 +13,129 @@ require_once __DIR__ . '/../controllers/AdventureController.php';
 require_once __DIR__ . '/../controllers/ChronicleController.php';
 require_once __DIR__ . '/../controllers/SpecialEventController.php';
 require_once __DIR__ . '/../controllers/SpecialEventAdminController.php';
+require_once __DIR__ . '/../controllers/CharacterController.php';
 
 function dispatch(string $method, string $path): void {
     $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+
+    // ── CHARACTERS (SELECTION & IDENTITY) ──────────────────────
+    if (!empty($segments) && $segments[0] === 'characters') {
+        $ctrl = new CharacterController();
+        $sub = $segments[1] ?? '';
+
+        if ($sub === '' || $sub === null) {
+            if ($method === 'GET') { $ctrl->index(); return; }
+            if ($method === 'POST') { $ctrl->select(); return; }
+        }
+        if ($sub === 'select' && $method === 'POST') {
+            $ctrl->select();
+            return;
+        }
+        if (($sub === 'current' || $sub === 'me') && $method === 'GET') {
+            $ctrl->current();
+            return;
+        }
+        if ($method === 'GET' && !empty($sub)) {
+            $ctrl->show($sub);
+            return;
+        }
+
+        notFound();
+        return;
+    }
+
+    // ── ADVENTURE ─────────────────────────────────────────────
+    if (!empty($segments) && $segments[0] === 'adventure') {
+        $ctrl = new AdventureController();
+        $sub = $segments[1] ?? '';
+        $id = (isset($segments[2]) && is_numeric($segments[2])) ? (int)$segments[2] : null;
+
+        if ($sub === 'health' && $method === 'GET') {
+            $ctrl->health();
+            return;
+        }
+
+        if ($sub === 'chapters') {
+            if ($id === null && $method === 'GET') { $ctrl->chapters(); return; }
+            if ($id !== null) {
+                // /adventure/chapters/{id}/final-boss/complete
+                if (isset($segments[3]) && $segments[3] === 'final-boss' && isset($segments[4]) && $segments[4] === 'complete') {
+                    if ($method === 'POST') { $ctrl->completeFinalBoss(); return; }
+                }
+                // /adventure/chapters/{id}/final-boss
+                if (isset($segments[3]) && $segments[3] === 'final-boss' && !isset($segments[4])) {
+                    if ($method === 'GET') { $ctrl->finalBoss(); return; }
+                }
+                // /adventure/chapters/{id}/parts/{num}
+                if (isset($segments[3]) && $segments[3] === 'parts' && isset($segments[4])) {
+                    if ($method === 'GET') { $ctrl->part($id, (int)$segments[4]); return; }
+                }
+                // /adventure/chapters/{id}/boss/complete
+                if (isset($segments[3]) && $segments[3] === 'boss' && isset($segments[4]) && $segments[4] === 'complete') {
+                    if ($method === 'POST') { $ctrl->completeBoss($id); return; }
+                }
+                // /adventure/chapters/{id}/boss
+                if (isset($segments[3]) && $segments[3] === 'boss') {
+                    if ($method === 'GET') { $ctrl->boss($id); return; }
+                }
+                if ($method === 'GET') { $ctrl->chapter($id); return; }
+            }
+        }
+
+        if ($sub === 'battle') {
+            if (isset($segments[2]) && $segments[2] === 'start' && $method === 'POST') {
+                $ctrl->startBattle();
+                return;
+            }
+            if (isset($segments[2]) && $segments[2] === 'action' && $method === 'POST') {
+                $ctrl->battleAction();
+                return;
+            }
+        }
+
+        if ($sub === 'final-boss') {
+            if (isset($segments[2]) && $segments[2] === 'story-stage' && $method === 'POST') {
+                $ctrl->finalBossStoryStage();
+                return;
+            }
+            if (isset($segments[2]) && $segments[2] === 'complete' && $method === 'POST') {
+                $ctrl->completeFinalBoss();
+                return;
+            }
+            if ($method === 'GET') {
+                $ctrl->finalBoss();
+                return;
+            }
+        }
+
+        if ($sub === 'story-state' && $method === 'GET') {
+            $ctrl->storyState();
+            return;
+        }
+
+        if ($sub === 'black-archive') {
+            if (isset($segments[2]) && $segments[2] === 'complete-phase' && $method === 'POST') {
+                $ctrl->completeBlackArchivePhase();
+                return;
+            }
+            if ($method === 'GET') {
+                $ctrl->blackArchive();
+                return;
+            }
+        }
+
+        if ($sub === 'parts' && $id !== null) {
+            if (isset($segments[3]) && $segments[3] === 'submit') {
+                if ($method === 'POST') { $ctrl->submitPart($id); return; }
+            }
+        }
+        if ($sub === 'tutorial' && isset($segments[2]) && $segments[2] === 'complete') {
+            if ($method === 'POST') { $ctrl->completeTutorial(); return; }
+        }
+
+        notFound();
+        return;
+    }
 
     // ── SPECIAL EVENT (DAILY 140-QUESTION TRIAL) ──────────────
     if (!empty($segments) && $segments[0] === 'special-event') {
@@ -132,6 +252,22 @@ function dispatch(string $method, string $path): void {
         }
         if ($sub === 'tutorial' && isset($segments[2]) && $segments[2] === 'complete') {
             if ($method === 'POST') { $ctrl->completeTutorial(); return; }
+        }
+
+        if ($sub === 'health' && $method === 'GET') {
+            $ctrl->health();
+            return;
+        }
+
+        if ($sub === 'battle') {
+            if (isset($segments[2]) && $segments[2] === 'start' && $method === 'POST') {
+                $ctrl->startBattle();
+                return;
+            }
+            if (isset($segments[2]) && $segments[2] === 'action' && $method === 'POST') {
+                $ctrl->battleAction();
+                return;
+            }
         }
 
         notFound();
