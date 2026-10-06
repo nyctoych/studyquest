@@ -25,8 +25,8 @@ export const CHARACTER_ANIMATIONS = {
     resultDeathStatic: '/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer Death.png',
     // Timings (ms) - exact length of full GIF animations
     openingDuration: 9800, // Exact 27 frames (9800ms) plays completely from start to end
-    attackDuration: 2200,  // Dynamic combat casting animation window (2200ms) before projectile launch
-    impactTiming: 2200,    // Damage reflects smoothly after casting motion
+    attackDuration: 8700,  // Exact 21 frames (8700ms) plays completely from start to end
+    impactTiming: 2200,    // Staff thrust / spell release window during casting motion
     deathDuration: 4400,   // Exact 18 frames (4400ms) plays completely before static death.png
     victoryDuration: 2700, // Exact 12 frames (2700ms) continuous loop
     // Visual alignments

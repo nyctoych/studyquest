@@ -1061,7 +1061,7 @@ class AdventureProgressService {
      */
     public function getMerchantStage(int $userId): string {
         $flags = $this->getUserFlags($userId);
-        if (($flags['merchant_identity_revealed'] ?? '') === '1') return 'father';
+        if (($flags['merchant_identity_revealed'] ?? '') === '1' || ($flags['father_revelation_completed'] ?? '') === '1') return 'father';
         if (isset($flags['chapter_12_restored'])) return 'vanished';
         if (isset($flags['chapter_8_restored'])) return 'unusual';
         if (isset($flags['chapter_4_restored'])) return 'clues';
@@ -1072,7 +1072,7 @@ class AdventureProgressService {
     public const FINAL_BOSS_MAX_HP   = 1500;
     public const FINAL_BOSS_XP       = 2500;
     public const FINAL_BOSS_COINS    = 1500;
-    public const FINAL_STORY_STAGES  = ['locked', 'unlocked', 'world_collapse', 'merchant_reveal', 'epilogue', 'complete'];
+    public const FINAL_STORY_STAGES  = ['locked', 'father_revelation', 'chamber_unlocked', 'unlocked', 'world_collapse', 'merchant_reveal', 'epilogue', 'complete'];
 
     /**
      * Inserts a story flag only if it does not exist yet.
@@ -1151,7 +1151,8 @@ class AdventureProgressService {
         $flags     = $this->getUserFlags($userId);
         $unlocked  = $this->isFinalBossUnlocked($userId);
         $completed = ($flags['final_boss_completed'] ?? '') === '1';
-        $stage     = $flags['final_story_stage'] ?? ($unlocked ? 'unlocked' : 'locked');
+        $fatherCompleted = ($flags['father_revelation_completed'] ?? '') === '1' || ($flags['merchant_identity_revealed'] ?? '') === '1';
+        $stage     = $flags['final_story_stage'] ?? ($unlocked ? ($fatherCompleted ? 'chamber_unlocked' : 'father_revelation') : 'locked');
         if (!$unlocked && !$completed) $stage = 'locked';
 
         return [
@@ -1161,6 +1162,7 @@ class AdventureProgressService {
             'status'             => $completed ? 'completed' : ($unlocked ? 'unlocked' : 'locked'),
             'unlocked'           => $unlocked || $completed,
             'completed'          => $completed,
+            'father_revelation_completed' => $fatherCompleted,
             'adventure_complete' => ($flags['adventure_complete'] ?? '') === '1',
             'story_stage'        => $stage,
             'max_hp'             => self::FINAL_BOSS_MAX_HP,
@@ -1186,7 +1188,6 @@ class AdventureProgressService {
         try {
             if ($this->setFlagOnce($userId, 'black_archive_discovered', '1')) {
                 $discovered = true;
-                $this->setFlag($userId, 'final_story_stage', 'unlocked');
                 $this->addChronicle(
                     $userId, 'adventure_victory',
                     'The Black Archive Discovered',
@@ -1308,11 +1309,69 @@ class AdventureProgressService {
     }
 
     /**
+     * POST /adventure/final-boss/father-revelation
+     * Completes "The Father's Revelation" narrative sequence before the final Creator battle.
+     * Records story flags, chronicle entry, and unlocks the merchant revelation achievement.
+     */
+    public function completeFatherRevelation(int $userId): array {
+        if (!$this->isFinalBossUnlocked($userId)) {
+            return [
+                'success'     => false,
+                'locked'      => true,
+                'status_code' => 403,
+                'message'     => 'The Black Archive remains sealed. Defeat The Mask of a Thousand Selves in Chapter 12 first.',
+            ];
+        }
+
+        $this->db->beginTransaction();
+        $newAchievements = [];
+        $firstClear = false;
+        try {
+            $firstClear = $this->setFlagOnce($userId, 'father_revelation_completed', '1');
+            $this->setFlag($userId, 'merchant_identity_revealed', '1');
+            $this->setFlag($userId, 'final_story_stage', 'chamber_unlocked');
+
+            if ($firstClear) {
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    'The Father\'s Revelation',
+                    'Raven, the Merchant of Mindrealm, revealed himself as the father of the Creator and explained the truth behind the twelve Guardians and the player\'s creation.',
+                    ['event' => 'father_revelation_completed']
+                );
+
+                $ach = $this->unlockStoryAchievement(
+                    $userId, 'THE TRUTH BEHIND THE MERCHANT',
+                    'Raven revealed himself as the father of the Creator.',
+                    '🗝️', 300, 300
+                );
+                if ($ach) $newAchievements[] = $ach;
+            }
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            error_log('completeFatherRevelation error: ' . $e->getMessage());
+            return ['success' => false, 'status_code' => 500, 'message' => 'Failed to record Father\'s Revelation.'];
+        }
+
+        return [
+            'success'          => true,
+            'first_clear'      => $firstClear,
+            'new_achievements' => $newAchievements,
+            'state'            => $this->getFinalBossState($userId),
+        ];
+    }
+
+    /**
      * POST /adventure/final-boss/story-stage
      * Forward-only narrative progress after the Creator is defeated.
      * Stages: merchant_reveal -> epilogue -> complete
      */
     public function advanceFinalStory(int $userId, string $stage): array {
+        if ($stage === 'father_revelation' || $stage === 'chamber_unlocked') {
+            return $this->completeFatherRevelation($userId);
+        }
+
         $order = ['world_collapse' => 0, 'merchant_reveal' => 1, 'epilogue' => 2, 'complete' => 3];
         if (!isset($order[$stage]) || $stage === 'world_collapse') {
             return ['success' => false, 'status_code' => 400, 'message' => 'Unknown story stage.'];

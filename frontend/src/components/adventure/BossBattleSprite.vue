@@ -16,20 +16,21 @@
     </div>
 
     <!-- Boss Asset Sprite Wrapper -->
-    <div class="boss-sprite-wrapper" :class="animClass">
+    <div class="boss-sprite-wrapper" :class="[animClass, { 'is-creator-sprite-wrapper': isFinalBoss }]">
       <img
         :src="activeBossSprite"
         :alt="bossName"
-        class="boss-real-sprite pixel-art animate-boss-hover"
+        class="boss-real-sprite pixel-art"
+        :class="{ 'animate-boss-hover': (!isFinalBoss || creatorAnimState === 'idle'), 'is-creator-sprite': isFinalBoss }"
         :style="{ filter: hitFilter }"
       />
 
-      <!-- Slash Impact Effect on Correct Answer -->
-      <div v-if="battleState === 'hit'" class="boss-hit-slash"></div>
+      <!-- Slash Impact Effect on Correct Answer (non-Final Boss default slash) -->
+      <div v-if="battleState === 'hit' && !isFinalBoss" class="boss-hit-slash"></div>
     </div>
 
     <!-- Retro Boss Nameplate with HP Gauge Bar -->
-    <div class="boss-nameplate gothic-panel" :style="{ borderColor: bossAccent }">
+    <div v-if="!hideNameplate" class="boss-nameplate gothic-panel" :style="{ borderColor: bossAccent }">
       <div class="nameplate-row">
         <span class="boss-crest-icon">👑</span>
         <span class="boss-display-name">{{ bossName }}</span>
@@ -61,6 +62,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { resolveAsset } from '../../services/bossMapping'
+import { CREATOR_ANIMATION_CONFIG } from '../../config/creatorAnimationConfig'
 import EnemySpeechBubble from './EnemySpeechBubble.vue'
 
 const props = defineProps({
@@ -89,6 +91,22 @@ const props = defineProps({
     default: 100
   },
   isEnraged: {
+    type: Boolean,
+    default: false
+  },
+  isFinalBoss: {
+    type: Boolean,
+    default: false
+  },
+  creatorPhase: {
+    type: Number,
+    default: 1
+  },
+  creatorAnimState: {
+    type: String,
+    default: 'idle' // 'intro' | 'idle' | 'attack' | 'hit' | 'transform' | 'defeated_dialogue' | 'closing'
+  },
+  hideNameplate: {
     type: Boolean,
     default: false
   }
@@ -144,6 +162,27 @@ function getAngryGifAsset(m) {
 }
 
 const activeBossSprite = computed(() => {
+  if (props.isFinalBoss) {
+    const p = props.creatorPhase === 2 ? 'phase2' : 'phase1'
+    switch (props.creatorAnimState) {
+      case 'intro':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG.phase1.intro.path)
+      case 'transform':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG.phase2.transform.path)
+      case 'defeated_dialogue':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG.defeat.dialogue.path)
+      case 'closing':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG.defeat.closing.path)
+      case 'attack':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG[p].attack.path)
+      case 'hit':
+        return resolveAsset(CREATOR_ANIMATION_CONFIG[p].hit.path)
+      case 'idle':
+      default:
+        return resolveAsset(CREATOR_ANIMATION_CONFIG[p].idle.path)
+    }
+  }
+
   const m = props.bossMeta
   if (!m) return ''
 
@@ -174,6 +213,10 @@ const activeBossSprite = computed(() => {
 const battleStateClass = computed(() => `state-${props.battleState}`)
 
 const animClass = computed(() => {
+  if (props.isFinalBoss) {
+    if (props.creatorAnimState === 'hit') return 'anim-boss-hit'
+    return 'anim-boss-idle'
+  }
   if (props.battleState === 'defeated') return 'anim-boss-defeated'
   if (props.battleState === 'hit') return 'anim-boss-hit'
   if (props.battleState === 'laughing') return 'anim-boss-laugh'
@@ -181,6 +224,11 @@ const animClass = computed(() => {
 })
 
 const hitFilter = computed(() => {
+  if (props.isFinalBoss) {
+    if (props.creatorAnimState === 'hit') return 'brightness(1.4) saturate(1.3) drop-shadow(0 0 20px #e11d48)'
+    if (props.creatorPhase === 2) return 'drop-shadow(0 0 16px rgba(225, 29, 72, 0.7)) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.8))'
+    return 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.65))'
+  }
   if (props.battleState === 'defeated') return 'grayscale(0.55) brightness(0.85) drop-shadow(0 0 18px rgba(167, 139, 250, 0.6))'
   if (props.battleState === 'hit' && props.bossMeta?.keepIdleWhenEnraged) return 'brightness(1.35) drop-shadow(0 0 18px rgba(251, 191, 36, 0.75))'
   if (props.battleState === 'hit') return 'brightness(2.2) saturate(1.8) drop-shadow(0 0 20px #ef4444)'
@@ -189,6 +237,14 @@ const hitFilter = computed(() => {
 })
 
 const bossReactionLabel = computed(() => {
+  if (props.isFinalBoss) {
+    if (props.creatorAnimState === 'intro') return '✒ MANIFESTING'
+    if (props.creatorAnimState === 'transform') return '✒ UNSEALING PHASE II'
+    if (props.creatorAnimState === 'attack') return '✒ REWRITING REALITY'
+    if (props.creatorAnimState === 'hit') return '✒ FRACTURED INK'
+    if (props.creatorPhase === 2) return 'PHASE II — THE UNWRITTEN'
+    return 'PHASE I — THE AUTHOR'
+  }
   const custom = props.bossMeta?.reactionLabels
   if (custom) {
     if (props.battleState === 'defeated') return custom.defeated
@@ -211,8 +267,8 @@ const bossReactionLabel = computed(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  width: 280px;
-  height: 270px;
+  width: 250px;
+  height: 200px;
 }
 
 /* Colossal Boss Pedestal */
@@ -221,8 +277,8 @@ const bossReactionLabel = computed(() => {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 250px;
-  height: 64px;
+  width: 210px;
+  height: 52px;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(147, 51, 234, 0.45) 0%, rgba(15, 6, 22, 0.95) 70%);
   border: 2px solid var(--accent, #e11d48);
@@ -265,15 +321,15 @@ const bossReactionLabel = computed(() => {
 .boss-sprite-wrapper {
   position: relative;
   z-index: 5;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .boss-real-sprite {
-  width: 190px;
-  height: 190px;
+  width: 160px;
+  height: 160px;
   object-fit: contain;
   transition: transform 0.25s ease, filter 0.2s ease;
 }
@@ -338,16 +394,19 @@ const bossReactionLabel = computed(() => {
 /* Boss Nameplate */
 .boss-nameplate {
   position: absolute;
-  bottom: -32px;
+  bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 210px;
+  width: max-content;
+  min-width: 250px;
+  max-width: 380px;
   background: rgba(18, 6, 16, 0.96);
   border: 1.5px solid #e11d48;
   border-radius: 6px;
-  padding: 0.35rem 0.65rem;
+  padding: 0.4rem 0.85rem;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8), 0 0 12px rgba(225, 29, 72, 0.35);
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .nameplate-row {
@@ -362,12 +421,10 @@ const bossReactionLabel = computed(() => {
 
 .boss-display-name {
   font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
+  font-size: clamp(0.72rem, 1vw, 0.86rem);
   font-weight: 800;
   color: #fdf2f8;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   letter-spacing: 0.5px;
 }
 
@@ -436,7 +493,7 @@ const bossReactionLabel = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 130px;
+  max-width: 220px;
 }
 
 .boss-reaction-status {
@@ -484,5 +541,15 @@ const bossReactionLabel = computed(() => {
   0% { opacity: 1; transform: translateY(0) scale(1); }
   70% { opacity: 0.75; transform: translateY(6px) scale(1.01); }
   100% { opacity: 0.35; transform: translateY(14px) scale(0.98); filter: blur(1.5px); }
+}
+
+.is-creator-sprite-wrapper {
+  overflow: visible;
+}
+
+.is-creator-sprite {
+  width: clamp(170px, 24vw, 240px) !important;
+  height: clamp(170px, 24vw, 240px) !important;
+  object-fit: contain !important;
 }
 </style>

@@ -380,8 +380,18 @@ export const useAdventureStore = defineStore('adventure', () => {
     }
   }
 
+  async function completeFatherRevelation() {
+    try {
+      const res = await api.post('/adventure/final-boss/father-revelation')
+      if (res.data?.state) finalBoss.value = res.data.state
+      return res.data
+    } catch (e) {
+      return { success: false, message: e.response?.data?.message || 'Failed to record Father\'s Revelation' }
+    }
+  }
+
   return {
-    finalBoss, loadFinalBoss, completeFinalBossBattle, advanceFinalStory,
+    finalBoss, loadFinalBoss, completeFinalBossBattle, advanceFinalStory, completeFatherRevelation,
     chapters, currentChapter, currentPart, questions, loading, error,
     currentUnlockedChapterId, allChaptersCompleted,
     recoveredMindSeals, discoveredFractureShards, blackArchiveUnlocked, storyFlags,

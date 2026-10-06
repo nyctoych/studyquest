@@ -322,7 +322,7 @@ const resolvedSprite = computed(() => {
   }
   if (state === 'attack_finished') {
     if (activeClass.value === 'MAGE') {
-      return resolveAsset('/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer Attack.png')
+      return resolveAsset('/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer IDLE STATE.gif')
     }
     if (activeClass.value === 'RANGE') {
       return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archer Attack1.png')

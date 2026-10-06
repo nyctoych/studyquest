@@ -58,6 +58,10 @@ function dispatch(string $method, string $path): void {
         if ($sub === 'chapters') {
             if ($id === null && $method === 'GET') { $ctrl->chapters(); return; }
             if ($id !== null) {
+                // /adventure/chapters/{id}/final-boss/father-revelation
+                if (isset($segments[3]) && $segments[3] === 'final-boss' && isset($segments[4]) && $segments[4] === 'father-revelation') {
+                    if ($method === 'POST') { $ctrl->completeFatherRevelation(); return; }
+                }
                 // /adventure/chapters/{id}/final-boss/complete
                 if (isset($segments[3]) && $segments[3] === 'final-boss' && isset($segments[4]) && $segments[4] === 'complete') {
                     if ($method === 'POST') { $ctrl->completeFinalBoss(); return; }
@@ -94,6 +98,10 @@ function dispatch(string $method, string $path): void {
         }
 
         if ($sub === 'final-boss') {
+            if (isset($segments[2]) && $segments[2] === 'father-revelation' && $method === 'POST') {
+                $ctrl->completeFatherRevelation();
+                return;
+            }
             if (isset($segments[2]) && $segments[2] === 'story-stage' && $method === 'POST') {
                 $ctrl->finalBossStoryStage();
                 return;

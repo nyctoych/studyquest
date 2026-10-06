@@ -69,6 +69,17 @@ class AdventureController {
         echo json_encode($result);
     }
 
+    // ── POST /adventure/final-boss/father-revelation ─────────
+    public function completeFatherRevelation(): void {
+        $userId = AuthMiddleware::userId();
+        $result = $this->progressService->completeFatherRevelation($userId);
+
+        if (!$result['success']) {
+            http_response_code($result['status_code'] ?? 400);
+        }
+        echo json_encode($result);
+    }
+
     // ── POST /adventure/final-boss/story-stage ────────────────
     public function finalBossStoryStage(): void {
         $userId = AuthMiddleware::userId();
@@ -509,6 +520,84 @@ class AdventureController {
             $playerCurrentHp = $playerMaxHp;
         }
 
+        // Support seamless reconnect for active Final Boss battle (preserves HP & Phase 2 state across refresh)
+        if ($mode === 'final_boss' && empty($input['restart'])) {
+            $activeStmt = $this->db->prepare("
+                SELECT * FROM adventure_active_battles
+                WHERE user_id = ? AND encounter_type = 'final_boss' AND status = 'active'
+                ORDER BY id DESC LIMIT 1
+            ");
+            $activeStmt->execute([$userId]);
+            $existing = $activeStmt->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                $battleId = (int)$existing['id'];
+                $playerCurrentHp = (int)$existing['player_current_health'];
+                $playerMaxHp = (int)$existing['player_max_health'];
+                $enemyCurrentHp = (int)$existing['enemy_current_health'];
+                $enemyMaxHp = (int)$existing['enemy_max_health'];
+                $bossPhase = (int)($existing['final_boss_phase'] ?? 1);
+                if ($bossPhase < 2 && $enemyCurrentHp <= ($enemyMaxHp * 0.50)) {
+                    $bossPhase = 2;
+                }
+                $storedQuestions = json_decode($existing['question_sequence'] ?? '[]', true) ?: [];
+                $qIdx = (int)($existing['current_question_index'] ?? 0);
+                $firstQ = null;
+                $activeQ = $storedQuestions[$qIdx] ?? $storedQuestions[0] ?? null;
+                if ($activeQ) {
+                    $firstQ = [
+                        'id' => $activeQ['id'],
+                        'question' => $activeQ['question'],
+                        'choices' => [
+                            'A' => $activeQ['choice_a'],
+                            'B' => $activeQ['choice_b'],
+                            'C' => $activeQ['choice_c'],
+                            'D' => $activeQ['choice_d'],
+                        ],
+                        'difficulty' => $activeQ['difficulty'] ?? 'intermediate'
+                    ];
+                }
+
+                echo json_encode([
+                    'success' => true,
+                    'battle_id' => $battleId,
+                    'battle_mode' => $battleMode,
+                    'character' => $char,
+                    'character_level' => $scaled['level'],
+                    'level' => $scaled['level'],
+                    'player_level' => $scaled['level'],
+                    'player_max_health' => $playerMaxHp,
+                    'player_current_health' => $playerCurrentHp,
+                    'player_hp' => $playerCurrentHp,
+                    'max_health' => $playerMaxHp,
+                    'current_hp' => $playerCurrentHp,
+                    'character_damage' => $charDmg,
+                    'character_crit_damage' => $charCritDmg,
+                    'damage' => $charDmg,
+                    'crit_damage' => $charCritDmg,
+                    'attack_power' => $charDmg,
+                    'critical_attack_power' => $charCritDmg,
+                    'enemy_name' => $existing['enemy_name'],
+                    'enemy_title' => $existing['enemy_title'],
+                    'enemy_max_health' => $enemyMaxHp,
+                    'enemy_current_health' => $enemyCurrentHp,
+                    'final_boss_phase' => $bossPhase,
+                    'current_question_index' => $qIdx,
+                    'first_question' => $firstQ,
+                    'questions' => array_map(function ($q) {
+                        return [
+                            'id' => $q['id'],
+                            'question' => $q['question'],
+                            'choices' => ['A' => $q['choice_a'], 'B' => $q['choice_b'], 'C' => $q['choice_c'], 'D' => $q['choice_d']],
+                            'difficulty' => $q['difficulty'] ?? 'intermediate',
+                        ];
+                    }, $storedQuestions),
+                    'status' => 'active',
+                    'battle_status' => 'active'
+                ]);
+                return;
+            }
+        }
+
         // Determine enemy details based on mode
         $enemyName = 'Corrupted Specter';
         $enemyTitle = 'Manifestation of Anxiety';
@@ -608,19 +697,20 @@ class AdventureController {
         $questionSequenceJson = json_encode($questions);
 
         // Insert new active battle session
+        $initialBossPhase = ($mode === 'final_boss') ? 1 : 1;
         $insStmt = $this->db->prepare("
             INSERT INTO adventure_active_battles
             (user_id, encounter_type, battle_mode, part_id, chapter_id, boss_id, character_id,
              player_max_health, player_current_health, enemy_name, enemy_title,
              enemy_max_health, enemy_current_health, character_damage, character_crit_damage,
-             question_sequence, current_question_index, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'active')
+             question_sequence, current_question_index, final_boss_phase, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'active')
         ");
         $insStmt->execute([
             $userId, $mode, $battleMode, $partId, $chapterId, $bossId, (int)$char['id'],
             $playerMaxHp, $playerCurrentHp, $enemyName, $enemyTitle,
             $enemyMaxHp, $enemyCurrentHp, $charDmg, $charCritDmg,
-            $questionSequenceJson
+            $questionSequenceJson, $initialBossPhase
         ]);
         $battleId = (int)$this->db->lastInsertId();
 
@@ -663,6 +753,7 @@ class AdventureController {
             'enemy_title' => $enemyTitle,
             'enemy_max_health' => $enemyMaxHp,
             'enemy_current_health' => $enemyCurrentHp,
+            'final_boss_phase' => ($mode === 'final_boss' ? 1 : null),
             'first_question' => $firstQ,
             'questions' => ($mode === 'final_boss') ? array_map(function ($q) {
                 return [

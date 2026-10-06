@@ -184,8 +184,8 @@ const enemyReactionLabel = computed(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  width: 220px;
-  height: 220px;
+  width: 195px;
+  height: 175px;
 }
 
 /* Enemy Pedestal */
@@ -194,8 +194,8 @@ const enemyReactionLabel = computed(() => {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 190px;
-  height: 52px;
+  width: 165px;
+  height: 44px;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(185, 28, 28, 0.45) 0%, rgba(20, 5, 10, 0.9) 70%);
   border: 2px solid rgba(239, 68, 68, 0.55);
@@ -225,7 +225,7 @@ const enemyReactionLabel = computed(() => {
 .minion-sprite-wrapper {
   position: relative;
   z-index: 5;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -233,8 +233,8 @@ const enemyReactionLabel = computed(() => {
 }
 
 .minion-custom-sprite {
-  width: 140px;
-  height: 140px;
+  width: 125px;
+  height: 125px;
   object-fit: contain;
 }
 
@@ -314,16 +314,19 @@ const enemyReactionLabel = computed(() => {
 /* Enemy Nameplate */
 .enemy-nameplate {
   position: absolute;
-  bottom: -32px;
+  bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 170px;
+  width: max-content;
+  min-width: 220px;
+  max-width: 320px;
   background: rgba(18, 8, 14, 0.96);
   border: 1.5px solid rgba(239, 68, 68, 0.6);
   border-radius: 6px;
-  padding: 0.35rem 0.6rem;
+  padding: 0.38rem 0.75rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8), 0 0 10px rgba(239, 68, 68, 0.3);
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .nameplate-row {
@@ -338,12 +341,10 @@ const enemyReactionLabel = computed(() => {
 
 .enemy-display-name {
   font-family: 'Cinzel', serif;
-  font-size: 0.76rem;
+  font-size: clamp(0.7rem, 0.95vw, 0.82rem);
   font-weight: 700;
   color: #f8fafc;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   letter-spacing: 0.5px;
 }
 
@@ -361,7 +362,7 @@ const enemyReactionLabel = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 105px;
+  max-width: 170px;
 }
 
 .enemy-reaction-status {

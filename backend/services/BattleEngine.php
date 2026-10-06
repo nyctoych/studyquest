@@ -196,16 +196,25 @@ class BattleEngine {
             }
         }
 
-        // 8. Persist Battle State to Database
+        // 8. Determine Boss Phase & Persist Battle State to Database
+        $currentBossPhase = (int)($battle['final_boss_phase'] ?? 1);
+        if (($battle['encounter_type'] ?? '') === 'final_boss') {
+            $bossMaxHp = max(1, (int)($battle['enemy_max_health'] ?: 1500));
+            if ($currentBossPhase < 2 && $enemyHpAfter <= ($bossMaxHp * 0.50)) {
+                $currentBossPhase = 2;
+            }
+        }
+
         $upStmt = $this->db->prepare("
             UPDATE adventure_active_battles
             SET player_current_health = ?,
                 enemy_current_health = ?,
+                final_boss_phase = ?,
                 status = ?,
                 current_question_index = ?
             WHERE id = ?
         ");
-        $upStmt->execute([$playerHpAfter, $enemyHpAfter, $battleStatus, $nextIndex, $battleId]);
+        $upStmt->execute([$playerHpAfter, $enemyHpAfter, $currentBossPhase, $battleStatus, $nextIndex, $battleId]);
 
         // 8b. Persistent Adventure HP Carry-Over State (Adventure Gate ONLY)
         // Persist authoritative player HP after each combat action in Adventure Gate.
@@ -275,6 +284,7 @@ class BattleEngine {
                 'enemy_hp' => $enemyHpAfter,
                 'enemy_current_health' => $enemyHpAfter,
                 'enemy_max_health' => (int)$battle['enemy_max_health'],
+                'final_boss_phase' => $currentBossPhase,
                 'battle_status' => $battleStatus,
                 'battle_result' => ($battleStatus === 'victory' || $battleStatus === 'defeat') ? $battleStatus : null,
                 'is_victory' => ($battleStatus === 'victory'),

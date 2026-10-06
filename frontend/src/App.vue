@@ -65,6 +65,7 @@ const isFullScreenView = computed(() => {
   const p = route.path
   if (NO_HUD_ROUTES.includes(p)) return true
   if (FULL_SCREEN_PREFIXES.some(prefix => p.startsWith(prefix))) return true
+  if (p.includes('final-boss')) return true
   if (p === '/adventure' || (p.startsWith('/adventure/') && !p.includes('/part/') && !p.includes('/boss'))) return true
   return false
 })

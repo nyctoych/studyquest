@@ -87,6 +87,12 @@ class AdventureBattleMigration {
             if (!$regenCol) {
                 $db->exec("ALTER TABLE users ADD COLUMN health_regen_last_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
             }
+
+            // 7. Ensure final_boss_phase column exists in adventure_active_battles
+            $phaseCol = $db->query("SHOW COLUMNS FROM adventure_active_battles LIKE 'final_boss_phase'")->fetch(PDO::FETCH_ASSOC);
+            if (!$phaseCol) {
+                $db->exec("ALTER TABLE adventure_active_battles ADD COLUMN final_boss_phase INT NOT NULL DEFAULT 1 AFTER current_question_index");
+            }
         } catch (Throwable $e) {
             error_log('[AdventureBattleMigration] Error: ' . $e->getMessage());
         }

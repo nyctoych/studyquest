@@ -29,7 +29,7 @@ const routes = [
   { path: '/adventure/:chapterId',               component: () => import('../views/AdventureMap.vue'),     meta: { auth: true } },
   { path: '/adventure/:chapterId/part/:partNum', component: () => import('../views/AdventurePart.vue'),     meta: { auth: true } },
   { path: '/adventure/:chapterId/boss',          component: () => import('../views/AdventureBoss.vue'),     meta: { auth: true } },
-  { path: '/adventure/:chapterId/final-boss',    redirect: '/adventure/final-boss' },
+  { path: '/adventure/:chapterId/final-boss',    component: () => import('../views/FinalBoss.vue'),          meta: { auth: true } },
 
   { path: '/multiplayer',  component: () => import('../views/Multiplayer.vue'),  meta: { auth: true } },
   { path: '/arena',        component: () => import('../views/Multiplayer.vue'),  meta: { auth: true } },

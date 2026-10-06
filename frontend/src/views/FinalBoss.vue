@@ -1,12 +1,21 @@
 <template>
   <div
     class="final-boss-screen"
-    :class="{ 'is-in-battle': phase === 'battle' }"
+    :class="{
+      'is-in-battle': phase === 'battle',
+      'is-in-revelation': phase === 'father_revelation'
+    }"
     :style="{ '--boss-accent': bossMeta.accentColor, '--boss-glow': bossMeta.accentGlow }"
   >
     <div class="boss-bg"></div>
 
-    <div class="boss-content" :class="{ 'is-battle-mode': phase === 'battle' }">
+    <div
+      class="boss-content"
+      :class="{
+        'is-battle-mode': phase === 'battle',
+        'is-revelation-mode': phase === 'father_revelation'
+      }"
+    >
       <!-- LOADING STATE -->
       <div v-if="phase === 'loading'" class="boss-loading">
         <div class="loading-spinner"></div>
@@ -25,6 +34,67 @@
         <button class="btn btn-gothic-crimson btn-lg" @click="goToAdventure">
           ← RETURN TO ADVENTURE
         </button>
+      </div>
+
+      <!-- THE FATHER'S REVELATION (PRE-BATTLE RESTORED SEQUENCE) -->
+      <div v-else-if="phase === 'father_revelation'" class="father-revelation-scene gothic-panel animate-scale-up">
+        <div class="fr-apex-tag">
+          <span class="fr-key-icon">🗝</span>
+          <span class="fr-tag-text font-pixel">THE BLACK ARCHIVE — APEX GATE</span>
+        </div>
+
+        <h1 class="fr-main-title font-pixel">THE FATHER'S REVELATION</h1>
+
+        <p class="fr-subtitle">
+          Before the final chamber unlocks, an unexpected figure steps from the shadows.
+        </p>
+
+        <div class="fr-portrait-frame">
+          <img
+            :src="resolveAsset('assets/game/market-npc-raven.png')"
+            alt="Raven"
+            class="fr-portrait-img pixel-art"
+          />
+        </div>
+
+        <div class="fr-dialogue-box" @click="nextFatherDialogue" title="Click to advance dialogue">
+          <div class="fr-speaker-row">
+            <span class="fr-speaker-name font-pixel">{{ currentFatherDialogue.speaker }}</span>
+            <span class="fr-speaker-role font-pixel">{{ currentFatherDialogue.role }}</span>
+          </div>
+
+          <div class="fr-dialogue-text font-pixel">
+            “{{ currentFatherDialogue.text }}”
+          </div>
+
+          <div class="fr-dots-row">
+            <span
+              v-for="idx in 8"
+              :key="idx"
+              class="fr-dot"
+              :class="{ 'is-active': fatherStep === (idx - 1) }"
+            ></span>
+          </div>
+        </div>
+
+        <div class="fr-actions-row">
+          <button
+            class="btn btn-gothic-crimson btn-lg fr-proceed-btn"
+            :class="{ 'fr-unseal-pulse': fatherStep === 7 }"
+            :disabled="submittingRevelation"
+            @click.stop="nextFatherDialogue"
+          >
+            <span v-if="fatherStep < 7">NEXT DIALOGUE →</span>
+            <span v-else>UNSEAL THE ARCHIVE & ENTER BATTLE →</span>
+          </button>
+          <span class="fr-click-hint font-pixel">✦ Click dialogue box or button to continue · [SPACE] / [ENTER] ✦</span>
+        </div>
+
+        <div v-if="alreadyRevealed" class="fr-skip-row">
+          <button class="fr-skip-btn" @click.stop="proceedToCreatorIntro">
+            SKIP TO CHAMBER ▸
+          </button>
+        </div>
       </div>
 
       <!-- CINEMATIC INTRO -->
@@ -93,6 +163,9 @@
             <button class="btn btn-gothic-stone" @click="goToAdventure">
               ← MAP
             </button>
+            <button class="btn btn-gothic-stone" @click="replayFatherRevelation">
+              📜 FATHER'S REVELATION
+            </button>
             <button class="btn btn-gothic-crimson btn-lg proceed-btn" @click="startFinalBossBattle">
               <span>CONFRONT THE CREATOR</span>
               <span class="btn-arrow">▸</span>
@@ -107,6 +180,7 @@
           v-if="!battleComplete"
           :is-boss="true"
           :is-final-boss="true"
+          :initial-boss-phase="finalBossPhase"
           :chapter-id="12"
           :chapter-title="'The Black Archive'"
           :part-title="'THE FINAL ENCOUNTER — THE CREATOR'"
@@ -136,6 +210,7 @@
           @answer="handleAnswer"
           @answered="onQuestionAnswered"
           @next="nextQuestion"
+          @final-victory="onCreatorBattleDefeated"
         />
 
         <!-- Submitting Final Victory Notice -->
@@ -298,7 +373,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useAdventureStore } from '../stores/adventure'
@@ -321,15 +396,114 @@ const healthStore = useHealthStore()
 const bossMeta = getFinalBoss()
 
 // State Machine Phases:
-// 'loading' | 'locked' | 'intro' | 'battle' | 'defeat' | 'creator_dialogue' | 'world_collapse' | 'merchant_reveal' | 'epilogue' | 'campaign_complete'
+// 'loading' | 'locked' | 'father_revelation' | 'intro' | 'battle' | 'defeat' | 'creator_dialogue' | 'world_collapse' | 'merchant_reveal' | 'epilogue' | 'campaign_complete'
 const phase = ref('loading')
 const lockedMessage = ref('')
+const fatherStep = ref(0)
+const alreadyRevealed = ref(false)
+const submittingRevelation = ref(false)
+
+const fatherDialogues = [
+  {
+    speaker: 'Raven',
+    role: 'The Merchant',
+    text: 'I knew you would make it here. From the moment you stepped into my shop, I recognized the gait. The expression. The questions you asked.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'I am his father.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'My son was a writer. He created the Mindrealm. At first, it was simply a story—a grand fantasy world filled with towers, riddles, and ancient guardians.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'But over time, he began putting more and more of himself into it. When life became difficult to manage, the stories became his sanctuary. A place where every problem had a classification. Where every pain could be given a name and mastered with logic.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'Those twelve guardians you faced were never monsters. They were fictional manifestations—symbolic reflections of themes he wrestled to understand: time, perception, extremes, loss, worry, control, identity.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'And then... he wrote you.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'You were not part of the first draft. When he realized he was trapped in his own endless revisions, he wrote a protagonist capable of traveling through every chapter, facing every guardian, and reaching this chamber.'
+  },
+  {
+    speaker: 'Raven',
+    role: 'The Father of the Creator',
+    text: 'You were his way of writing an ending. The door is unlocked now. Go inside. Face the author.'
+  }
+]
+
+const currentFatherDialogue = computed(() => fatherDialogues[fatherStep.value] || fatherDialogues[0])
+
+async function nextFatherDialogue() {
+  if (fatherStep.value < 7) {
+    fatherStep.value++
+  } else {
+    await unsealArchiveAndEnterBattle()
+  }
+}
+
+function replayFatherRevelation() {
+  fatherStep.value = 0
+  phase.value = 'father_revelation'
+}
+
+function proceedToCreatorIntro() {
+  phase.value = 'intro'
+}
+
+async function unsealArchiveAndEnterBattle() {
+  if (submittingRevelation.value) return
+  submittingRevelation.value = true
+  try {
+    const res = await adventure.completeFatherRevelation()
+    alreadyRevealed.value = true
+    if (res?.new_achievements?.length) {
+      toast.success('ACHIEVEMENT UNLOCKED: The Truth Behind The Merchant!')
+    }
+  } catch (err) {
+    console.warn('Error completing father revelation:', err)
+  } finally {
+    submittingRevelation.value = false
+  }
+
+  // Atmospheric GameTransition
+  transitionStore.destination = {
+    title: 'UNSEALING THE BLACK ARCHIVE',
+    subtitle: 'The door unlocks. Face the author of Mindrealm...',
+    icon: 'castle',
+    themeColor: 'crimson',
+    type: 'gate'
+  }
+  transitionStore.isTransitioning = true
+  await new Promise(resolve => setTimeout(resolve, 200))
+  transitionStore.isCovered = true
+  phase.value = 'intro'
+  await new Promise(resolve => setTimeout(resolve, 150))
+  transitionStore.isCovered = false
+  await new Promise(resolve => setTimeout(resolve, 220))
+  transitionStore.isTransitioning = false
+}
 
 // Combat State
 const bossHP = ref(1500)
 const bossMaxHP = ref(1500)
 const playerHP = ref(150)
 const playerMaxHP = ref(150)
+const finalBossPhase = ref(1)
 const questions = ref([])
 const currentQIdx = ref(0)
 const answered = ref(false)
@@ -506,8 +680,27 @@ onMounted(async () => {
     return
   }
 
-  phase.value = 'intro'
+  const state = finalRes.state || adventure.finalBoss
+  alreadyRevealed.value = Boolean(state?.father_revelation_completed)
+
+  // Father's Revelation is automatically displayed when "Enter the Black Archive" button is clicked
+  fatherStep.value = 0
+  phase.value = 'father_revelation'
+
+  window.addEventListener('keydown', onGlobalKeyDown)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeyDown)
+})
+
+function onGlobalKeyDown(e) {
+  if (phase.value !== 'father_revelation') return
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
+    e.preventDefault()
+    nextFatherDialogue()
+  }
+}
 
 // ── BATTLE METHODS ───────────────────────────────────────────
 async function startFinalBossBattle() {
@@ -561,6 +754,9 @@ async function startFinalBossBattle() {
   playerMaxHP.value = Number(startRes.player_max_health ?? getCharacterBaseHealth())
   bossHP.value = Number(startRes.enemy_current_health ?? 1500)
   bossMaxHP.value = Number(startRes.enemy_max_health ?? 1500)
+  if (startRes.final_boss_phase) {
+    finalBossPhase.value = Number(startRes.final_boss_phase)
+  }
   questions.value = startRes.questions || []
   healthStore.updateFromBattleAction(startRes)
 
@@ -600,6 +796,7 @@ async function onQuestionAnswered(serverRes) {
     if (serverRes.player_max_health !== undefined) playerMaxHP.value = Number(serverRes.player_max_health)
     if (serverRes.enemy_current_health !== undefined) bossHP.value = Number(serverRes.enemy_current_health)
     if (serverRes.enemy_max_health !== undefined) bossMaxHP.value = Number(serverRes.enemy_max_health)
+    if (serverRes.final_boss_phase !== undefined) finalBossPhase.value = Number(serverRes.final_boss_phase)
     dmgToEnemy.value = Number(serverRes.damage_dealt || 0)
     dmgToPlayer.value = Number(serverRes.player_damage_taken || 0)
     lastDmgType.value = serverRes.damage_type || 'normal'
@@ -622,11 +819,17 @@ async function onQuestionAnswered(serverRes) {
     healthStore.currentHp = 0
     phase.value = 'defeat'
   } else if (bossHP.value <= 0 || serverRes?.battle_result === 'victory') {
-    battleComplete.value = true
-    battleResult.value = 'victory'
+    // Creator HP reached 0: AdventureBattlefield handles the cinematic defeat sequence
+    // and temporary backstory placeholder before emitting @final-victory.
     enemyDefeated.value = true
-    await finalizeCreatorVictory()
   }
+}
+
+async function onCreatorBattleDefeated(serverRes) {
+  battleComplete.value = true
+  battleResult.value = 'victory'
+  enemyDefeated.value = true
+  await finalizeCreatorVictory()
 }
 
 function checkScriptedDialogue(isCorrect) {
@@ -735,6 +938,9 @@ function goToShop() {
   position: relative;
   background: var(--gothic-void, #050608);
   user-select: none;
+  overflow-y: auto;
+  padding-top: calc(var(--hud-height, 60px) + 1.25rem);
+  box-sizing: border-box;
 }
 .boss-bg {
   position: fixed;
@@ -745,9 +951,12 @@ function goToShop() {
     radial-gradient(ellipse at 50% 90%, rgba(10, 11, 15, 0.95) 0%, #050608 100%);
   pointer-events: none;
 }
+.final-boss-screen.is-in-revelation {
+  padding-top: var(--hud-height, 60px);
+}
 .final-boss-screen.is-in-battle {
-  padding-top: 0;
-  margin-top: -0.75rem;
+  padding-top: var(--hud-height, 60px);
+  margin-top: 0;
 }
 
 /* Defeat Final Recovery Box */
@@ -788,7 +997,15 @@ function goToShop() {
   max-width: 780px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
+  box-sizing: border-box;
   transition: max-width 0.25s ease, padding 0.25s ease;
+}
+
+.boss-content.is-revelation-mode {
+  max-width: min(1720px, 97vw);
+  width: 97%;
+  margin: 0 auto;
+  padding: 0.35rem 1rem 0.85rem;
 }
 
 .boss-content.is-battle-mode {
@@ -856,6 +1073,209 @@ function goToShop() {
   color: var(--color-bone-dark, #8c8273);
   max-width: 520px;
   line-height: 1.6;
+}
+
+/* ── THE FATHER'S REVELATION SCENE ─────────────────── */
+.father-revelation-scene {
+  background: rgba(13, 8, 22, 0.95);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-top: 3px solid #a855f7;
+  padding: 0.75rem 2rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.9), 0 0 35px rgba(168, 85, 247, 0.18);
+  position: relative;
+  width: 100%;
+  max-width: min(1620px, 98%);
+  margin: 0.5rem auto 0.6rem;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.fr-apex-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.fr-key-icon {
+  font-size: 0.85rem;
+  color: #fbbf24;
+}
+.fr-tag-text {
+  font-size: 0.62rem;
+  color: #fbbf24;
+  letter-spacing: 2px;
+}
+
+.fr-main-title {
+  font-size: clamp(1.4rem, 2.4vw, 2.1rem);
+  color: #f5f3ff;
+  text-shadow: 0 0 18px rgba(192, 132, 252, 0.75), 0 0 40px rgba(168, 85, 247, 0.45);
+  letter-spacing: 3px;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+.fr-subtitle {
+  font-family: var(--font-pixel, monospace);
+  font-size: clamp(0.6rem, 0.95vw, 0.72rem);
+  color: #c4b5fd;
+  text-align: center;
+  max-width: 1200px;
+  line-height: 1.5;
+  margin: 0 0 0.5rem;
+}
+
+.fr-portrait-frame {
+  width: clamp(115px, 13vh, 145px);
+  height: clamp(115px, 13vh, 145px);
+  background: rgba(8, 4, 15, 0.95);
+  border: 2px solid rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.35), inset 0 0 15px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+  border-radius: 4px;
+}
+.fr-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.fr-dialogue-box {
+  width: 100%;
+  max-width: min(1500px, 98%);
+  background: rgba(18, 12, 30, 0.92);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(168, 85, 247, 0.2);
+  padding: 0.95rem 2rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100px;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.fr-dialogue-box:hover {
+  border-color: rgba(168, 85, 247, 0.6);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 15px rgba(168, 85, 247, 0.2);
+}
+
+.fr-speaker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+.fr-speaker-name {
+  color: #fbbf24;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}
+.fr-speaker-role {
+  color: #c084fc;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+
+.fr-dialogue-text {
+  font-family: var(--font-pixel, monospace);
+  color: #f8fafc;
+  font-size: clamp(0.82rem, 1.15vw, 0.98rem);
+  line-height: 1.75;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.55rem;
+  min-height: 2.7rem;
+}
+
+.fr-dots-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+.fr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b1d60;
+  transition: all 0.25s ease;
+}
+.fr-dot.is-active {
+  background: #fbbf24;
+  box-shadow: 0 0 10px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.6);
+  transform: scale(1.3);
+}
+
+.fr-actions-row {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+.fr-proceed-btn {
+  min-width: 290px;
+  letter-spacing: 1.5px;
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.76rem;
+  background: linear-gradient(180deg, #5b1318 0%, #350c10 100%);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  color: #ffffff;
+  padding: 0.7rem 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+}
+.fr-proceed-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #781a20 0%, #4c1015 100%);
+  border-color: #ef4444;
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
+  transform: translateY(-1px);
+}
+.fr-unseal-pulse {
+  animation: frUnsealPulse 2s infinite alternate;
+}
+@keyframes frUnsealPulse {
+  0% { box-shadow: 0 0 12px rgba(220, 38, 38, 0.4); }
+  100% { box-shadow: 0 0 28px rgba(220, 38, 38, 0.85), 0 0 40px rgba(168, 85, 247, 0.45); }
+}
+
+.fr-click-hint {
+  font-size: 0.52rem;
+  color: #a78bfa;
+  letter-spacing: 0.5px;
+}
+
+.fr-skip-row {
+  margin-top: 0.25rem;
+}
+.fr-skip-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.52rem;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+.fr-skip-btn:hover {
+  color: #e2e8f0;
 }
 
 /* ── CINEMATIC INTRO ────────────────────────── */
