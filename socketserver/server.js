@@ -62,11 +62,9 @@ io.on('connection', (socket) => {
   // ── LEAVE MATCHMAKING ─────────────────────────────────────
   const handleLeaveQueue = (data) => {
     const userId = data?.userId || socket.data?.userId
-    if (userId) {
-      matchmakingManager.leaveQueue(userId)
-      socket.emit('queue_left', {})
-      socket.emit('queue:left', {})
-    }
+    matchmakingManager.leaveQueue(userId, socket.id)
+    socket.emit('queue_left', {})
+    socket.emit('queue:left', {})
   }
   socket.on('leave_matchmaking', handleLeaveQueue)
   socket.on('queue:leave', handleLeaveQueue)
@@ -86,7 +84,7 @@ io.on('connection', (socket) => {
 
   // ── SUBMIT ANSWER ─────────────────────────────────────────
   const handleSubmitAnswer = (data) => {
-    const { roomId, questionId, userId } = data || {}
+    const { roomId, questionId, userId, isCritical, is_critical } = data || {}
     const answer = data?.answer || data?.choice
     if (!roomId || !questionId || !answer || !userId) {
       socket.emit('error', { message: 'Invalid answer payload' })
@@ -95,7 +93,7 @@ io.on('connection', (socket) => {
 
     const battleMgr = roomManager.getBattleManager(roomId)
     if (battleMgr) {
-      battleMgr.submitAnswer(userId, questionId, answer)
+      battleMgr.submitAnswer(userId, questionId, answer, Boolean(isCritical || is_critical))
     }
   }
   socket.on('submit_answer', handleSubmitAnswer)
@@ -132,9 +130,7 @@ io.on('connection', (socket) => {
     log(`[DISCONNECT] Socket ${socket.id} — ${reason}`)
 
     // Remove from matchmaking if in queue
-    if (socket.data?.userId) {
-      matchmakingManager.leaveQueue(socket.data.userId)
-    }
+    matchmakingManager.leaveQueue(socket.data?.userId, socket.id)
 
     // Handle battle disconnect
     roomManager.disconnectMgr.onDisconnect(socket)

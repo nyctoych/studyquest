@@ -17,8 +17,18 @@
 
       <!-- Item Preview Stage -->
       <div class="preview-stage-container">
+        <!-- Dodge Potion Preview -->
+        <div v-if="isDodgePotion" class="effect-modal-stage">
+          <div class="effect-modal-preview-box potion-modal-box">
+            <img src="/assets/POTIONS/dodge%20potion.png" alt="Dodge Potion" class="potion-modal-img pixel-art" />
+          </div>
+          <p class="battle-note font-pixel">
+            🧪 Skip active battle question without dealing or receiving damage
+          </p>
+        </div>
+
         <!-- Attack & Splash Effect Preview -->
-        <div v-if="isEffectType" class="effect-modal-stage">
+        <div v-else-if="isEffectType" class="effect-modal-stage">
           <div class="effect-modal-preview-box">
             <CosmeticEffectPreview :item="item" :autoplay="true" />
           </div>
@@ -77,7 +87,10 @@
         </div>
         <div class="ledger-row">
           <span class="ledger-label">STATUS</span>
-          <span v-if="isPotion" class="status-pill potion-status">
+          <span v-if="isDodgePotion" class="status-pill potion-status dodge-status font-pixel">
+            QUESTION SKIP CONSUMABLE
+          </span>
+          <span v-else-if="isPotion" class="status-pill potion-status">
             +200 HP RECOVERY
           </span>
           <span v-else class="status-pill" :class="{ 'owned': isOwned, 'equipped': isEquipped }">
@@ -97,9 +110,21 @@
 
       <!-- Modal Action Buttons -->
       <div class="modal-actions">
-        <!-- Potion state (Instant consumable) -->
+        <!-- Dodge Potion state -->
         <button
-          v-if="isPotion"
+          v-if="isDodgePotion"
+          class="btn-action btn-buy-confirm btn-potion-confirm btn-dodge-confirm"
+          :disabled="userCoins < item.coin_cost || processing"
+          @click="emit('purchase', item)"
+        >
+          <span v-if="processing">Distilling Dodge Potion...</span>
+          <span v-else-if="userCoins < item.coin_cost">Insufficient Coins ({{ item.coin_cost }} needed)</span>
+          <span v-else>Purchase Dodge Potion (200 Coins)</span>
+        </button>
+
+        <!-- Health Potion state (Instant consumable) -->
+        <button
+          v-else-if="isPotion"
           class="btn-action btn-buy-confirm btn-potion-confirm"
           :disabled="userCoins < item.coin_cost || processing"
           @click="emit('purchase', item)"
@@ -113,10 +138,11 @@
         <button
           v-else-if="isEquipped"
           class="btn-action btn-unequip"
-          :disabled="processing"
+          :class="{ 'btn-default-equipped': isDefaultSkin }"
+          :disabled="processing || isDefaultSkin"
           @click="emit('unequip', item)"
         >
-          {{ processing ? 'Attuning...' : 'Unequip Cosmetic' }}
+          {{ isDefaultSkin ? 'Default Equipped' : (processing ? 'Attuning...' : 'Unequip Cosmetic') }}
         </button>
 
         <!-- Owned but not equipped -->
@@ -162,11 +188,29 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'purchase', 'equip', 'unequip'])
 
+const isDodgePotion = computed(() => {
+  return props.item && (
+    props.item.type === 'dodge_potion' ||
+    props.item.effect_key === 'dodge-potion' ||
+    props.item.name === 'Dodge Potion'
+  )
+})
+
 const isPotion = computed(() => {
   return props.item && (
+    isDodgePotion.value ||
     props.item.type === 'potion' ||
     ['potion', 'potions'].includes(props.item.category_slug) ||
     props.item.effect_key === 'health-potion'
+  )
+})
+
+const isDefaultSkin = computed(() => {
+  if (!props.item) return false
+  return !!(
+    props.item.is_default ||
+    props.item.coin_cost === 0 ||
+    props.item.rarity === 'common'
   )
 })
 
@@ -226,6 +270,11 @@ function getCategoryName(slug) {
   color: #f1f5f9;
 }
 
+.item-modal-box.mythical {
+  border-color: #f43f5e;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 35px rgba(244, 63, 94, 0.45);
+}
+
 .item-modal-box.legendary {
   border-color: #fbbf24;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 35px rgba(251, 191, 36, 0.35);
@@ -277,6 +326,7 @@ function getCategoryName(slug) {
 .rarity-badge.rare { color: #60a5fa; }
 .rarity-badge.epic { color: #c084fc; }
 .rarity-badge.legendary { color: #fbbf24; }
+.rarity-badge.mythical { color: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
 
 .btn-close-modal {
   background: transparent;
@@ -542,5 +592,52 @@ function getCategoryName(slug) {
 .btn-unequip:hover:not(:disabled) {
   background: rgba(46, 38, 74, 0.95);
   color: #f1f5f9;
+}
+
+.btn-default-equipped {
+  opacity: 0.95 !important;
+  cursor: default !important;
+  background: rgba(20, 24, 40, 0.9) !important;
+  border: 1px solid rgba(255, 215, 0, 0.5) !important;
+  color: #ffd700 !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.2) !important;
+}
+
+/* Dodge Potion Modal Presentation */
+.potion-modal-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.potion-modal-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.6));
+  animation: potion-float 3s ease-in-out infinite alternate;
+}
+
+@keyframes potion-float {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px); }
+}
+
+.dodge-status {
+  background: rgba(6, 182, 212, 0.2) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+}
+
+.btn-dodge-confirm {
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4) !important;
+}
+.btn-dodge-confirm:hover:not(:disabled) {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%) !important;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6) !important;
 }
 </style>

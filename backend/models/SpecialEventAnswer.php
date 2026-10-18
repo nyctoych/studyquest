@@ -22,8 +22,8 @@ class SpecialEventAnswer {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
                 bloom_level = IF(VALUES(bloom_level) IS NOT NULL, VALUES(bloom_level), bloom_level),
-                selected_choice = IF(VALUES(selected_choice) IS NOT NULL, VALUES(selected_choice), selected_choice),
-                is_correct = VALUES(is_correct),
+                selected_choice = VALUES(selected_choice),
+                is_correct = IF(VALUES(selected_choice) IS NULL, 0, VALUES(is_correct)),
                 response_time = response_time + VALUES(response_time),
                 is_marked = IF(VALUES(is_marked) IS NOT NULL, VALUES(is_marked), is_marked),
                 answered_at = NOW()

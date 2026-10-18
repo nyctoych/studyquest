@@ -355,25 +355,42 @@ function retryQuiz() {
 <style scoped>
 .study-part {
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   padding-top: 68px;
-  background: var(--gothic-void, #050608);
+  background: #050608 !important;
   user-select: none;
 }
 .sp-bg {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
 .sp-bg-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  object-fit: cover !important;
+  object-position: center !important;
   filter: brightness(0.42) contrast(1.15) saturate(0.85);
   transform: scale(1.02);
+  display: block !important;
 }
 .sp-bg-overlay {
   position: absolute;

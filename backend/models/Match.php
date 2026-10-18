@@ -91,11 +91,22 @@ class BattleMatch {
             "SELECT m.id, m.room_id, m.status, m.battle_mode, m.started_at, m.ended_at,
                     mp.outcome, mp.hp_end, mp.correct_answers, mp.wrong_answers,
                     mp.xp_earned, mp.coins_earned, mp.rating_before, mp.rating_after, mp.rating_change,
-                    opp.username AS opponent_username
+                    opp.id AS opponent_id,
+                    opp.username AS opponent_username,
+                    opp.nickname AS opponent_nickname,
+                    opp.level AS opponent_level,
+                    opp.selected_character_id AS opponent_character_id,
+                    opp.avatar_style AS opponent_avatar_style,
+                    opp.avatar_seed AS opponent_avatar_seed,
+                    opp.avatar_options AS opponent_avatar_options,
+                    COALESCE(c.class_type, CASE WHEN opp.selected_character_id = 2 THEN 'MELEE' WHEN opp.selected_character_id = 3 THEN 'RANGE' ELSE 'MAGE' END) AS opponent_class_type,
+                    c.name AS opponent_character_name,
+                    c.profile_avatar_path AS opponent_avatar_path
              FROM matches m
              JOIN match_players mp ON m.id = mp.match_id AND mp.user_id = ?
              LEFT JOIN match_players opp_mp ON m.id = opp_mp.match_id AND opp_mp.user_id != ?
              LEFT JOIN users opp ON opp_mp.user_id = opp.id
+             LEFT JOIN characters c ON opp.selected_character_id = c.id
              WHERE m.status = 'completed'
              ORDER BY m.ended_at DESC
              LIMIT ?"

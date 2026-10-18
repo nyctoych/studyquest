@@ -38,6 +38,30 @@ class SpecialEventQuestion {
         return $stmt->fetchAll();
     }
 
+    public function getByEventAndSession(int $eventId, int $sessionNumber, bool $approvedOnly = false): array {
+        $sql = "
+            SELECT seq.*, pd.name as domain_name, sp.title as part_title, sp.part_number
+            FROM special_event_questions seq
+            LEFT JOIN psychiatric_domains pd ON seq.domain_id = pd.id
+            LEFT JOIN study_parts sp ON seq.study_part_id = sp.id
+            WHERE seq.special_event_id = ? AND seq.session_number = ?
+        ";
+        if ($approvedOnly) {
+            $sql .= " AND seq.review_status = 'approved'";
+        }
+        $sql .= " ORDER BY seq.display_order ASC, seq.id ASC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$eventId, $sessionNumber]);
+        return $stmt->fetchAll();
+    }
+
+    public function countByEventAndSession(int $eventId, int $sessionNumber): int {
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM special_event_questions WHERE special_event_id = ? AND session_number = ?");
+        $stmt->execute([$eventId, $sessionNumber]);
+        return (int) $stmt->fetchColumn();
+    }
+
     /**
      * Client-safe view for ACTIVE exam (excludes correct_choice and explanation to prevent cheating)
      */
@@ -45,6 +69,8 @@ class SpecialEventQuestion {
         return [
             'id' => (int) $q['id'],
             'special_event_id' => (int) $q['special_event_id'],
+            'session_number' => (int) ($q['session_number'] ?? 1),
+            'subject_name' => $q['subject_name'] ?? '',
             'domain_id' => (int) $q['domain_id'],
             'domain_name' => $q['domain_name'] ?? '',
             'study_part_id' => (int) $q['study_part_id'],
@@ -57,6 +83,7 @@ class SpecialEventQuestion {
             'choice_d' => $q['choice_d'],
             'difficulty' => $q['difficulty'],
             'question_type' => $q['question_type'],
+            'bloom_level' => $q['bloom_level'] ?? 'apply',
             'display_order' => (int) ($q['display_order'] ?? 1)
         ];
     }
@@ -64,16 +91,18 @@ class SpecialEventQuestion {
     public function create(array $data): int {
         $stmt = $this->db->prepare("
             INSERT INTO special_event_questions (
-                special_event_id, study_part_id, domain_id, question_text,
+                special_event_id, session_number, study_part_id, domain_id, subject_name, question_text,
                 choice_a, choice_b, choice_c, choice_d, correct_choice,
                 explanation, difficulty, question_type, bloom_level, source_hash,
                 question_hash, concept_key, generation_version, review_status, display_order
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $data['special_event_id'],
+            $data['session_number'] ?? 1,
             $data['study_part_id'],
             $data['domain_id'],
+            $data['subject_name'] ?? '',
             $data['question_text'],
             $data['choice_a'],
             $data['choice_b'],

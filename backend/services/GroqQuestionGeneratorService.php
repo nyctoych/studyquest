@@ -1,22 +1,26 @@
 <?php
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/database.php';
 
 class GroqQuestionGeneratorService {
     private string $apiKey;
     private string $model;
     private string $apiUrl;
     private int $timeout;
+    private static bool $isRateLimited = false;
 
     public function __construct() {
-        $this->apiKey = trim(env('GROQ_API_KEY', ''));
-        $this->model  = trim(env('GROQ_MODEL', 'llama-3.3-70b-versatile'));
-        $baseUrl      = rtrim(env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'), '/');
+        $this->apiKey = trim((string) env('GROQ_API_KEY', ''));
+        $this->model  = trim((string) env('GROQ_MODEL', 'openai/gpt-oss-120b'));
+        $baseUrl      = rtrim((string) env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'), '/');
         $this->apiUrl = $baseUrl . '/chat/completions';
-        $this->timeout = 45; // seconds
+        $this->timeout = 12; // seconds (fast failover to curriculum fallback)
     }
 
     public function isConfigured(): bool {
-        return !empty($this->apiKey) && $this->apiKey !== 'YOUR_NEW_GROQ_API_KEY';
+        return !empty($this->apiKey) 
+            && $this->apiKey !== 'YOUR_NEW_GROQ_API_KEY'
+            && $this->apiKey !== 'your_groq_api_key_here';
     }
 
     public function getModel(): string {
@@ -38,7 +42,7 @@ class GroqQuestionGeneratorService {
      * @return array List of raw generated question candidate arrays
      */
     public function generateBatch(array $sourceContext, int $batchSize = 7, array $difficultyMix = [], int $userSeed = 0, array $bloomMix = []): array {
-        if (!$this->isConfigured()) {
+        if (self::$isRateLimited || !$this->isConfigured()) {
             return $this->generateLocalCurriculumFallback($sourceContext, $batchSize, $difficultyMix, $userSeed, $bloomMix);
         }
 
@@ -57,7 +61,7 @@ class GroqQuestionGeneratorService {
         ];
 
         $attempts = 0;
-        $maxAttempts = 3;
+        $maxAttempts = 1;
         $lastError = '';
 
         while ($attempts < $maxAttempts) {
@@ -74,13 +78,14 @@ class GroqQuestionGeneratorService {
             } else {
                 $lastError = $response['error'] ?? 'Unknown network error';
                 if (str_contains($lastError, '429')) {
-                    // Rate limit reached on Groq tier; fallback immediately without delayed retries
+                    self::$isRateLimited = true;
+                    error_log("GroqQuestionGeneratorService: Rate limit (429) encountered. Fast-switching entire generation cycle to Study Hall curriculum generator.");
                     break;
                 }
             }
 
             // Short pause before retry
-            usleep(300000); // 0.3s
+            usleep(200000); // 0.2s
         }
 
         error_log("GroqQuestionGeneratorService API generation failed after {$attempts} attempt(s): " . $lastError . ". Falling back to Study Hall curriculum generator.");
@@ -102,24 +107,31 @@ Your task is to generate rigorous, authentic BOARD-EXAMINATION-STYLE multiple-ch
 
 ACADEMIC MANDATES:
 1. STUDY HALL IS THE SOLE ACADEMIC SOURCE OF TRUTH. You must formulate every question, distractor, and explanation strictly around the provided Study Hall reviewer text.
-2. DO NOT invent unsupported criteria, fake symptoms, or non-DSM-5 classifications.
+2. DO NOT invent unsupported criteria, fake medications, non-DSM-5 classifications, or clinical trivia not grounded in the reviewer context.
 3. Every question must be a challenging MULTIPLE CHOICE question with EXACTLY FOUR choices labeled "A", "B", "C", and "D".
-4. EXACTLY ONE choice must be defensibly correct based on the provided reviewer context.
-5. DISTRACTORS MUST BE CONFUSING BUT FAIR:
-   - Plausible distractors from the same conceptual neighborhood (closely related DSM-5 disorders, overlapping clinical presentations, diagnostic threshold distinctions, duration criteria).
-   - NEVER use absurd, joke, or impossible answers.
-   - The question must be difficult because the psychiatric concepts are subtle and clinically nuanced, NOT because the question stem is ambiguous.
-6. STYLE: Prioritize realistic clinical vignettes, criteria application, differential diagnosis, duration/course distinction, and best-answer reasoning. Avoid simple keyword matching.
-7. REVISED BLOOM'S TAXONOMY CLASSIFICATION:
-   Every generated question MUST be classified according to the cognitive process required to answer it:
-   - "remember": retrieval of previously learned facts, terminology, classifications, definitions, symptoms, concepts, or directly stated information.
-   - "understand": interpretation, explanation, classification, comparison, summarization, or recognition of meaning.
-   - "apply": using Study Hall knowledge in a clinical or practical situation.
-   - "analyze": breaking down a case, distinguishing relationships, comparing competing diagnostic possibilities, identifying patterns, or determining which information is most relevant.
-   - "evaluate": judging competing alternatives, determining the most appropriate interpretation/action/diagnosis, or selecting the best-supported conclusion using multiple pieces of information.
-   - "create": determining or constructing the most appropriate solution, plan, formulation, intervention strategy, or response from a complex scenario.
-   CRITICAL: Difficulty and Bloom level are DIFFERENT concepts. A difficult question can be "understand", and a moderate question can be "analyze". Do not force questions into higher Bloom levels merely for difficulty.
-8. Output MUST BE valid JSON conforming to the requested schema.
+4. EXACTLY ONE choice must be defensibly correct based strictly on the provided reviewer context.
+5. HARD & CONFUSING DISTRACTOR DESIGN (REASONING-BASED, STRICTLY FAIR):
+   - The user demands questions and choices that are HARD and CONFUSING, designed to discriminate deep conceptual mastery from superficial recognition.
+   - Distractors MUST be plausible, drawn from neighboring DSM-5 disorders, shared diagnostic features, borderline duration thresholds, partially correct clinical formulations, or common psychiatric misconceptions.
+   - NEVER use absurd, joke, or obviously false answers.
+   - All 4 choices must be grammatically balanced, structurally parallel, and of comparable length so the correct choice cannot be deduced by format alone.
+   - "Confusing" MUST NEVER mean ambiguous or unfair:
+     * NO two arguably correct choices.
+     * NO trick questions, double negatives, or punctuation traps.
+     * The difficulty MUST stem from psychiatric discrimination and subtle clinical nuance, NOT stem ambiguity.
+
+6. REVISED BLOOM'S TAXONOMY COGNITIVE TRANSFORMATION RULES:
+   Transform the supplied Study Hall facts into the designated Bloom cognitive level:
+   - "remember": Factual retrieval. Test recall of exact diagnostic criteria thresholds, symptom duration requirements, inclusionary/exclusionary rules, and formal terminology directly stated in Study Hall.
+   - "understand": Conceptual interpretation. Test explanation of why criteria exist, summarizing psychopathological meaning, or identifying the best explanation of a clinical mechanism.
+   - "apply": Clinical application. Present a realistic clinical vignette with age, setting, and symptoms, requiring the test-taker to apply Study Hall diagnostic rules to reach the correct DSM-5 formulation.
+   - "analyze": Diagnostic discrimination & differential analysis. Present complex case presentations with overlapping features, requiring breaking down clinical evidence, distinguishing between competing psychiatric conditions, or isolating which contradictory finding changes the primary diagnosis.
+   - "evaluate": Clinical judgment & justification. Present multi-factorial clinical scenarios requiring judging competing clinical interpretations, evaluating which diagnostic conclusion is most defensible under Study Hall standards, or selecting the strongest clinical rationale.
+   - "create": Integrated formulation & management synthesis. In multiple-choice form, present comprehensive clinical scenarios requiring selecting the best structured management plan, multi-tier intervention strategy, or synthesized diagnostic formulation integrating multiple Study Hall principles.
+
+   CRITICAL: Difficulty and Bloom Level are independent dimensions. A "very_difficult" question can be "understand", and a "moderate" question can be "analyze". Do not conflate cognitive level with difficulty rating.
+
+7. Output MUST BE valid JSON conforming to the requested schema.
 PROMPT;
     }
 
@@ -137,6 +149,16 @@ PROMPT;
 
         $diffStr = !empty($diffMix) ? implode(', ', $diffMix) : 'difficult, very_difficult, board_style_case';
         $bloomStr = !empty($bloomMix) ? implode(', ', $bloomMix) : 'remember, understand, apply, analyze, evaluate, create';
+
+        $itemInstructions = [];
+        $diffCount = count($diffMix);
+        $bloomCount = count($bloomMix);
+        for ($i = 0; $i < $batchSize; $i++) {
+            $tDiff = ($diffCount > 0) ? ($diffMix[$i % $diffCount] ?? 'difficult') : 'difficult';
+            $tBloom = ($bloomCount > 0) ? ($bloomMix[$i % $bloomCount] ?? 'apply') : 'apply';
+            $itemInstructions[] = "Item #" . ($i + 1) . ": Target Bloom Level = '{$tBloom}', Difficulty = '{$tDiff}'";
+        }
+        $itemsQueueText = implode("\n", $itemInstructions);
 
         return <<<JSON
 Candidate Examination Stream: Candidate #{$userSeed}. Generate {$batchSize} unique board-exam-style questions based on this Study Hall source material:
@@ -162,30 +184,34 @@ Clinical Examples:
 Key Terms:
 {$keyTerms}
 
-[REQUIREMENTS]
-Target Count: {$batchSize} questions.
+[EXAMINATION ITEM SPECIFICATIONS]
 Candidate Seed: {$userSeed}. Ensure clinical vignettes, patient demographics, and phrasing are completely unique to this candidate.
-Difficulties to cover across this batch: {$diffStr} (must be one of: moderate, difficult, very_difficult, board_style_case).
-Bloom's Taxonomy target levels for this batch: {$bloomStr} (must be exactly one of: remember, understand, apply, analyze, evaluate, create).
-Question types to use: differential_diagnosis, clinical_application, best_answer, case_analysis, recall, recognition.
-All choices A, B, C, D must be clinically plausible and distinct.
+Generate exactly {$batchSize} items according to this sequence:
+{$itemsQueueText}
+
+Allowed Difficulties: moderate, difficult, very_difficult, board_style_case.
+Allowed Bloom Levels: remember, understand, apply, analyze, evaluate, create.
+Allowed Question Types: differential_diagnosis, clinical_application, best_answer, case_analysis, recall, recognition, exception.
+
+All choices A, B, C, D must be clinically plausible, highly nuanced, and structurally balanced.
+Exactly ONE choice must be defensibly correct.
 
 Return ONLY a JSON object with this exact structure:
 {
   "questions": [
     {
-      "question_text": "A 34-year-old patient presents with...",
+      "question_text": "Detailed board-examination vignette or scenario stem...",
       "choices": {
-        "A": "First plausible option",
-        "B": "Second plausible option",
-        "C": "Third plausible option",
-        "D": "Fourth plausible option"
+        "A": "Plausible nuanced option A",
+        "B": "Plausible nuanced option B",
+        "C": "Plausible nuanced option C",
+        "D": "Plausible nuanced option D"
       },
       "correct_choice": "B",
-      "explanation": "Detailed clinical rationale explaining why B is correct under DSM-5 criteria and why A, C, and D are incorrect.",
+      "explanation": "Thorough clinical rationale explaining why B is correct based on Study Hall criteria and why A, C, and D are ruled out.",
       "difficulty": "difficult",
-      "question_type": "clinical_application",
-      "bloom_level": "apply",
+      "question_type": "differential_diagnosis",
+      "bloom_level": "analyze",
       "concept_key": "Specific DSM-5 concept or differential tested"
     }
   ]

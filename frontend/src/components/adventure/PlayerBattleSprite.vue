@@ -1,5 +1,5 @@
 <template>
-  <div class="player-battle-sprite-container" :class="[battleStateClass, `theme-${activeClass.toLowerCase()}`]">
+  <div class="player-battle-sprite-container" :class="[battleStateClass, `theme-${activeClass.toLowerCase()}`, { 'is-opponent': isOpponent }]">
     <!-- Battle Ground Pedestal / Ring -->
     <div class="battle-pedestal player-pedestal">
       <div class="pedestal-ring-outer"></div>
@@ -172,6 +172,10 @@ const props = defineProps({
   damageType: {
     type: String,
     default: 'none'
+  },
+  isOpponent: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -181,6 +185,23 @@ const floatingText = ref('')
 const floatingType = ref('')
 const spriteRenderKey = ref(0)
 const spriteTimestamp = ref(Date.now())
+
+// Active character either passed as prop or from logged-in user profile
+const activeChar = computed(() => {
+  if (props.character) return props.character
+  if (props.isOpponent) return null
+  if (auth.selectedCharacter) return auth.selectedCharacter
+  if (auth.user?.selected_character) return auth.user.selected_character
+  return null
+})
+
+const activeClass = computed(() => {
+  if (activeChar.value?.name?.toLowerCase().includes('archer')) return 'RANGE'
+  if (activeChar.value?.name?.toLowerCase().includes('dual')) return 'MELEE'
+  if (activeChar.value?.name?.toLowerCase().includes('necro')) return 'MAGE'
+  const raw = activeChar.value?.class_type || activeChar.value?.code || activeChar.value?.key_name || 'MAGE'
+  return String(raw).toUpperCase()
+})
 
 const hpPercent = computed(() => {
   if (props.playerMaxHp <= 0) return 0
@@ -200,6 +221,11 @@ watch(() => props.playerHp, (newHp, oldHp) => {
       floatingText.value = ''
     }, 1300)
   }
+  // If Melee reaches 0 HP, trigger death GIF reset
+  if (activeClass.value === 'MELEE' && newHp <= 0 && (oldHp === undefined || oldHp > 0)) {
+    spriteRenderKey.value++
+    spriteTimestamp.value = Date.now()
+  }
 })
 
 watch(() => props.damageTaken, (val) => {
@@ -216,34 +242,19 @@ watch(() => props.damageTaken, (val) => {
   }
 })
 
-// Restart GIF animation when entering key action states (opening or attacking)
+// Restart GIF animation when entering key action states (opening, attacking, Melee hit/recoil, or Melee death)
 watch(() => props.battleState, (newState, oldState) => {
   if (newState !== oldState) {
     const s = (newState || '').toLowerCase()
-    // Only force DOM remount on opening or attacking to guarantee frame-0 start
-    if (s === 'opening' || s === 'attacking') {
+    // Force DOM remount on opening or attacking (and Melee hit/recoil/death) to guarantee frame-0 start
+    const isMeleeAction = activeClass.value === 'MELEE' && (s === 'recoil' || s === 'hit' || s === 'death')
+    if (s === 'opening' || s === 'attacking' || isMeleeAction) {
       spriteRenderKey.value++
       spriteTimestamp.value = Date.now()
     }
     spriteError.value = false
   }
 }, { immediate: true })
-
-// Active character either passed as prop or from logged-in user profile
-const activeChar = computed(() => {
-  if (props.character) return props.character
-  if (auth.selectedCharacter) return auth.selectedCharacter
-  if (auth.user?.selected_character) return auth.user.selected_character
-  return null
-})
-
-const activeClass = computed(() => {
-  if (activeChar.value?.name?.toLowerCase().includes('archer')) return 'RANGE'
-  if (activeChar.value?.name?.toLowerCase().includes('dual')) return 'MELEE'
-  if (activeChar.value?.name?.toLowerCase().includes('necro')) return 'MAGE'
-  const raw = activeChar.value?.class_type || activeChar.value?.code || activeChar.value?.key_name || 'MAGE'
-  return String(raw).toUpperCase()
-})
 
 const displayLevel = computed(() => {
   if (props.playerLevel !== null && props.playerLevel !== undefined && props.playerLevel !== '') {
@@ -294,6 +305,14 @@ const resolvedSprite = computed(() => {
 
   const state = (props.battleState || 'idle').toLowerCase()
 
+  // Priority 1: DEATH (Melee death GIF when HP <= 0 or battleState is death, Section 5, 8, 11)
+  if (activeClass.value === 'MELEE' && (state === 'death' || props.playerHp <= 0)) {
+    return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee DEATH.gif')
+  }
+  if (state === 'death') {
+    return resolveAsset(cfg?.death || cfg?.sprite || '')
+  }
+
   if (state === 'opening') {
     if (activeClass.value === 'MAGE') {
       return resolveAsset('/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer OPENING.gif')
@@ -302,7 +321,7 @@ const resolvedSprite = computed(() => {
       return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archerr OPENING.gif')
     }
     if (activeClass.value === 'MELEE') {
-      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png')
+      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee OPENING.gif')
     }
     const raw = cfg?.opening || c?.opening_gif_path || cfg?.sprite || c?.sprite_path || ''
     return resolveAsset(raw)
@@ -315,7 +334,7 @@ const resolvedSprite = computed(() => {
       return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archerr ATTACKING.gif')
     }
     if (activeClass.value === 'MELEE') {
-      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png')
+      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee Attack.gif')
     }
     const raw = cfg?.attack || c?.attack_asset_path || cfg?.sprite || c?.sprite_path || ''
     return resolveAsset(raw)
@@ -328,7 +347,7 @@ const resolvedSprite = computed(() => {
       return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archer Attack1.png')
     }
     if (activeClass.value === 'MELEE') {
-      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png')
+      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee IDLE.gif')
     }
     const raw = cfg?.attackStatic || cfg?.sprite || c?.sprite_path || ''
     return resolveAsset(raw)
@@ -341,7 +360,7 @@ const resolvedSprite = computed(() => {
       return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archerr IDLE.gif')
     }
     if (activeClass.value === 'MELEE') {
-      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png')
+      return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee HIT.gif')
     }
     const raw = cfg?.idle || c?.idle_asset_path || cfg?.sprite || c?.sprite_path || ''
     return resolveAsset(raw)
@@ -354,18 +373,19 @@ const resolvedSprite = computed(() => {
     return resolveAsset('/assets/CHARACTERS/ARCHER (RANGE)/Archerr IDLE.gif')
   }
   if (activeClass.value === 'MELEE') {
-    return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png')
+    return resolveAsset('/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee IDLE.gif')
   }
   const raw = cfg?.idle || c?.idle_asset_path || cfg?.sprite || c?.sprite_path || ''
   return resolveAsset(raw)
 })
 
-// Cache-bust query to force GIF reset from frame 0 during attack/opening
+// Cache-bust query to force GIF reset from frame 0 during attack/opening/hit/death
 const activeSpriteSrc = computed(() => {
   const base = resolvedSprite.value
   if (!base) return ''
   const state = (props.battleState || '').toLowerCase()
-  if (base.toLowerCase().includes('.gif') && (state === 'opening' || state === 'attacking')) {
+  const isResetState = state === 'opening' || state === 'attacking' || (activeClass.value === 'MELEE' && (state === 'recoil' || state === 'hit' || state === 'death' || props.playerHp <= 0))
+  if (base.toLowerCase().includes('.gif') && isResetState) {
     const sep = base.includes('?') ? '&' : '?'
     return `${base}${sep}anim_t=${spriteTimestamp.value}`
   }
@@ -391,16 +411,18 @@ const classIcon = computed(() => {
 })
 
 const roleTagLabel = computed(() => {
+  const prefix = props.isOpponent ? 'OPPONENT: ' : ''
   if (activeChar.value?.name && activeChar.value?.class_type) {
-    return `${activeChar.value.name.toUpperCase()} — ${activeChar.value.class_type}`
+    return `${prefix}${activeChar.value.name.toUpperCase()} — ${activeChar.value.class_type}`
   }
-  return activeClass.value || 'SCHOLAR'
+  return `${prefix}${activeClass.value || 'SCHOLAR'}`
 })
 
 const battleStateClass = computed(() => `state-${props.battleState}`)
 
 const animClass = computed(() => {
   const s = (props.battleState || '').toLowerCase()
+  if (s === 'death' || (activeClass.value === 'MELEE' && props.playerHp <= 0)) return 'anim-player-death'
   if (s === 'opening') return 'anim-player-opening'
   if (s === 'attacking') return 'anim-player-attack'
   if (s === 'attack_finished') return 'anim-player-attack-finished'
@@ -410,6 +432,7 @@ const animClass = computed(() => {
 
 const statusLabel = computed(() => {
   const s = (props.battleState || '').toLowerCase()
+  if (s === 'death' || (activeClass.value === 'MELEE' && props.playerHp <= 0)) return '💀 FALLEN'
   if (s === 'opening') return '⚔️ PREPARING'
   if (s === 'attacking') return '⚡ STRIKING'
   if (s === 'attack_finished') return '⚡ RECOVERING'
@@ -487,6 +510,10 @@ const statusLabel = computed(() => {
   justify-content: center;
   align-items: center;
   transition: transform 0.25s ease;
+}
+
+.player-battle-sprite-container.is-opponent .player-sprite-wrapper {
+  transform: scaleX(-1);
 }
 
 .player-custom-sprite {
@@ -870,5 +897,58 @@ const statusLabel = computed(() => {
     opacity: 0;
     transform: translateY(-20px) scale(0.9);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES
+   ══════════════════════════════════════════════════════════════ */
+:global(.theme-morning) .player-nameplate,
+:global([data-theme="morning"]) .player-nameplate {
+  background: rgba(254, 252, 248, 0.96) !important;
+  border: 2px solid #b89758 !important;
+  box-shadow: 0 4px 16px rgba(80, 55, 20, 0.25), 0 0 10px rgba(184, 151, 88, 0.25) !important;
+}
+
+:global(.theme-morning) .player-display-name,
+:global([data-theme="morning"]) .player-display-name {
+  color: #2b2216 !important;
+  text-shadow: none !important;
+}
+
+:global(.theme-morning) .player-level-badge,
+:global([data-theme="morning"]) .player-level-badge {
+  background: #b45309 !important;
+  color: #ffffff !important;
+}
+
+:global(.theme-morning) .player-hp-label,
+:global([data-theme="morning"]) .player-hp-label {
+  color: #0284c7 !important;
+}
+
+:global(.theme-morning) .player-hp-num,
+:global([data-theme="morning"]) .player-hp-num {
+  color: #4b3e2e !important;
+}
+
+:global(.theme-morning) .player-hp-track,
+:global([data-theme="morning"]) .player-hp-track {
+  background: rgba(180, 150, 110, 0.35) !important;
+  border: 1px solid rgba(184, 151, 88, 0.4) !important;
+}
+
+:global(.theme-morning) .stat-stat-row .stat-label,
+:global([data-theme="morning"]) .stat-stat-row .stat-label {
+  color: #786b59 !important;
+}
+
+:global(.theme-morning) .stat-stat-row .stat-value,
+:global([data-theme="morning"]) .stat-stat-row .stat-value {
+  color: #2b2216 !important;
+}
+
+:global(.theme-morning) .player-role-tag,
+:global([data-theme="morning"]) .player-role-tag {
+  color: #78350f !important;
 }
 </style>

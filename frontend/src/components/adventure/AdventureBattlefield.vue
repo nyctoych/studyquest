@@ -1,5 +1,11 @@
 <template>
-  <div class="adventure-battlefield" :class="{ 'is-boss-encounter': isBoss }">
+  <div
+    class="adventure-battlefield"
+    :class="{
+      'is-boss-encounter': isBoss,
+      'theme-morning': isMorning
+    }"
+  >
     <!-- Screen Flash on Impact -->
     <div v-if="screenFlash" class="battle-screen-flash" :class="flashType"></div>
 
@@ -53,9 +59,11 @@
               :hide-nameplate="isDefeatCinematicActive"
             />
 
-            <!-- Normal Minion Battle Sprite Placeholder -->
+            <!-- Authoritative Chapter Minion Battle Sprite (Assigned per Chapter) -->
             <MinionBattleSprite
               v-else
+              :chapter-id="chapterId"
+              :part-num="partNum"
               :enemy-name="enemyName"
               :enemy-title="enemyTitle"
               :battle-state="enemyBattleState"
@@ -108,6 +116,34 @@
           <div v-if="showAttackSlash" class="arena-slash-fx animate-slash-cut" :class="{ 'is-crit-slash': wasLastCrit }">
             <div class="slash-blade"></div>
             <div class="slash-glow"></div>
+          </div>
+
+          <!-- ════ FINAL BOSS: EXCLUSIVE ATTACK EFFECT ════ -->
+          <div
+            v-if="showBossAttackFx"
+            class="arena-boss-attack-fx animate-scale-up"
+            :class="`pattern-${activeBossAttackPattern?.key || 'standard'}`"
+          >
+            <div class="boss-attack-glow"></div>
+            <img
+              :src="bossAttackFxSrc"
+              :alt="activeBossAttackPattern?.attack?.name || 'Final Boss Attack Effect'"
+              class="boss-attack-sprite pixel-art"
+            />
+          </div>
+
+          <!-- ════ FINAL BOSS: EXCLUSIVE SPLASH EFFECT (Impact on Player) ════ -->
+          <div
+            v-if="showBossSplashFx"
+            class="arena-boss-splash-fx"
+            :class="`pattern-${activeBossAttackPattern?.key || 'standard'}`"
+          >
+            <div class="boss-splash-glow"></div>
+            <img
+              :src="bossSplashFxSrc"
+              :alt="activeBossAttackPattern?.splash?.name || 'Final Boss Splash Effect'"
+              class="boss-splash-sprite pixel-art"
+            />
           </div>
 
           <!-- Player Area: Lower-Left / Lower-Middle Side -->
@@ -179,10 +215,16 @@
           :answered="answered"
           :disabled="!openingAnimationCompleted || isProcessingAnswer || answered"
           :is-critical-active="isCriticalActive"
+          :skip-animation="battlePrefs.skipAnimation"
+          :auto-confirm="battlePrefs.autoConfirm"
           :crit-damage="critDamage"
           :base-damage="baseDamage"
+          :is-tutorial="isTutorial"
           @select="onStageChoice"
           @toggle-critical="onToggleCritical"
+          @toggle-skip-animation="onToggleSkipAnimation"
+          @toggle-auto-confirm="onToggleAutoConfirm"
+          @use-dodge-potion="handleUseDodgePotion"
         />
       </div>
     </div>
@@ -205,61 +247,29 @@
     />
 
     <!-- ══════════════════════════════════════════════════════════════
-         FINAL BOSS CINEMATIC DEFEAT & BACKSTORY PLACEHOLDER OVERLAY
+         FINAL BOSS CINEMATIC DEFEAT OVERLAY (DEATH ANIMATION ONLY)
          ══════════════════════════════════════════════════════════════ -->
     <div
       v-if="isDefeatCinematicActive"
       class="final-defeat-cinematic-screen"
       :class="`cinematic-stage-${defeatCinematicStage}`"
+      @click="onDefeatCinematicClick"
     >
-      <!-- Centered Creator Container -->
+      <!-- Centered Creator Container (Death Animation Only, No Text Below) -->
       <div
-        v-if="defeatCinematicStage === 'creator_dialogue' || defeatCinematicStage === 'creator_closing'"
+        v-if="defeatCinematicStage === 'creator_closing' || defeatCinematicStage === 'creator_dialogue'"
         class="cinematic-centered-creator animate-scale-up"
       >
         <div class="cinematic-creator-aura"></div>
         <img
           :src="defeatCinematicGifSrc"
-          alt="The Creator"
+          alt="The Creator Death Animation"
           class="cinematic-creator-art pixel-art"
         />
-        <div class="cinematic-dialogue-tag font-pixel">
-          {{ defeatCinematicStage === 'creator_dialogue' ? 'THE CREATOR — REALIZATION' : 'THE CREATOR — CLOSING' }}
-        </div>
       </div>
 
       <!-- Pure Blackout Stage -->
       <div v-else-if="defeatCinematicStage === 'blackout'" class="cinematic-blackout-stage"></div>
-
-      <!-- Temporary Backstory Placeholder Screen (Requirement 30, 31) -->
-      <div
-        v-else-if="defeatCinematicStage === 'backstory_placeholder'"
-        class="cinematic-backstory-placeholder-panel gothic-panel animate-scale-up"
-      >
-        <div class="placeholder-crest font-pixel">✦ THE BLACK ARCHIVE ✦</div>
-        <span class="placeholder-eyebrow font-pixel">UNWRITTEN ORIGIN</span>
-        <h1 class="placeholder-title font-pixel">FINAL BOSS BACKSTORY</h1>
-        <div class="placeholder-badge font-pixel">COMING SOON</div>
-
-        <div class="placeholder-lore-card">
-          <p class="placeholder-lore-quote font-pixel">
-            “He wrote the world. He wrote the hero. He wrote the ending. But he could not write the choice.”
-          </p>
-          <p class="placeholder-lore-desc">
-            The Creator’s quill has stilled. The memories that birthed Mindrealm—the author's sanctuary, his grief, and the first lines ever inscribed behind the veil—will be unveiled in the upcoming cinematic backstory animation.
-          </p>
-        </div>
-
-        <div class="placeholder-action-row">
-          <button
-            type="button"
-            class="btn btn-gothic-crimson btn-lg placeholder-continue-btn font-pixel"
-            @click="onProceedFromPlaceholder"
-          >
-            PROCEED TO REVELATION ▸
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -269,6 +279,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useAdventureStore } from '../../stores/adventure'
 import { useGameStore } from '../../stores/game'
+import { useBattlefieldPreferencesStore } from '../../stores/battlefieldPreferences'
 import { bgmService } from '../../services/bgmService'
 import { battleAudio } from '../../services/battleAudio'
 import { getRandomWrongSpeech } from '../../config/battleAssets'
@@ -291,6 +302,12 @@ import {
 } from '../../config/cosmeticEffects'
 import { getCharacterAnimationConfig, preloadCharacterAnimations } from '../../config/characterAnimations'
 import { CREATOR_ANIMATION_CONFIG, preloadCreatorAnimations } from '../../config/creatorAnimationConfig'
+import {
+  resolveBossAttackPattern,
+  FINAL_BOSS_EFFECTS_CONFIG,
+  preloadFinalBossEffects
+} from '../../config/finalBossEffectsConfig'
+import { preloadMinionAssets } from '../../config/chapterMinions'
 
 const props = defineProps({
   isBoss: {
@@ -423,14 +440,21 @@ const props = defineProps({
   enemyDefeated: {
     type: Boolean,
     default: false
+  },
+  // True only when operating inside the new user onboarding tutorial
+  isTutorial: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['answer', 'answered', 'next', 'final-victory'])
+const emit = defineEmits(['answer', 'answered', 'next', 'final-victory', 'opening-complete', 'dodge-potion'])
 
 const auth = useAuthStore()
 const adventure = useAdventureStore()
 const game = useGameStore()
+const battlePrefs = useBattlefieldPreferencesStore()
+const isMorning = computed(() => game.theme === 'morning')
 
 // Authoritative Character Attributes from Database
 const selectedChar = computed(() => {
@@ -495,10 +519,16 @@ const effectiveEnemyMaxHp = computed(() => {
 // CENTRALIZED ENVIRONMENT RESOLUTION (Chapter -> Part -> Fallback)
 // ══════════════════════════════════════════════════════════════
 const currentEnvironment = computed(() => {
-  return resolveBattlefieldEnvironment(props.chapterId, props.isFinalBoss ? 'final-boss' : props.partNum, props.isBoss, props.isFinalBoss)
+  return resolveBattlefieldEnvironment(
+    props.chapterId,
+    props.isFinalBoss ? 'final-boss' : props.partNum,
+    props.isBoss,
+    props.isFinalBoss,
+    game.theme
+  )
 })
 
-watch(() => [props.chapterId, props.partNum, props.isBoss], () => {
+watch(() => [props.chapterId, props.partNum, props.isBoss, game.theme], () => {
   preloadBattlefieldAssets(props.chapterId, props.partNum)
 }, { immediate: true })
 
@@ -556,14 +586,13 @@ function triggerPhase2Transformation(serverResult) {
   isTransformingPhase2.value = true
   battleState.value = 'CREATOR_TRANSFORMING'
   isProcessingAnswer.value = true
-  isCriticalActive.value = false
   currentEnemySpeech.value = ''
 
   creatorAnimState.value = 'transform'
 
-  const transformDur = CREATOR_ANIMATION_CONFIG.phase2.transform.duration // 5100ms
+  const transformDur = battlePrefs.skipAnimation ? 0 : CREATOR_ANIMATION_CONFIG.phase2.transform.duration // 5100ms
 
-  setTimeout(() => {
+  const finalizePhase2 = () => {
     currentCreatorPhase.value = 2
     creatorAnimState.value = 'idle'
     enemyBattleState.value = 'idle'
@@ -571,48 +600,62 @@ function triggerPhase2Transformation(serverResult) {
     battleState.value = 'READY'
     isProcessingAnswer.value = false
     emit('answered', serverResult)
-  }, transformDur)
+  }
+
+  if (transformDur === 0) {
+    finalizePhase2()
+  } else {
+    setTimeout(finalizePhase2, transformDur)
+  }
 }
 
+let finalVictoryEmitted = false
+
 function startFinalBossDefeatSequence(serverResult) {
+  if (finalVictoryEmitted) return
+  cancelFinalBossEffects()
   lastFinalVictoryResult = serverResult
   isDefeatCinematicActive.value = true
   battleState.value = 'CREATOR_DEFEAT_CINEMATIC'
   isProcessingAnswer.value = true
-  isCriticalActive.value = false
 
-  // Step 1: Smooth player fade out (1200ms)
+  if (battlePrefs?.skipAnimation) {
+    finalVictoryEmitted = true
+    emit('final-victory', serverResult)
+    return
+  }
+
+  // Step 1: Smooth player fade out (500ms)
   defeatCinematicStage.value = 'player_fade'
   isPlayerFadingOut.value = true
 
   setTimeout(() => {
-    // Step 2: Full Black Screen & Creator Centered — Defeated Dialogue GIF (2600ms)
-    defeatCinematicStage.value = 'creator_dialogue'
-    defeatCinematicGifSrc.value = resolveAsset(CREATOR_ANIMATION_CONFIG.defeat.dialogue.path)
+    // Step 2: Full Black Screen & Creator Centered — Death Animation GIF ONLY (No Text Below)
+    defeatCinematicStage.value = 'creator_closing'
+    defeatCinematicGifSrc.value = resolveAsset(CREATOR_ANIMATION_CONFIG.defeat.closing.path)
 
-    const dialogueDur = CREATOR_ANIMATION_CONFIG.defeat.dialogue.duration // 2600ms
+    const closingDur = CREATOR_ANIMATION_CONFIG.defeat.closing.duration || 3300 // 3300ms
     setTimeout(() => {
-      // Step 3: Creator Centered — Closing GIF (3300ms)
-      defeatCinematicStage.value = 'creator_closing'
-      defeatCinematicGifSrc.value = resolveAsset(CREATOR_ANIMATION_CONFIG.defeat.closing.path)
+      // Step 3: Pure Blackout (600ms) then proceed directly to final victory
+      defeatCinematicStage.value = 'blackout'
+      defeatCinematicGifSrc.value = ''
 
-      const closingDur = CREATOR_ANIMATION_CONFIG.defeat.closing.duration // 3300ms
       setTimeout(() => {
-        // Step 4: Pure Blackout (1200ms)
-        defeatCinematicStage.value = 'blackout'
-        defeatCinematicGifSrc.value = ''
-
-        setTimeout(() => {
-          // Step 5: Temporary Backstory Placeholder Screen
-          defeatCinematicStage.value = 'backstory_placeholder'
-        }, 1200)
-      }, closingDur)
-    }, dialogueDur)
-  }, 1200)
+        if (!finalVictoryEmitted) {
+          finalVictoryEmitted = true
+          emit('final-victory', lastFinalVictoryResult)
+        }
+      }, 600)
+    }, closingDur)
+  }, 500)
 }
 
-function onProceedFromPlaceholder() {
-  emit('final-victory', lastFinalVictoryResult)
+function onDefeatCinematicClick() {
+  // Only allow click advance after death animation has completed into the blackout
+  if (defeatCinematicStage.value === 'blackout' && !finalVictoryEmitted) {
+    finalVictoryEmitted = true
+    emit('final-victory', lastFinalVictoryResult)
+  }
 }
 
 // Cosmetic Attack Effect & Splash Effect References & State
@@ -631,6 +674,26 @@ const splashCoords = ref({ x: 0, y: 0 })
 const attackEffectInstanceSrc = ref('')
 const splashEffectInstanceSrc = ref('')
 
+// Final Boss Exclusive Attack & Splash FX States
+const showBossAttackFx = ref(false)
+const bossAttackFxSrc = ref('')
+const showBossSplashFx = ref(false)
+const bossSplashFxSrc = ref('')
+const activeBossAttackPattern = ref(null)
+let bossAttackTimer = null
+let bossSplashTimer = null
+
+function cancelFinalBossEffects() {
+  if (bossAttackTimer) clearTimeout(bossAttackTimer)
+  if (bossSplashTimer) clearTimeout(bossSplashTimer)
+  bossAttackTimer = null
+  bossSplashTimer = null
+  showBossAttackFx.value = false
+  showBossSplashFx.value = false
+  bossAttackFxSrc.value = ''
+  bossSplashFxSrc.value = ''
+}
+
 const activeAttackEffect = computed(() => {
   return resolveEquippedAttackEffect(
     equippedCosmetics.value?.attack_effect,
@@ -639,7 +702,10 @@ const activeAttackEffect = computed(() => {
 })
 
 const activeSplashEffect = computed(() => {
-  return resolveEquippedSplashEffect(equippedCosmetics.value?.splash_effect)
+  return resolveEquippedSplashEffect(
+    equippedCosmetics.value?.splash_effect,
+    selectedChar.value || charClass.value
+  )
 })
 
 const attackEffectGifUrl = computed(() => {
@@ -652,8 +718,8 @@ const attackEffectGifUrl = computed(() => {
 
 const splashEffectGifUrl = computed(() => {
   if (splashEffectAssetError.value) {
-    const def = getDefaultSplashEffect()
-    return resolveAsset(def.gif_path)
+    const def = getDefaultSplashEffect(selectedChar.value || charClass.value)
+    return resolveAsset(def?.gif_path)
   }
   return resolveAsset(activeSplashEffect.value?.gif_path)
 })
@@ -703,8 +769,8 @@ function launchAttackEffect(onImpact) {
   const dy = targetY - startY
   const angle = Math.atan2(dy, dx) * (180 / Math.PI)
 
-  // Slower, dramatic travel duration so the animated effect is fully visible (1100ms)
-  const travelDuration = 1100 // ms
+  // Dynamic 3x faster travel duration so attacks feel snappy and responsive (360ms)
+  const travelDuration = 360 // ms
 
   // Force fresh GIF rendering & animation playback cycle from frame 0
   const baseGif = resolveAsset(activeAttackEffect.value?.gif_path) || attackEffectGifUrl.value
@@ -791,15 +857,29 @@ const floatingPlayerDmg = ref(0)
 const floatingPlayerDmgType = ref('normal')
 const wasLastCrit = ref(false)
 
-// Critical Damage Action Mode (Off by default for each question)
-const isCriticalActive = ref(false)
+// Battlefield Toggles: Persistent preferences
+const isCriticalActive = computed(() => !!battlePrefs.criticalMode)
 
-function onToggleCritical() {
+function onToggleCritical(val) {
   if (!openingAnimationCompleted.value || battleState.value !== 'READY' || props.answered || isProcessingAnswer.value) return
-  isCriticalActive.value = !isCriticalActive.value
+  const nextVal = typeof val === 'boolean' ? val : !battlePrefs.criticalMode
+  battlePrefs.setCriticalMode(nextVal)
   if (game.audioEnabled) {
     battleAudio.playSelect()
   }
+}
+
+function onToggleSkipAnimation(val) {
+  const nextVal = typeof val === 'boolean' ? val : !battlePrefs.skipAnimation
+  battlePrefs.setSkipAnimation(nextVal)
+  if (nextVal) {
+    skipOpening()
+  }
+}
+
+function onToggleAutoConfirm(val) {
+  const nextVal = typeof val === 'boolean' ? val : !battlePrefs.autoConfirm
+  battlePrefs.setAutoConfirm(nextVal)
 }
 
 // Boss 50% HP Enraged Mode calculation
@@ -837,6 +917,7 @@ const statusBannerText = computed(() => {
 
 // Lifecycle: Preload assets & execute Opening Animation sequence
 onMounted(async () => {
+  finalVictoryEmitted = false
   bgmService.setBattlefieldActive(true)
 
   // Fetch equipped cosmetics from market
@@ -854,6 +935,13 @@ onMounted(async () => {
     await preloadCharacterAnimations(selectedChar.value || charClass.value)
   } catch (err) {
     console.warn('[AdventureBattlefield] Asset preloading fallback:', err)
+  }
+
+  // Preload all 12 regional minion assets
+  try {
+    preloadMinionAssets()
+  } catch (err) {
+    // Non-critical fallback
   }
 
   // Preload and initialize Creator assets and intro for Final Boss (Requirements 2, 6, 7, 8)
@@ -905,21 +993,43 @@ onMounted(async () => {
         battleState.value = 'READY'
       }, totalDur)
     }
-  } else if (props.currentQIndex === 0) {
-    openingAnimationCompleted.value = false
-    battleState.value = 'PLAYING_OPENING'
-    playerBattleState.value = 'opening' // Shown immediately on character after clicking commence duel
 
-    const duration = charAnimConfig.value?.openingDuration || 9800
-    openingTimer = setTimeout(() => {
+    if (battlePrefs.skipAnimation) {
+      skipOpening()
+    }
+  } else if (props.currentQIndex === 0) {
+    if (battlePrefs.skipAnimation) {
       openingAnimationCompleted.value = true
       playerBattleState.value = 'idle'
       battleState.value = 'READY'
-    }, duration)
+    } else {
+      openingAnimationCompleted.value = false
+      battleState.value = 'PLAYING_OPENING'
+      playerBattleState.value = 'opening' // Shown immediately on character after clicking commence duel
+
+      const duration = charAnimConfig.value?.openingDuration || 9800
+      openingTimer = setTimeout(() => {
+        openingAnimationCompleted.value = true
+        playerBattleState.value = 'idle'
+        battleState.value = 'READY'
+      }, duration)
+    }
   } else {
     openingAnimationCompleted.value = true
     playerBattleState.value = 'idle'
     battleState.value = 'READY'
+  }
+})
+
+watch(() => battlePrefs.skipAnimation, (val) => {
+  if (val) {
+    skipOpening()
+  }
+})
+
+watch(openingAnimationCompleted, (isDone) => {
+  if (isDone) {
+    emit('opening-complete')
   }
 })
 
@@ -934,11 +1044,13 @@ function skipOpening() {
       creatorAnimState.value = 'idle'
     }
     battleState.value = 'READY'
+    emit('opening-complete')
   }
 }
 
 onUnmounted(() => {
   bgmService.setBattlefieldActive(false)
+  cancelFinalBossEffects()
   if (openingTimer) clearTimeout(openingTimer)
   if (creatorOpeningTimer) clearTimeout(creatorOpeningTimer)
   if (playerOpeningTimer) clearTimeout(playerOpeningTimer)
@@ -979,6 +1091,8 @@ const pendingChoiceText = computed(() => {
 // Reset states when moving to next inquiry (Requirement 29: do NOT replay opening)
 watch(() => props.currentQIndex, () => {
   if (isDefeatCinematicActive.value || isTransformingPhase2.value) return
+  cancelFinalBossEffects()
+  activeBossAttackPattern.value = null
   openingAnimationCompleted.value = true
   playerBattleState.value = 'idle'
   enemyBattleState.value = 'idle'
@@ -993,7 +1107,6 @@ watch(() => props.currentQIndex, () => {
   screenFlash.value = false
   pendingKey.value = null
   showConfirmModal.value = false
-  isCriticalActive.value = false
   floatingEnemyDmg.value = 0
   floatingPlayerDmg.value = 0
   wasLastCrit.value = false
@@ -1004,10 +1117,16 @@ watch(() => props.currentQIndex, () => {
 
 function onStageChoice(key) {
   if (!openingAnimationCompleted.value || battleState.value !== 'READY' || props.answered || isProcessingAnswer.value) return
-  pendingKey.value = key
-  showConfirmModal.value = true
   if (game.audioEnabled) {
     battleAudio.playSelect()
+  }
+  if (battlePrefs.autoConfirm) {
+    pendingKey.value = key
+    showConfirmModal.value = false
+    executeAttack(key)
+  } else {
+    pendingKey.value = key
+    showConfirmModal.value = true
   }
 }
 
@@ -1023,6 +1142,68 @@ function onConfirmAttack() {
   showConfirmModal.value = false
 
   executeAttack(key)
+}
+
+async function handleUseDodgePotion(callbacks = {}) {
+  const { onSuccess, onError } = callbacks
+  if (isProcessingAnswer.value || props.answered || !openingAnimationCompleted.value) {
+    if (onError) onError('Combat action currently in progress.')
+    return
+  }
+
+  isProcessingAnswer.value = true
+  pendingKey.value = null
+  showConfirmModal.value = false
+
+  if (game.audioEnabled) {
+    battleAudio.playSelect()
+  }
+
+  let resolveServerPromise
+  const serverPromise = new Promise((resolve) => {
+    resolveServerPromise = resolve
+    setTimeout(() => resolve(null), 3000)
+  })
+
+  emit('dodge-potion', {
+    questionId: props.currentQ?.id,
+    questionIndex: props.currentQIndex,
+    resolve: (serverResult) => {
+      resolveServerPromise(serverResult)
+    }
+  })
+
+  const serverResult = await serverPromise
+
+  if (serverResult && serverResult.success) {
+    if (onSuccess) onSuccess()
+
+    // Cancel combat attempt without dealing or receiving damage
+    floatingEnemyDmg.value = 0
+    floatingPlayerDmg.value = 0
+    playerBattleState.value = 'idle'
+    enemyBattleState.value = 'idle'
+    if (props.isFinalBoss) {
+      creatorAnimState.value = 'idle'
+    }
+
+    authoritativeCorrectAnswer.value = null
+    authoritativeExplanation.value = null
+
+    // Advance to next question respecting skipAnimation preference
+    if (battlePrefs.skipAnimation) {
+      isProcessingAnswer.value = false
+      emit('next')
+    } else {
+      setTimeout(() => {
+        isProcessingAnswer.value = false
+        emit('next')
+      }, 450)
+    }
+  } else {
+    isProcessingAnswer.value = false
+    if (onError) onError(serverResult?.message || 'Failed to use Dodge Potion.')
+  }
 }
 
 async function executeAttack(key) {
@@ -1102,129 +1283,220 @@ async function executeAttack(key) {
   const cfg = charAnimConfig.value
 
   if (isCorrect) {
-    // ══════════════════════════════════════════════════════════════
-    // SUCCESSFUL ATTACK (NORMAL OR CRITICAL CORRECT):
-    // 1. Archer Attacking.gif starts & plays FULL attack animation
-    // ══════════════════════════════════════════════════════════════
-    battleState.value = 'PLAYING_ATTACK'
-    playerBattleState.value = 'attacking'
-
-    if (wasCritical) {
-      flashType.value = 'critical'
-      screenFlash.value = true
-      setTimeout(() => { screenFlash.value = false }, 350)
-    }
-
-    if (game.audioEnabled) {
-      battleAudio.playAttack()
-    }
-
-    const attackDuration = cfg?.attackDuration || 1600
-
-    // 1. Wait for character's attack animation (GIF) to finish completely to the end FIRST
-    setTimeout(() => {
-      // Character finished attack animation -> transition player state
-      if (charClass.value === 'range') {
-        playerBattleState.value = 'attack_finished'
-      } else {
-        playerBattleState.value = 'idle'
+    if (battlePrefs.skipAnimation) {
+      // ══════════════════════════════════════════════════════════════
+      // SKIP ANIMATION (ON): Immediate Damage & Resolution
+      // ══════════════════════════════════════════════════════════════
+      if (game.audioEnabled) {
+        battleAudio.playHit()
+      }
+      floatingEnemyDmg.value = dmgDealt
+      floatingDmgType.value = wasCritical ? 'critical' : 'normal'
+      displayedEnemyHp.value = targetEnemyHp
+      playerBattleState.value = 'idle'
+      enemyBattleState.value = 'idle'
+      if (props.isFinalBoss) {
+        creatorAnimState.value = 'idle'
       }
 
-      // 2. NOW show and launch equipped Attack Effect projectile towards enemy
-      launchAttackEffect(() => {
-        // 3. On impact at enemy position: display equipped Splash Effect & apply damage
-        battleState.value = 'APPLYING_DAMAGE'
-        showImpactSplash.value = true
-        showAttackSlash.value = true
-
-        if (game.audioEnabled) {
-          battleAudio.playHit()
-        }
-
-        floatingEnemyDmg.value = dmgDealt
-        floatingDmgType.value = wasCritical ? 'critical' : 'normal'
-        displayedEnemyHp.value = targetEnemyHp
-
-        if (props.isFinalBoss) {
-          creatorAnimState.value = 'hit'
-          enemyBattleState.value = 'hit'
+      if (props.isFinalBoss) {
+        if (targetEnemyHp <= 0) {
+          startFinalBossDefeatSequence(serverResult)
+        } else if (currentCreatorPhase.value === 1 && targetEnemyHp <= (effectiveEnemyMaxHp.value * 0.50)) {
+          triggerPhase2Transformation(serverResult)
         } else {
-          enemyBattleState.value = 'hit'
+          battleState.value = 'READY'
+          isProcessingAnswer.value = false
+          emit('answered', serverResult)
         }
+      } else {
+        emit('answered', serverResult)
 
-        setTimeout(() => {
-          showImpactSplash.value = false
-          showAttackSlash.value = false
-          if (!props.isFinalBoss) {
-            enemyBattleState.value = 'idle'
-          }
-        }, 500)
+        if (targetPlayerHp <= 0) {
+          battleState.value = 'DEFEAT'
+        } else if (targetEnemyHp <= 0) {
+          battleState.value = 'VICTORY'
+        } else {
+          battleState.value = 'READY'
+          isProcessingAnswer.value = false
+        }
+      }
+    } else {
+      // ══════════════════════════════════════════════════════════════
+      // NORMAL COMBAT ANIMATIONS (SKIP ANIMATION OFF)
+      // ══════════════════════════════════════════════════════════════
+      battleState.value = 'PLAYING_ATTACK'
+      playerBattleState.value = 'attacking'
 
-        const hitDuration = props.isFinalBoss
-          ? (currentCreatorPhase.value === 2
-              ? CREATOR_ANIMATION_CONFIG.phase2.hit.duration
-              : CREATOR_ANIMATION_CONFIG.phase1.hit.duration
-            )
-          : 700
-
-        // 4. Enemy reaction window concludes, return battlefield to ready state or next phase
-        setTimeout(() => {
-          if (props.isFinalBoss) {
-            creatorAnimState.value = 'idle'
-          }
-          playerBattleState.value = 'idle'
-          enemyBattleState.value = 'idle'
-          isCriticalActive.value = false
-
-          if (props.isFinalBoss) {
-            if (targetEnemyHp <= 0) {
-              // Final Boss Defeat Sequence (Requirements 21-31)
-              startFinalBossDefeatSequence(serverResult)
-            } else if (currentCreatorPhase.value === 1 && targetEnemyHp <= (effectiveEnemyMaxHp.value * 0.50)) {
-              // Phase 2 Transformation (Requirements 10-13)
-              triggerPhase2Transformation(serverResult)
-            } else {
-              battleState.value = 'READY'
-              isProcessingAnswer.value = false
-              emit('answered', serverResult)
-            }
-          } else {
-            emit('answered', serverResult)
-
-            if (targetPlayerHp <= 0) {
-              battleState.value = 'DEFEAT'
-            } else if (targetEnemyHp <= 0) {
-              battleState.value = 'VICTORY'
-            } else {
-              battleState.value = 'READY'
-              isProcessingAnswer.value = false
-            }
-          }
-        }, hitDuration)
-      })
-    }, attackDuration)
-
-  } else {
-    // ══════════════════════════════════════════════════════════════
-    // WRONG ANSWER:
-    // ══════════════════════════════════════════════════════════════
-    if (props.isFinalBoss) {
-      // The Creator performs boss attack animation (Requirements 5, 9, 14, 17)
-      battleState.value = 'CREATOR_ATTACKING'
-      creatorAnimState.value = 'attack'
-      enemyBattleState.value = 'attack'
-
-      const attackDuration = currentCreatorPhase.value === 2
-        ? CREATOR_ANIMATION_CONFIG.phase2.attack.duration // 4400ms
-        : CREATOR_ANIMATION_CONFIG.phase1.attack.duration // 6200ms
+      if (wasCritical) {
+        flashType.value = 'critical'
+        screenFlash.value = true
+        setTimeout(() => { screenFlash.value = false }, 350)
+      }
 
       if (game.audioEnabled) {
         battleAudio.playAttack()
       }
 
-      // Midway through Creator attack, damage connects to player
-      const hitImpactDelay = Math.round(attackDuration * 0.45)
+      const attackDuration = cfg?.attackDuration || 1600
+
+      // 1. Wait for character's attack animation (GIF) to finish completely to the end FIRST
       setTimeout(() => {
+        // Character finished attack animation -> transition player state
+        if (charClass.value === 'range') {
+          playerBattleState.value = 'attack_finished'
+        } else {
+          playerBattleState.value = 'idle'
+        }
+
+        // 2. NOW show and launch equipped Attack Effect projectile towards enemy
+        launchAttackEffect(() => {
+          // 3. On impact at enemy position: display equipped Splash Effect & apply damage
+          battleState.value = 'APPLYING_DAMAGE'
+          showImpactSplash.value = true
+          showAttackSlash.value = true
+
+          if (game.audioEnabled) {
+            battleAudio.playHit()
+          }
+
+          floatingEnemyDmg.value = dmgDealt
+          floatingDmgType.value = wasCritical ? 'critical' : 'normal'
+          displayedEnemyHp.value = targetEnemyHp
+
+          if (props.isFinalBoss) {
+            creatorAnimState.value = 'hit'
+            enemyBattleState.value = 'hit'
+          } else {
+            enemyBattleState.value = 'hit'
+          }
+
+          setTimeout(() => {
+            showImpactSplash.value = false
+            showAttackSlash.value = false
+            if (!props.isFinalBoss) {
+              enemyBattleState.value = 'idle'
+            }
+          }, 350)
+
+          const hitDuration = props.isFinalBoss
+            ? (currentCreatorPhase.value === 2
+                ? CREATOR_ANIMATION_CONFIG.phase2.hit.duration
+                : CREATOR_ANIMATION_CONFIG.phase1.hit.duration
+              )
+            : 350
+
+          // 4. Enemy reaction window concludes, return battlefield to ready state or next phase
+          setTimeout(() => {
+            if (props.isFinalBoss) {
+              creatorAnimState.value = 'idle'
+            }
+            playerBattleState.value = 'idle'
+            enemyBattleState.value = 'idle'
+
+            if (props.isFinalBoss) {
+              if (targetEnemyHp <= 0) {
+                // Final Boss Defeat Sequence (Requirements 21-31)
+                startFinalBossDefeatSequence(serverResult)
+              } else if (currentCreatorPhase.value === 1 && targetEnemyHp <= (effectiveEnemyMaxHp.value * 0.50)) {
+                // Phase 2 Transformation (Requirements 10-13)
+                triggerPhase2Transformation(serverResult)
+              } else {
+                battleState.value = 'READY'
+                isProcessingAnswer.value = false
+                emit('answered', serverResult)
+              }
+            } else {
+              emit('answered', serverResult)
+
+              if (targetPlayerHp <= 0) {
+                battleState.value = 'DEFEAT'
+              } else if (targetEnemyHp <= 0) {
+                battleState.value = 'VICTORY'
+              } else {
+                battleState.value = 'READY'
+                isProcessingAnswer.value = false
+              }
+            }
+          }, hitDuration)
+        })
+      }, attackDuration)
+    }
+
+  } else {
+    // ══════════════════════════════════════════════════════════════
+    // WRONG ANSWER:
+    // ══════════════════════════════════════════════════════════════
+    if (battlePrefs.skipAnimation) {
+      // ══════════════════════════════════════════════════════════════
+      // SKIP ANIMATION (ON): Immediate Enemy Hit & Turn Complete
+      // ══════════════════════════════════════════════════════════════
+      if (game.audioEnabled) {
+        battleAudio.playHit()
+      }
+      floatingPlayerDmg.value = dmgTaken
+      floatingPlayerDmgType.value = wasCritical ? 'critical' : 'damage'
+      displayedPlayerHp.value = targetPlayerHp
+      playerBattleState.value = 'idle'
+      enemyBattleState.value = 'idle'
+      if (props.isFinalBoss) {
+        creatorAnimState.value = 'idle'
+      }
+
+      emit('answered', serverResult)
+
+      if (targetPlayerHp <= 0) {
+        battleState.value = 'DEFEAT'
+      } else if (targetEnemyHp <= 0) {
+        battleState.value = 'VICTORY'
+      } else {
+        battleState.value = 'READY'
+        isProcessingAnswer.value = false
+      }
+    } else if (props.isFinalBoss) {
+      // ══════════════════════════════════════════════════════════════
+      // FINAL BOSS (THE CREATOR) WRONG ANSWER: Phase-Specific Attacks
+      // ══════════════════════════════════════════════════════════════
+      cancelFinalBossEffects()
+
+      // 1. Authoritative phase evaluation: Phase 1 (> 50% max HP) vs Phase 2 (<= 50% max HP)
+      const currentHp = displayedEnemyHp.value
+      const maxHp = effectiveEnemyMaxHp.value || 1500
+      const isPhase2 = currentCreatorPhase.value === 2 || (maxHp > 0 && (currentHp / maxHp) <= 0.50)
+      const effectivePhase = isPhase2 ? 2 : 1
+
+      // 2. Select exactly ONE attack pattern for this question attempt
+      // Phase 1 -> Designated Phase 1 Attack & Splash Effects
+      // Phase 2 -> Randomly selects exactly ONE of 3 patterns (Standard, Meteor, Earthquake)
+      const selectedPattern = resolveBossAttackPattern(effectivePhase)
+      activeBossAttackPattern.value = selectedPattern
+
+      battleState.value = 'CREATOR_ATTACKING'
+      creatorAnimState.value = 'attack'
+      enemyBattleState.value = 'attack'
+
+      if (game.audioEnabled) {
+        battleAudio.playAttack()
+      }
+
+      // Step 1: Play the selected Attack Effect animation first
+      const attackAssetPath = resolveAsset(selectedPattern.attack.path)
+      bossAttackFxSrc.value = attackAssetPath ? `${attackAssetPath}?t=${Date.now()}` : ''
+      showBossAttackFx.value = true
+
+      const attackDuration = selectedPattern.attack.duration || 3000
+      const splashDuration = selectedPattern.splash.duration || 3000
+
+      // Step 2: Once Attack Effect completes, immediately trigger the matching Splash Effect at impact!
+      bossAttackTimer = setTimeout(() => {
+        showBossAttackFx.value = false
+
+        // Play corresponding Splash Effect
+        const splashAssetPath = resolveAsset(selectedPattern.splash.path)
+        bossSplashFxSrc.value = splashAssetPath ? `${splashAssetPath}?t=${Date.now()}` : ''
+        showBossSplashFx.value = true
+
+        // Authoritative impact on player: trigger recoil, flash, damage audio, floating numbers, and apply HP damage
         playerBattleState.value = 'recoil'
         flashType.value = wasCritical ? 'critical-backfire' : 'wrong'
         screenFlash.value = true
@@ -1237,23 +1509,33 @@ async function executeAttack(key) {
         floatingPlayerDmg.value = dmgTaken
         floatingPlayerDmgType.value = wasCritical ? 'critical' : 'damage'
         displayedPlayerHp.value = targetPlayerHp
-      }, hitImpactDelay)
 
-      // Creator returns to idle upon completing full attack GIF
-      setTimeout(() => {
-        creatorAnimState.value = 'idle'
-        enemyBattleState.value = 'idle'
-        playerBattleState.value = 'idle'
-        isCriticalActive.value = false
+        // Step 3: Complete Splash Effect and finish turn transition
+        bossSplashTimer = setTimeout(() => {
+          showBossSplashFx.value = false
+          creatorAnimState.value = 'idle'
+          enemyBattleState.value = 'idle'
 
-        emit('answered', serverResult)
-
-        if (targetPlayerHp <= 0) {
-          battleState.value = 'DEFEAT'
-        } else {
-          battleState.value = 'READY'
-          isProcessingAnswer.value = false
-        }
+          if (targetPlayerHp <= 0) {
+            if (charClass.value === 'melee') {
+              playerBattleState.value = 'death'
+              const deathTime = cfg?.deathDuration || 3800
+              setTimeout(() => {
+                battleState.value = 'DEFEAT'
+                emit('answered', serverResult)
+              }, deathTime)
+            } else {
+              playerBattleState.value = 'idle'
+              emit('answered', serverResult)
+              battleState.value = 'DEFEAT'
+            }
+          } else {
+            playerBattleState.value = 'idle'
+            emit('answered', serverResult)
+            battleState.value = 'READY'
+            isProcessingAnswer.value = false
+          }
+        }, splashDuration)
       }, attackDuration)
 
     } else if (wasCritical) {
@@ -1287,17 +1569,28 @@ async function executeAttack(key) {
 
       // Reaction duration then complete turn
       setTimeout(() => {
-        playerBattleState.value = 'idle'
         enemyBattleState.value = 'idle'
-        isCriticalActive.value = false
-
-        emit('answered', serverResult)
 
         if (targetPlayerHp <= 0) {
-          battleState.value = 'DEFEAT'
+          if (charClass.value === 'melee') {
+            playerBattleState.value = 'death'
+            const deathTime = cfg?.deathDuration || 3800
+            setTimeout(() => {
+              battleState.value = 'DEFEAT'
+              emit('answered', serverResult)
+            }, deathTime)
+          } else {
+            playerBattleState.value = 'idle'
+            emit('answered', serverResult)
+            battleState.value = 'DEFEAT'
+          }
         } else if (targetEnemyHp <= 0) {
+          playerBattleState.value = 'idle'
+          emit('answered', serverResult)
           battleState.value = 'VICTORY'
         } else {
+          playerBattleState.value = 'idle'
+          emit('answered', serverResult)
           battleState.value = 'READY'
           isProcessingAnswer.value = false
         }
@@ -1327,17 +1620,28 @@ async function executeAttack(key) {
 
       // Reaction duration then complete turn
       setTimeout(() => {
-        playerBattleState.value = 'idle'
         enemyBattleState.value = 'idle'
-        isCriticalActive.value = false
-
-        emit('answered', serverResult)
 
         if (targetPlayerHp <= 0) {
-          battleState.value = 'DEFEAT'
+          if (charClass.value === 'melee') {
+            playerBattleState.value = 'death'
+            const deathTime = cfg?.deathDuration || 3800
+            setTimeout(() => {
+              battleState.value = 'DEFEAT'
+              emit('answered', serverResult)
+            }, deathTime)
+          } else {
+            playerBattleState.value = 'idle'
+            emit('answered', serverResult)
+            battleState.value = 'DEFEAT'
+          }
         } else if (targetEnemyHp <= 0) {
+          playerBattleState.value = 'idle'
+          emit('answered', serverResult)
           battleState.value = 'VICTORY'
         } else {
+          playerBattleState.value = 'idle'
+          emit('answered', serverResult)
           battleState.value = 'READY'
           isProcessingAnswer.value = false
         }
@@ -1362,7 +1666,6 @@ onUnmounted(() => {
 
 function onNextQuestion() {
   currentEnemySpeech.value = ''
-  isCriticalActive.value = false
   floatingEnemyDmg.value = 0
   floatingPlayerDmg.value = 0
   showAttackProjectile.value = false
@@ -1584,13 +1887,13 @@ function onNextQuestion() {
   z-index: 50;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  width: 220px;
-  height: 220px;
+  width: 240px;
+  height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.75));
-  animation: splashPulse 0.45s ease-out forwards;
+  filter: drop-shadow(0 0 18px rgba(251, 191, 36, 0.75));
+  animation: splashPulse 0.35s ease-out forwards;
 }
 
 .arena-impact-splash.is-crit-splash {
@@ -1605,10 +1908,10 @@ function onNextQuestion() {
 }
 
 @keyframes splashPulse {
-  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
-  20% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
-  75% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; }
 }
 
 .slash-blade {
@@ -1630,13 +1933,104 @@ function onNextQuestion() {
 }
 
 .animate-slash-cut {
-  animation: slash-surge 0.4s ease-out forwards;
+  animation: slash-surge 0.2s ease-out forwards;
 }
 
 @keyframes slash-surge {
   0% { transform: scale(0.2) rotate(-15deg); opacity: 0; }
   40% { transform: scale(1.1) rotate(0deg); opacity: 1; }
   100% { transform: scale(1.4) rotate(10deg); opacity: 0; }
+}
+
+/* ════ Final Boss Exclusive Attack & Splash FX ════ */
+.arena-boss-attack-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 44;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: bossAttackEntrance 0.35s ease-out;
+}
+
+.boss-attack-sprite {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 25px rgba(225, 29, 72, 0.75)) drop-shadow(0 0 45px rgba(168, 85, 247, 0.6));
+}
+
+.arena-boss-splash-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 49;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: bossSplashBurst 0.4s ease-out;
+}
+
+.boss-splash-sprite {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 30px rgba(239, 68, 68, 0.85)) drop-shadow(0 0 50px rgba(245, 158, 11, 0.6));
+}
+
+.boss-attack-glow {
+  position: absolute;
+  inset: -15%;
+  pointer-events: none;
+  opacity: 0.45;
+  background: radial-gradient(circle at 60% 40%, rgba(225, 29, 72, 0.35) 0%, rgba(147, 51, 234, 0.25) 45%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: bossGlowPulse 1.8s ease-in-out infinite alternate;
+}
+
+.boss-splash-glow {
+  position: absolute;
+  inset: -15%;
+  pointer-events: none;
+  opacity: 0.6;
+  background: radial-gradient(circle at 35% 65%, rgba(239, 68, 68, 0.5) 0%, rgba(245, 158, 11, 0.35) 40%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: bossGlowPulse 1.2s ease-in-out infinite alternate;
+}
+
+.pattern-earthquake .boss-attack-sprite,
+.pattern-earthquake .boss-splash-sprite {
+  filter: drop-shadow(0 0 28px rgba(217, 119, 6, 0.85)) drop-shadow(0 0 45px rgba(180, 83, 9, 0.7));
+}
+
+.pattern-meteor .boss-attack-sprite,
+.pattern-meteor .boss-splash-sprite {
+  filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.95)) drop-shadow(0 0 55px rgba(245, 158, 11, 0.85));
+}
+
+@keyframes bossAttackEntrance {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bossSplashBurst {
+  0% { opacity: 0; transform: scale(0.92); }
+  25% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bossGlowPulse {
+  0% { opacity: 0.3; transform: scale(0.98); }
+  100% { opacity: 0.7; transform: scale(1.02); }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1942,5 +2336,46 @@ function onNextQuestion() {
 .placeholder-continue-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 0 30px rgba(225, 29, 72, 0.8);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES
+   ══════════════════════════════════════════════════════════════ */
+.adventure-battlefield.theme-morning .battlefield-stage,
+:global(.theme-morning) .adventure-battlefield .battlefield-stage {
+  border: 2px solid #b89758;
+  box-shadow: 0 8px 30px rgba(100, 75, 40, 0.22), inset 0 0 40px rgba(245, 158, 11, 0.1);
+}
+
+.adventure-battlefield.theme-morning .stage-minimal-hud,
+:global(.theme-morning) .adventure-battlefield .stage-minimal-hud {
+  background: rgba(253, 251, 247, 0.94);
+  border-bottom: 1px solid rgba(184, 151, 88, 0.35);
+  box-shadow: 0 2px 8px rgba(100, 75, 40, 0.08);
+}
+
+.adventure-battlefield.theme-morning .hud-chapter-badge,
+:global(.theme-morning) .adventure-battlefield .hud-chapter-badge {
+  background: #b45309;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(180, 83, 9, 0.4);
+}
+
+.adventure-battlefield.theme-morning .hud-encounter-title,
+:global(.theme-morning) .adventure-battlefield .hud-encounter-title {
+  color: #2b2216;
+}
+
+.adventure-battlefield.theme-morning .hud-env-tag,
+:global(.theme-morning) .adventure-battlefield .hud-env-tag {
+  color: #78350f;
+  border-left: 1px solid rgba(184, 151, 88, 0.45);
+}
+
+.adventure-battlefield.theme-morning .hud-inquiry-tag,
+:global(.theme-morning) .adventure-battlefield .hud-inquiry-tag {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(180, 83, 9, 0.4);
 }
 </style>

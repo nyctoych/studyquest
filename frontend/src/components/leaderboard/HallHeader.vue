@@ -1,24 +1,5 @@
 <template>
   <header class="hall-header-root animate-slide-down">
-    <!-- Top breadcrumb / navigation bar -->
-    <div class="hall-top-bar">
-      <router-link to="/world" class="hall-nav-back btn btn-ghost btn-sm">
-        <span class="back-arrow">‹</span>
-        <span>World Hub</span>
-      </router-link>
-
-      <div class="hall-archivist-badge">
-        <span class="archivist-rune">❖</span>
-        <span class="archivist-name">Mindrealm Archivist:</span>
-        <span class="archivist-quote">"Names here are written by deeds, not promises."</span>
-      </div>
-
-      <router-link to="/multiplayer" class="hall-nav-arena btn btn-primary btn-sm">
-        <PixelEmoji emoji="sword" size="xs" />
-        <span>Enter Arena</span>
-      </router-link>
-    </div>
-
     <!-- Main Grand Monumental Title Crest -->
     <div class="hall-crest-monument">
       <!-- Ornamental Wings / Halo -->

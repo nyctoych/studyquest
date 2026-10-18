@@ -1,54 +1,194 @@
 <template>
-  <div class="battle-page">
-    <!-- Battle Top HUD -->
-    <div class="battle-hud">
-      <!-- Player 1 (Self) -->
-      <div class="hud-player self">
-        <div class="avatar-badge">
-          <span>🧙‍♂️</span>
-        </div>
-        <div class="player-meta">
-          <div class="name-row">
-            <span class="player-name">{{ battle.self.username || 'You' }}</span>
-            <span class="player-rating">★ {{ battle.self.rating }}</span>
+  <div class="adventure-battlefield arena-battlefield-wrapper">
+    <!-- Screen Flash on Impact -->
+    <div v-if="screenFlash" class="battle-screen-flash" :class="flashType"></div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         ZONE 1: BATTLEFIELD STAGE (ARENA COLOSSEUM)
+         Uses Adventure Gate BattlefieldEnvironment and Layout
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="battlefield-stage">
+      <BattlefieldEnvironment
+        :environment="currentEnvironment"
+        :is-boss="false"
+      >
+        <!-- Minimal Top Battle HUD: Arena Match Stats, Timer & Pot -->
+        <div class="stage-minimal-hud">
+          <div class="hud-left">
+            <span class="hud-chapter-badge">ARENA DUEL</span>
+            <span class="hud-encounter-title">
+              {{ battle.currentQuestion?.category_name || 'PSYCHOLOGICAL DUEL' }}
+            </span>
+            <span class="hud-env-tag">{{ battle.battleMode.toUpperCase() }}</span>
+            <span class="wager-hud-badge font-pixel">
+              🪙 POT: {{ (battle.pot || (battle.coinBet ? battle.coinBet * 2 : 200)).toLocaleString() }}
+            </span>
           </div>
-          <div class="hp-bar-container">
-            <div class="hp-bar-fill" :style="{ width: `${battle.self.hp}%` }"></div>
+          <div class="hud-right">
+            <span
+              class="timer-badge font-pixel"
+              :class="{ urgent: battle.timeRemaining <= 5 }"
+            >
+              ⏱️ {{ battle.timeRemaining }}s
+            </span>
+            <span class="hud-inquiry-tag">
+              QUESTION {{ battle.questionIndex + 1 }} / {{ battle.totalQuestions }}
+            </span>
           </div>
-          <div class="hp-text">{{ battle.self.hp }} / 100 HP</div>
         </div>
+
+        <!-- Combat Arena: Opponent (Upper-Right) & Local Player (Lower-Left) -->
+        <div class="combat-arena" ref="arenaRef">
+          <!-- Opponent Area: Upper-Right Side -->
+          <div
+            class="combatant-slot slot-enemy slot-opponent"
+            ref="opponentSlotRef"
+            :style="opponentSlotStyles"
+          >
+            <PlayerBattleSprite
+              :character="oppCharacter"
+              :player-name="battle.opponent.username || 'Opponent'"
+              :player-level="battle.opponent.level || 1"
+              :attack-power="battle.opponent.damage || 10"
+              :critical-attack-power="battle.opponent.crit_damage || 35"
+              :battle-state="oppBattleState"
+              :player-hp="battle.opponent.hp"
+              :player-max-hp="battle.opponent.maxHp || 150"
+              :damage-taken="floatingOppDmg"
+              :damage-type="floatingOppDmgType"
+              :is-opponent="true"
+            />
+          </div>
+
+          <!-- Traveling Attack Effect Projectile Layer -->
+          <div
+            v-if="showAttackProjectile"
+            class="arena-attack-projectile"
+            :style="{
+              left: `${projectileCoords.x}px`,
+              top: `${projectileCoords.y}px`,
+              transform: `translate(-50%, -50%) rotate(${projectileCoords.angle}deg)`
+            }"
+          >
+            <img
+              :src="activeProjectileGif"
+              :alt="activeEffectName"
+              class="projectile-sprite pixel-art"
+              @error="handleProjectileError"
+            />
+          </div>
+
+          <!-- Impact Splash Effect at Target -->
+          <div
+            v-if="showImpactSplash"
+            class="arena-impact-splash"
+            :class="{ 'is-crit-splash': wasLastCrit }"
+            :style="{
+              left: `${splashCoords.x}px`,
+              top: `${splashCoords.y}px`
+            }"
+          >
+            <img
+              :src="activeSplashGif"
+              :alt="activeSplashName"
+              class="splash-sprite pixel-art"
+              @error="handleSplashError"
+            />
+          </div>
+
+          <!-- Center Combat FX Overlay (Slashes) -->
+          <div
+            v-if="showAttackSlash"
+            class="arena-slash-fx animate-slash-cut"
+            :class="{ 'is-crit-slash': wasLastCrit }"
+          >
+            <div class="slash-blade"></div>
+            <div class="slash-glow"></div>
+          </div>
+
+          <!-- Local Player Area: Lower-Left Side -->
+          <div
+            class="combatant-slot slot-player"
+            ref="playerSlotRef"
+            :style="playerSlotStyles"
+          >
+            <PlayerBattleSprite
+              :character="selfCharacter"
+              :player-name="battle.self.username || 'You'"
+              :player-level="battle.self.level || 1"
+              :attack-power="battle.self.damage || 10"
+              :critical-attack-power="battle.self.crit_damage || 35"
+              :battle-state="selfBattleState"
+              :player-hp="battle.self.hp"
+              :player-max-hp="battle.self.maxHp || 150"
+              :damage-taken="floatingSelfDmg"
+              :damage-type="floatingSelfDmgType"
+              :is-opponent="false"
+            />
+          </div>
+        </div>
+      </BattlefieldEnvironment>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         LOWER INTERACTIVE COMBAT ZONES:
+         ZONE 2: QUESTION PANEL (BOTTOM-LEFT)
+         ZONE 3: ANSWER ACTION CHOICES (BOTTOM-RIGHT)
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="battlefield-controls-split">
+      <!-- Zone 2: Question Panel (Bottom-Left) -->
+      <div class="controls-left-question">
+        <BattleQuestionPanel
+          v-if="battle.currentQuestion"
+          :question-text="battle.currentQuestion.question"
+          :question-index="battle.questionIndex"
+          :total-questions="battle.totalQuestions"
+          :difficulty="battle.currentQuestion.difficulty || 'board_exam'"
+          :answered="battle.answerSubmitted"
+          :is-correct="battle.roundFeedback ? Boolean(battle.roundFeedback.selfCorrect) : false"
+          :explanation="battle.roundFeedback ? battle.roundFeedback.explanation : ''"
+          :is-last-question="battle.questionIndex + 1 >= battle.totalQuestions"
+          :show-next-button="false"
+        />
       </div>
 
-      <!-- Center Question Timer / Progress -->
-      <div class="hud-center">
-        <div class="round-counter">
-          Question {{ battle.questionIndex + 1 }} / {{ battle.totalQuestions }}
-        </div>
-        <div class="timer-badge" :class="{ urgent: battle.timeRemaining <= 5 }">
-          ⏱️ {{ battle.timeRemaining }}s
-        </div>
-        <div class="mode-pill">{{ battle.battleMode.toUpperCase() }}</div>
-      </div>
+      <!-- Zone 3: Answer Choices & Critical Mode (Bottom-Right) -->
+      <div class="controls-right-actions">
+        <BattleChoicePanel
+          v-if="battle.currentQuestion"
+          :choices="currentChoices"
+          :selected-key="stagedChoice || battle.selectedAnswer"
+          :correct-answer="battle.roundFeedback?.correctAnswer"
+          :answered="battle.answerSubmitted"
+          :disabled="battle.status !== 'in_progress' || battle.answerSubmitted"
+          :is-critical-active="battlePrefs.criticalMode"
+          :crit-damage="battle.self.crit_damage || 35"
+          :base-damage="battle.self.damage || 10"
+          :is-arena="true"
+          @select="handleSelectChoice"
+          @toggle-critical="battlePrefs.setCriticalMode(!battlePrefs.criticalMode)"
+        />
 
-      <!-- Player 2 (Opponent) -->
-      <div class="hud-player opponent">
-        <div class="player-meta text-right">
-          <div class="name-row justify-end">
-            <span class="player-rating">★ {{ battle.opponent.rating }}</span>
-            <span class="player-name">{{ battle.opponent.username || 'Opponent' }}</span>
-          </div>
-          <div class="hp-bar-container">
-            <div class="hp-bar-fill opp" :style="{ width: `${battle.opponent.hp}%` }"></div>
-          </div>
-          <div class="hp-text">{{ battle.opponent.hp }} / 100 HP</div>
-        </div>
-        <div class="avatar-badge opp">
-          <span>⚔️</span>
+        <!-- Manual Confirmation Action Bar for Arena -->
+        <div
+          v-if="stagedChoice && !battle.answerSubmitted && battle.status === 'in_progress'"
+          class="confirm-stage-bar animate-fade-in"
+        >
+          <span class="staged-prompt font-pixel">STAGED DIAGNOSIS: [{{ stagedChoice.toUpperCase() }}]</span>
+          <button
+            type="button"
+            class="btn-confirm-action font-pixel"
+            @click="confirmStagedAnswer"
+          >
+            CONFIRM DIAGNOSIS ⚔️
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Ready Screen Overlay (Before Battle Starts) -->
+    <!-- ══════════════════════════════════════════════════════════════
+         READY SCREEN OVERLAY (BEFORE BATTLE STARTS)
+         ══════════════════════════════════════════════════════════════ -->
     <div v-if="battle.status === 'waiting' || battle.status === 'starting'" class="ready-overlay">
       <div class="ready-card">
         <h2>⚔️ Board Exam Psychology Duel</h2>
@@ -56,93 +196,45 @@
 
         <div class="ready-status-row">
           <div class="ready-pill" :class="{ confirmed: battle.self.isReady }">
-            {{ battle.self.username }}: {{ battle.self.isReady ? 'READY ✓' : 'WAITING…' }}
+            <AvatarImg :size="28" />
+            <span>{{ battle.self.username || 'You' }}: {{ battle.self.isReady ? 'READY ✓' : 'WAITING…' }}</span>
           </div>
           <div class="ready-pill" :class="{ confirmed: battle.opponent.isReady }">
-            {{ battle.opponent.username }}: {{ battle.opponent.isReady ? 'READY ✓' : 'WAITING…' }}
+            <AvatarImg
+              :character="battle.opponent.character_class || battle.opponent.class_type"
+              :player="battle.opponent"
+              :size="28"
+            />
+            <span>{{ battle.opponent.username || 'Opponent' }}: {{ battle.opponent.isReady ? 'READY ✓' : 'WAITING…' }}</span>
           </div>
         </div>
 
         <button
           v-if="!battle.self.isReady"
-          class="btn-ready"
+          class="btn-ready font-cinzel"
           @click="battle.setReady()"
         >
           I'm Ready!
         </button>
-        <div v-else class="waiting-prompt">
-          Waiting for {{ battle.opponent.username }} to ready up…
+        <div v-else class="waiting-prompt font-pixel">
+          Waiting for {{ battle.opponent.username || 'Opponent' }} to ready up…
         </div>
 
-        <div v-if="battle.status === 'starting'" class="countdown-banner">
+        <div v-if="battle.status === 'starting'" class="countdown-banner font-pixel">
           Battle begins in {{ battle.timeRemaining }}…
         </div>
       </div>
     </div>
 
-    <!-- Phaser 4 Arena Container -->
-    <div class="phaser-container-wrapper">
-      <div id="phaser-battle-container" class="phaser-screen"></div>
-    </div>
-
-    <!-- Question & Answers Card (When Battle is in Progress) -->
-    <div v-if="battle.status === 'in_progress' && battle.currentQuestion" class="question-panel animate-slide-up">
-      <div class="question-header">
-        <span class="cat-tag">{{ battle.currentQuestion.category_name || 'General Psychology' }}</span>
-        <span class="diff-tag">{{ battle.currentQuestion.difficulty || 'Board Exam' }}</span>
-      </div>
-
-      <p class="question-text">{{ battle.currentQuestion.question }}</p>
-
-      <div class="choices-grid">
-        <button
-          v-for="choiceKey in ['a', 'b', 'c', 'd']"
-          :key="choiceKey"
-          class="choice-btn"
-          :class="{
-            selected: battle.selectedAnswer === choiceKey,
-            correct: battle.roundFeedback && battle.roundFeedback.correctAnswer === choiceKey,
-            wrong: battle.roundFeedback && battle.selectedAnswer === choiceKey && !battle.roundFeedback.selfCorrect,
-            disabled: battle.answerSubmitted
-          }"
-          :disabled="battle.answerSubmitted"
-          @click="handleSelectAnswer(choiceKey)"
-        >
-          <span class="choice-letter">{{ choiceKey.toUpperCase() }}</span>
-          <span class="choice-content">{{ battle.currentQuestion['choice_' + choiceKey] }}</span>
-        </button>
-      </div>
-
-      <!-- Round Feedback & Clinical Explanation -->
-      <div v-if="battle.roundFeedback" class="feedback-banner" :class="{ success: battle.roundFeedback.selfCorrect }">
-        <div class="feedback-title">
-          {{ battle.roundFeedback.selfCorrect ? '✨ Correct Diagnosis!' : '❌ Incorrect Selection!' }}
-        </div>
-        <p class="feedback-explanation">
-          {{ battle.roundFeedback.explanation }}
-        </p>
-      </div>
-    </div>
-
-    <!-- Game Over / Victory / Defeat Modal -->
+    <!-- ══════════════════════════════════════════════════════════════
+         GAME OVER / VICTORY / DEFEAT MODAL
+         ══════════════════════════════════════════════════════════════ -->
     <div v-if="battle.status === 'ended' && battle.battleResult" class="game-over-modal">
-      <!-- Finisher Effect Overlay (shown when player wins and has finisher equipped) -->
-      <div
-        v-if="battleOutcome === 'won' && equippedEffects.finisher_effect"
-        class="finisher-fx-overlay"
-        :class="equippedEffects.finisher_effect.effect_key"
-      >
-        <div class="finisher-rays-wrap">
-          <div v-for="i in 12" :key="i" class="finisher-ray" :style="{ transform: `rotate(${(i-1)*30}deg)` }"></div>
-        </div>
-        <div class="finisher-title-text">{{ equippedEffects.finisher_effect.name }}</div>
-      </div>
-
       <div class="modal-card" :class="battleOutcome">
         <div class="outcome-icon">
           {{ battleOutcome === 'won' ? '👑' : battleOutcome === 'lost' ? '💀' : '🤝' }}
         </div>
-        <h2 class="outcome-title">
+        <h2 class="outcome-title font-cinzel">
           {{ battleOutcome === 'won' ? 'VICTORY!' : battleOutcome === 'lost' ? 'DEFEAT' : 'STALEMATE (DRAW)' }}
         </h2>
         <p class="outcome-subtitle">
@@ -150,6 +242,12 @@
         </p>
 
         <div class="rewards-box">
+          <div class="reward-row wager-info-row">
+            <span>Ranked Bet & Pot:</span>
+            <strong class="gold">
+              {{ (battle.coinBet || 100).toLocaleString() }} Bet / {{ (battle.pot || (battle.coinBet ? battle.coinBet * 2 : 200)).toLocaleString() }} Pot
+            </strong>
+          </div>
           <div class="reward-row" v-if="playerRewards">
             <span>Battle Rating (ELO):</span>
             <strong :class="playerRewards.ratingChange >= 0 ? 'pos' : 'neg'">
@@ -157,29 +255,26 @@
             </strong>
           </div>
           <div class="reward-row" v-if="playerRewards">
-            <span>Gold Coins:</span>
-            <strong class="gold">+{{ playerRewards.coinsEarned }} <CoinIcon :size="15" /></strong>
+            <span>Coin Wager Result:</span>
+            <strong :class="playerRewards.coinsEarned > 0 ? 'pos gold' : playerRewards.coinsEarned < 0 ? 'neg' : 'gold'">
+              {{ playerRewards.coinsEarned > 0 ? '+' : '' }}{{ playerRewards.coinsEarned }} <CoinIcon :size="15" />
+            </strong>
           </div>
           <div class="reward-row" v-if="playerRewards">
             <span>Experience XP:</span>
             <strong class="xp">+{{ playerRewards.xpEarned }} XP</strong>
           </div>
+
+          <div class="elo-disclaimer-note font-pixel">
+            ⚖️ ELO rating change is calculated solely from standard rating formula (independent of coin bet).
+          </div>
         </div>
 
-        <button class="btn-return" @click="returnToHub">
+        <button class="btn-return font-cinzel" @click="returnToHub">
           Return to Arena Hub
         </button>
       </div>
     </div>
-
-    <!-- Hit Effect Overlay (flash on opponent side when self answered correctly) -->
-    <Transition name="hit-fx">
-      <div
-        v-if="showHitEffect"
-        class="hit-fx-overlay"
-        :class="equippedEffects.hit_effect?.effect_key"
-      ></div>
-    </Transition>
   </div>
 </template>
 
@@ -187,17 +282,130 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBattleStore } from '../stores/battle'
-import CoinIcon from '../components/common/CoinIcon.vue'
-import shopService from '../services/shopService'
+import { useAuthStore } from '../stores/auth'
+import { useGameStore } from '../stores/game'
+import { useBattlefieldPreferencesStore } from '../stores/battlefieldPreferences'
 import { bgmService } from '../services/bgmService'
+import { battleAudio } from '../services/battleAudio'
+import { resolveAsset } from '../services/bossMapping'
+import {
+  resolveEquippedAttackEffect,
+  resolveEquippedSplashEffect,
+  getCharacterDefaultAttackEffect,
+  getDefaultSplashEffect
+} from '../config/cosmeticEffects'
+
+import BattlefieldEnvironment from '../components/adventure/BattlefieldEnvironment.vue'
+import PlayerBattleSprite from '../components/adventure/PlayerBattleSprite.vue'
+import BattleQuestionPanel from '../components/adventure/BattleQuestionPanel.vue'
+import BattleChoicePanel from '../components/adventure/BattleChoicePanel.vue'
+import AvatarImg from '../components/AvatarImg.vue'
+import CoinIcon from '../components/common/CoinIcon.vue'
 
 const router = useRouter()
 const battle = useBattleStore()
-let phaserGame = null
+const auth = useAuthStore()
+const game = useGameStore()
+const battlePrefs = useBattlefieldPreferencesStore()
 
-// Equipped cosmetic effects for this session
-const equippedEffects = ref({})
-const showHitEffect   = ref(false)
+// Staged answer choice for manual confirmation
+const stagedChoice = ref(null)
+
+// Animation & Combat state
+const arenaRef = ref(null)
+const playerSlotRef = ref(null)
+const opponentSlotRef = ref(null)
+
+const selfBattleState = ref('idle')
+const oppBattleState = ref('idle')
+const floatingSelfDmg = ref(0)
+const floatingSelfDmgType = ref('damage')
+const floatingOppDmg = ref(0)
+const floatingOppDmgType = ref('damage')
+
+// Projectile & Splash states
+const showAttackProjectile = ref(false)
+const showImpactSplash = ref(false)
+const showAttackSlash = ref(false)
+const screenFlash = ref(false)
+const flashType = ref('correct')
+const wasLastCrit = ref(false)
+
+const projectileCoords = ref({ x: 0, y: 0, angle: 0, progress: 0 })
+const splashCoords = ref({ x: 0, y: 0 })
+const activeProjectileGif = ref('')
+const activeSplashGif = ref('')
+const activeEffectName = ref('Attack Effect')
+const activeSplashName = ref('Splash Effect')
+
+// Track processed combat action attempt IDs to prevent duplicate playback
+const processedAttemptIds = new Set()
+
+// Environment configuration for the Arena duel
+const currentEnvironment = computed(() => {
+  return {
+    environmentId: 'arena_mindrealm_colosseum',
+    name: 'Mindrealm Arena Duel',
+    backgroundAsset: '/assets/adventure/battlefields/chapter-01-outdoor.jpg',
+    groundType: 'stone_arena',
+    lighting: 'dusk_purple',
+    weather: 'clear',
+    playerPosition: { x: 18, y: 70 },
+    enemyPosition: { x: 74, y: 26 },
+    playerScale: 1.0,
+    enemyScale: 1.0,
+    shadowStyle: 'rgba(10, 10, 20, 0.7)',
+    ambientEffects: ['fireflies'],
+    bossVariant: false
+  }
+})
+
+const playerSlotStyles = computed(() => {
+  const pos = currentEnvironment.value?.playerPosition || { x: 18, y: 70 }
+  const scale = currentEnvironment.value?.playerScale || 1.0
+  return {
+    left: `clamp(1.5rem, ${pos.x}%, 14rem)`,
+    bottom: '32px',
+    '--player-scale': scale
+  }
+})
+
+const opponentSlotStyles = computed(() => {
+  const pos = currentEnvironment.value?.enemyPosition || { x: 74, y: 26 }
+  const scale = currentEnvironment.value?.enemyScale || 1.0
+  return {
+    right: `clamp(1.5rem, ${100 - pos.x}%, 14rem)`,
+    top: '25px',
+    '--enemy-scale': scale
+  }
+})
+
+// Character data for Player & Opponent
+const selfCharacter = computed(() => {
+  if (battle.self.character) return battle.self.character
+  return auth.selectedCharacter || null
+})
+
+const oppCharacter = computed(() => {
+  if (battle.opponent.character) return battle.opponent.character
+  return {
+    name: battle.opponent.username || 'Opponent',
+    class_type: battle.opponent.character_class || battle.opponent.class_type || 'MAGE',
+    key_name: String(battle.opponent.character_class || battle.opponent.class_type || 'mage').toLowerCase(),
+    profile_avatar_path: battle.opponent.avatar_seed || null
+  }
+})
+
+// Convert Question choices to format expected by BattleChoicePanel
+const currentChoices = computed(() => {
+  if (!battle.currentQuestion) return {}
+  return {
+    a: battle.currentQuestion.choice_a || '',
+    b: battle.currentQuestion.choice_b || '',
+    c: battle.currentQuestion.choice_c || '',
+    d: battle.currentQuestion.choice_d || '',
+  }
+})
 
 const battleOutcome = computed(() => {
   return battle.battleResult?.playerResults?.[battle.self.userId]?.outcome || 'draw'
@@ -207,233 +415,550 @@ const playerRewards = computed(() => {
   return battle.battleResult?.playerResults?.[battle.self.userId] || null
 })
 
-async function loadEquippedEffects() {
-  try {
-    const res = await shopService.getEquipped()
-    if (res.success) {
-      equippedEffects.value = res.equipped || {}
-    }
-  } catch (e) {
-    // Not critical — battle works without cosmetics
-    console.warn('Could not load equipped cosmetics:', e)
+function handleSelectChoice(choiceKey) {
+  if (battle.answerSubmitted || battle.status !== 'in_progress') return
+  if (game.audioEnabled) {
+    battleAudio.playSelect()
   }
+  stagedChoice.value = choiceKey
 }
 
-onMounted(async () => {
-  bgmService.setBattlefieldActive(true)
+function confirmStagedAnswer() {
+  if (!stagedChoice.value || battle.answerSubmitted || battle.status !== 'in_progress') return
+  const choice = stagedChoice.value
+  stagedChoice.value = null
+  battle.submitAnswer(choice, battlePrefs.criticalMode)
+}
 
-  // Load equipped effects
-  await loadEquippedEffects()
-
-  // Dynamically import Phaser only when on the battle page
-  // This prevents Phaser's performance observer from running on all other pages
-  try {
-    const { createBattleGame } = await import('../phaser/battle/BattleGame')
-    phaserGame = createBattleGame('phaser-battle-container', {
-      self: battle.self,
-      opponent: battle.opponent,
-    })
-  } catch (e) {
-    console.warn('[MultiplayerBattle] Failed to initialize Phaser arena:', e)
-  }
+watch(() => battle.questionIndex, () => {
+  stagedChoice.value = null
+  showAttackProjectile.value = false
+  showImpactSplash.value = false
+  showAttackSlash.value = false
+  screenFlash.value = false
+  selfBattleState.value = 'idle'
+  oppBattleState.value = 'idle'
+  floatingSelfDmg.value = 0
+  floatingOppDmg.value = 0
 })
 
-onUnmounted(() => {
-  bgmService.setBattlefieldActive(false)
-  if (phaserGame) {
-    phaserGame.destroy(true)
-    phaserGame = null
-  }
-  battle.reset()
+// ══════════════════════════════════════════════════════════════
+// COMBAT ACTION ANIMATION EXECUTION
+// ══════════════════════════════════════════════════════════════
+watch(() => battle.lastCombatAction, (action) => {
+  if (!action || !action.attemptId) return
+  if (processedAttemptIds.has(action.attemptId)) return
+  processedAttemptIds.add(action.attemptId)
+  playCombatAnimation(action)
 })
 
-// Trigger Phaser battle animations + hit effects on round result
-watch(() => battle.roundFeedback, (feedback) => {
-  if (!feedback || !phaserGame) return
-  const scene = phaserGame.scene.getScene('BattleScene')
+function playCombatAnimation(action) {
+  const isAttackerSelf = (action.attackerId === battle.self.userId)
 
-  if (feedback.selfCorrect) {
-    if (scene) {
-      scene.playerAttack()
-      setTimeout(() => scene.opponentHurt(feedback.damageDealtToOpp || 10), 300)
+  // 1. Set attacker battle sprite state to 'attacking'
+  if (isAttackerSelf) {
+    selfBattleState.value = 'attacking'
+  } else {
+    oppBattleState.value = 'attacking'
+  }
+
+  // 2. Resolve attacker effect pair (Custom equipped effect or character default)
+  const attackerData = isAttackerSelf ? battle.self : battle.opponent
+  const attackerClass = attackerData.character_class || attackerData.class_type || 'MAGE'
+  const attackerEquipped = attackerData.equipped || {}
+
+  const rawAttackEff = action.attackEffect || attackerEquipped.attack_effect
+  const rawSplashEff = action.splashEffect || attackerEquipped.splash_effect
+
+  const resolvedAttackEff = resolveEquippedAttackEffect(rawAttackEff, attackerClass)
+  const resolvedSplashEff = resolveEquippedSplashEffect(rawSplashEff, attackerClass)
+
+  const attackGif = resolveAsset(resolvedAttackEff?.gif_path)
+  const splashGif = resolveAsset(resolvedSplashEff?.gif_path)
+
+  activeProjectileGif.value = attackGif ? `${attackGif}?t=${Date.now()}` : ''
+  activeSplashGif.value = splashGif ? `${splashGif}?t=${Date.now()}` : ''
+  activeEffectName.value = resolvedAttackEff?.name || 'Attack Effect'
+  activeSplashName.value = resolvedSplashEff?.name || 'Splash Effect'
+
+  wasLastCrit.value = Boolean(action.isCritical)
+
+  // 3. Compute launch coordinates
+  const arenaEl = arenaRef.value
+  const pEl = playerSlotRef.value
+  const oEl = opponentSlotRef.value
+
+  let startX = 220
+  let startY = 320
+  let targetX = 680
+  let targetY = 160
+
+  if (arenaEl && pEl && oEl) {
+    const arenaRect = arenaEl.getBoundingClientRect()
+    const pRect = pEl.getBoundingClientRect()
+    const oRect = oEl.getBoundingClientRect()
+
+    const pCenter = {
+      x: (pRect.left + pRect.width * 0.65) - arenaRect.left,
+      y: (pRect.top + pRect.height * 0.35) - arenaRect.top
     }
-    // Trigger hit effect cosmetic overlay
-    if (equippedEffects.value.hit_effect) {
-      showHitEffect.value = true
-      setTimeout(() => { showHitEffect.value = false }, 700)
+    const oCenter = {
+      x: (oRect.left + oRect.width * 0.35) - arenaRect.left,
+      y: (oRect.top + oRect.height * 0.35) - arenaRect.top
+    }
+
+    if (isAttackerSelf) {
+      startX = pCenter.x
+      startY = pCenter.y
+      targetX = oCenter.x
+      targetY = oCenter.y
+    } else {
+      startX = oCenter.x
+      startY = oCenter.y
+      targetX = pCenter.x
+      targetY = pCenter.y
     }
   }
-  if (feedback.oppCorrect) {
-    if (scene) {
-      scene.opponentAttack()
-      setTimeout(() => scene.playerHurt(feedback.damageTaken || 10), 300)
+
+  const dx = targetX - startX
+  const dy = targetY - startY
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+  projectileCoords.value = {
+    x: startX,
+    y: startY,
+    angle,
+    progress: 0
+  }
+  showAttackProjectile.value = true
+
+  if (game.audioEnabled) {
+    battleAudio.playAttack()
+  }
+
+  // 4. Projectile travel animation (360ms)
+  const travelDuration = 360
+  const startTime = performance.now()
+
+  function step(now) {
+    const elapsed = now - startTime
+    const p = Math.min(1, elapsed / travelDuration)
+    const ease = 1 - Math.pow(1 - p, 3)
+
+    projectileCoords.value = {
+      x: startX + dx * ease,
+      y: startY + dy * ease,
+      angle,
+      progress: ease
+    }
+
+    if (p < 1) {
+      requestAnimationFrame(step)
+    } else {
+      // 5. Impact phase
+      showAttackProjectile.value = false
+      splashCoords.value = { x: targetX, y: targetY }
+      showImpactSplash.value = true
+      showAttackSlash.value = true
+
+      flashType.value = action.isCritical ? 'critical' : (action.isCorrect ? 'correct' : 'wrong')
+      screenFlash.value = true
+
+      if (game.audioEnabled) {
+        if (action.isCritical) battleAudio.playCrit()
+        else battleAudio.playHit()
+      }
+
+      // Damage reaction on target
+      if (isAttackerSelf) {
+        floatingOppDmg.value = action.damage
+        floatingOppDmgType.value = action.isCritical ? 'critical' : 'damage'
+        oppBattleState.value = 'hit'
+      } else {
+        floatingSelfDmg.value = action.damage
+        floatingSelfDmgType.value = action.isCritical ? 'critical' : 'damage'
+        selfBattleState.value = 'hit'
+      }
+
+      // Reset effects after clean durations
+      setTimeout(() => {
+        screenFlash.value = false
+        showAttackSlash.value = false
+      }, 350)
+
+      setTimeout(() => {
+        showImpactSplash.value = false
+      }, 420)
+
+      setTimeout(() => {
+        if (isAttackerSelf) {
+          selfBattleState.value = (battle.self.hp <= 0) ? 'death' : 'idle'
+          oppBattleState.value = (battle.opponent.hp <= 0) ? 'death' : 'idle'
+        } else {
+          oppBattleState.value = (battle.opponent.hp <= 0) ? 'death' : 'idle'
+          selfBattleState.value = (battle.self.hp <= 0) ? 'death' : 'idle'
+        }
+      }, 650)
+
+      setTimeout(() => {
+        floatingSelfDmg.value = 0
+        floatingOppDmg.value = 0
+      }, 1200)
     }
   }
-})
 
-function handleSelectAnswer(choice) {
-  battle.submitAnswer(choice)
+  requestAnimationFrame(step)
+}
+
+function handleProjectileError() {
+  const def = getCharacterDefaultAttackEffect(auth.characterClass || 'mage')
+  activeProjectileGif.value = resolveAsset(def?.gif_path)
+}
+
+function handleSplashError() {
+  const def = getDefaultSplashEffect(auth.characterClass || 'mage')
+  activeSplashGif.value = resolveAsset(def?.gif_path)
 }
 
 function returnToHub() {
   router.push('/multiplayer')
 }
+
+onMounted(() => {
+  bgmService.setBattlefieldActive(true)
+})
+
+onUnmounted(() => {
+  bgmService.setBattlefieldActive(false)
+  battle.reset()
+})
 </script>
 
 <style scoped>
-.battle-page {
-  min-height: calc(100vh - 80px);
-  padding: 1.5rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  color: #e2d9cc;
+.arena-battlefield-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 0.65rem;
+  padding: 0.5rem;
+  box-sizing: border-box;
 }
 
-/* ══ GOTHIC BATTLE HUD ══ */
-.battle-hud {
+/* Screen Flash Overlay */
+.battle-screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  animation: flash-fade 0.35s ease-out forwards;
+}
+
+.battle-screen-flash.correct {
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.35) 0%, transparent 75%);
+}
+
+.battle-screen-flash.critical {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(239, 68, 68, 0.35) 50%, transparent 80%);
+}
+
+.battle-screen-flash.wrong {
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, transparent 75%);
+}
+
+@keyframes flash-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Stage & Minimal HUD */
+.battlefield-stage {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: visible;
+}
+
+.stage-minimal-hud {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(180deg, #14131b 0%, #0a0a0f 100%);
-  border: 2px solid #252330;
-  box-shadow: 0 0 0 2px #050608, 0 10px 28px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(181, 148, 16, 0.2);
+  z-index: 35;
+  pointer-events: none;
+}
+
+.hud-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hud-chapter-badge {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.58rem;
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 0.25rem 0.55rem;
   border-radius: 4px;
-  padding: 1.2rem 2rem;
-  position: relative;
 }
 
-.hud-player {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  min-width: 260px;
-}
-
-.hud-player.opponent {
-  justify-content: flex-end;
-}
-
-.avatar-badge {
-  width: 52px;
-  height: 52px;
-  border-radius: 4px;
-  background: #0d1210;
-  border: 2px solid #34d399;
-  box-shadow: 0 0 0 2px #050608;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-.avatar-badge.opp {
-  background: #190c10;
-  border-color: #b91c1c;
-}
-
-.player-meta {
-  flex: 1;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.player-name {
+.hud-encounter-title {
   font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
   font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-  color: #f3ede2;
+  color: #f1f5f9;
+  letter-spacing: 0.5px;
 }
 
-.player-rating {
+.hud-env-tag {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.65rem;
-  color: #e6c845;
+  font-size: 0.54rem;
+  color: #c084fc;
+  border-left: 1px solid rgba(168, 85, 247, 0.45);
+  padding-left: 0.6rem;
 }
 
-.hp-bar-container {
-  height: 12px;
-  background: #09090e;
-  border: 2px solid #050608;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9);
-  border-radius: 0;
-  overflow: hidden;
-  margin-bottom: 0.3rem;
-}
-
-.hp-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #059669, #10b981);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-  transition: width 0.4s ease;
-}
-
-.hp-bar-fill.opp {
-  background: linear-gradient(90deg, #8b1a1a, #dc2626);
-  box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);
-}
-
-.hp-text {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.6rem;
-  color: #9ca3af;
-}
-
-.text-right { text-align: right; }
-.justify-end { justify-content: flex-end; }
-
-.hud-center {
-  text-align: center;
-  padding: 0 1rem;
-}
-
-.round-counter {
-  font-family: 'VT323', monospace;
-  font-size: 1.15rem;
-  color: #8c887b;
-  letter-spacing: 0.05em;
+.wager-hud-badge {
+  font-size: 0.58rem;
+  color: #4ade80;
+  background: rgba(8, 9, 12, 0.85);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
 }
 
 .timer-badge {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 1.4rem;
+  font-size: 0.85rem;
   color: #e6c845;
-  margin: 0.3rem 0;
+  background: rgba(12, 10, 20, 0.85);
+  border: 1px solid rgba(230, 200, 69, 0.4);
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
   text-shadow: 0 0 10px rgba(230, 200, 69, 0.4);
 }
 
 .timer-badge.urgent {
   color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.6);
   text-shadow: 0 0 14px rgba(239, 68, 68, 0.8);
   animation: pulse 0.8s infinite;
 }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.08); }
 }
 
-.mode-pill {
+.hud-inquiry-tag {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.55rem;
-  letter-spacing: 0.1em;
-  background: rgba(181, 148, 16, 0.15);
-  color: #e6c845;
-  border: 1px solid rgba(181, 148, 16, 0.35);
-  padding: 0.2rem 0.6rem;
-  border-radius: 2px;
-  display: inline-block;
+  font-size: 0.54rem;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
 }
 
-/* ══ READY MODAL ══ */
+/* Combat Arena */
+.combat-arena {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 350px;
+  padding-bottom: 0.5rem;
+  overflow: visible;
+}
+
+.combatant-slot {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.slot-player {
+  position: absolute;
+  bottom: 32px;
+  left: clamp(1.5rem, 10vw, 12rem);
+  transform: scale(var(--player-scale, 1));
+  transform-origin: bottom center;
+  z-index: 15;
+}
+
+.slot-enemy {
+  position: absolute;
+  top: 25px;
+  right: clamp(1.5rem, 10vw, 12rem);
+  transform: scale(var(--enemy-scale, 1));
+  transform-origin: top center;
+  z-index: 14;
+}
+
+/* Projectile Animation Layer */
+.arena-attack-projectile {
+  position: absolute;
+  z-index: 45;
+  pointer-events: none;
+  width: 700px;
+  height: 450px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.85)) drop-shadow(0 0 45px rgba(168, 85, 247, 0.5));
+  will-change: left, top, transform;
+}
+
+.projectile-sprite {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* Splash Impact Layer */
+.arena-impact-splash {
+  position: absolute;
+  z-index: 50;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 18px rgba(251, 191, 36, 0.75));
+  animation: splashPulse 0.35s ease-out forwards;
+}
+
+.arena-impact-splash.is-crit-splash {
+  filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.95)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.9));
+}
+
+.splash-sprite {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+@keyframes splashPulse {
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; }
+}
+
+/* Center Slash Cut Effect */
+.arena-slash-fx {
+  position: absolute;
+  top: 30%;
+  left: 40%;
+  width: 180px;
+  height: 180px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.slash-blade {
+  position: absolute;
+  top: 50%;
+  left: -20%;
+  width: 140%;
+  height: 4px;
+  background: #ffffff;
+  box-shadow: 0 0 16px #38bdf8, 0 0 30px #a855f7;
+  transform: rotate(-35deg);
+  border-radius: 2px;
+}
+
+.slash-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, transparent 65%);
+}
+
+.animate-slash-cut {
+  animation: slash-anim 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slash-anim {
+  0% { opacity: 0; transform: scale(0.6) rotate(-15deg); }
+  35% { opacity: 1; transform: scale(1.15) rotate(0deg); }
+  100% { opacity: 0; transform: scale(1.3) rotate(10deg); }
+}
+
+/* Lower Interactive Combat Zones (Split Layout) */
+.battlefield-controls-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 290px;
+}
+
+.controls-left-question,
+.controls-right-actions {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Manual Confirmation Action Bar */
+.confirm-stage-bar {
+  margin-top: 0.5rem;
+  background: rgba(14, 16, 26, 0.95);
+  border: 1px solid rgba(230, 200, 69, 0.45);
+  box-shadow: 0 0 15px rgba(230, 200, 69, 0.2);
+  border-radius: 4px;
+  padding: 0.75rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.staged-prompt {
+  font-size: 0.65rem;
+  color: #fbbf24;
+  letter-spacing: 0.05em;
+}
+
+.btn-confirm-action {
+  background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%);
+  color: #fef08a;
+  border: 1px solid #f59e0b;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.65rem;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.btn-confirm-action:hover {
+  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.5);
+}
+
+/* Ready Screen Overlay */
 .ready-overlay {
   position: fixed;
   inset: 0;
@@ -456,6 +981,18 @@ function returnToHub() {
   width: 90%;
 }
 
+.ready-card h2 {
+  font-family: 'Cinzel', serif;
+  color: #f3ede2;
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.ready-card p {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
 .ready-status-row {
   display: flex;
   gap: 1rem;
@@ -464,13 +1001,17 @@ function returnToHub() {
 
 .ready-pill {
   flex: 1;
-  padding: 0.8rem;
+  padding: 0.6rem 0.8rem;
   background: #09090e;
   border: 2px solid #202230;
   box-shadow: 0 0 0 1px #050608;
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: #71717a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
 }
 
 .ready-pill.confirmed {
@@ -486,7 +1027,6 @@ function returnToHub() {
   border: 2px solid #e02424;
   box-shadow: 0 0 0 2px #050608, 0 4px 12px rgba(139, 26, 26, 0.4);
   padding: 0.9rem 2.5rem;
-  font-family: 'Cinzel', serif;
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -501,248 +1041,115 @@ function returnToHub() {
   box-shadow: 0 0 0 2px #050608, 0 6px 18px rgba(220, 38, 38, 0.5);
 }
 
+.waiting-prompt {
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
 .countdown-banner {
   margin-top: 1.5rem;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #e6c845;
   text-shadow: 0 0 10px rgba(230, 200, 69, 0.5);
 }
 
-/* ══ PHASER CANVAS FRAME ══ */
-.phaser-container-wrapper {
-  background: #050608;
-  border: 2px solid #252330;
-  box-shadow: 0 0 0 2px #050608, inset 0 0 0 1px rgba(181, 148, 16, 0.2);
-  border-radius: 4px;
-  overflow: hidden;
-  height: 380px;
-}
-
-.phaser-screen {
-  width: 100%;
-  height: 100%;
-}
-
-/* ══ QUESTION PANEL ══ */
-.question-panel {
-  background: linear-gradient(180deg, #13121b 0%, #0a0a0f 100%);
-  border: 2px solid #252330;
-  box-shadow: 0 0 0 2px #050608, inset 0 0 0 1px rgba(181, 148, 16, 0.2);
-  border-radius: 4px;
-  padding: 1.8rem;
-}
-
-.question-header {
-  display: flex;
-  gap: 0.6rem;
-  margin-bottom: 1rem;
-}
-
-.cat-tag, .diff-tag {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.6rem;
-  padding: 0.3rem 0.7rem;
-  border-radius: 2px;
-  border: 1px solid;
-}
-
-.cat-tag {
-  background: rgba(181, 148, 16, 0.12);
-  color: #e6c845;
-  border-color: rgba(181, 148, 16, 0.35);
-}
-
-.diff-tag {
-  background: rgba(139, 26, 26, 0.15);
-  color: #f87171;
-  border-color: rgba(139, 26, 26, 0.4);
-}
-
-.question-text {
-  font-size: 1.15rem;
-  font-weight: 500;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  color: #f3ede2;
-}
-
-.choices-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.choice-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  background: #0e0e16;
-  border: 2px solid #222436;
-  box-shadow: 0 0 0 1px #050608;
-  border-radius: 4px;
-  padding: 1rem 1.2rem;
-  color: #d1d5db;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.choice-btn:hover:not(.disabled) {
-  border-color: #b59410;
-  background: #161724;
-  color: #f3ede2;
-}
-
-.choice-btn.selected {
-  border-color: #e6c845;
-  background: rgba(181, 148, 16, 0.15);
-}
-
-.choice-btn.correct {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.2);
-  color: #a7f3d0;
-}
-
-.choice-btn.wrong {
-  border-color: #dc2626;
-  background: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
-}
-
-.choice-letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 2px;
-  background: #181926;
-  border: 1px solid #32354a;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.75rem;
-  color: #e6c845;
-}
-
-.feedback-banner {
-  margin-top: 1.5rem;
-  padding: 1rem 1.2rem;
-  background: rgba(220, 38, 38, 0.15);
-  border: 2px solid #8b1a1a;
-  border-radius: 2px;
-}
-
-.feedback-banner.success {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: #10b981;
-}
-
-.feedback-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 0.3rem;
-}
-
-.feedback-explanation {
-  font-size: 0.9rem;
-  color: #9ca3af;
-  line-height: 1.4;
-  margin: 0;
-}
-
-/* ══ GAME OVER MONOLITH MODAL ══ */
+/* Game Over Modal */
 .game-over-modal {
   position: fixed;
   inset: 0;
-  background: rgba(5, 6, 8, 0.94);
+  background: rgba(5, 6, 8, 0.9);
   backdrop-filter: blur(10px);
-  z-index: 200;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1.5rem;
 }
 
 .modal-card {
   background: linear-gradient(180deg, #16151f 0%, #0d0d14 100%);
+  border: 2px solid #282838;
+  box-shadow: 0 0 0 3px #050608, 0 20px 50px rgba(0, 0, 0, 0.95);
   border-radius: 4px;
-  padding: 3rem;
+  padding: 2.5rem;
   text-align: center;
-  max-width: 480px;
-  width: 90%;
-  border: 2px solid;
-  box-shadow: 0 0 0 2px #050608, 0 16px 40px rgba(0, 0, 0, 0.95);
+  max-width: 520px;
+  width: 100%;
 }
 
 .modal-card.won {
   border-color: #b59410;
-  box-shadow: 0 0 0 2px #050608, 0 0 35px rgba(181, 148, 16, 0.35);
+  box-shadow: 0 0 0 3px #050608, 0 0 30px rgba(181, 148, 16, 0.35);
 }
 
 .modal-card.lost {
   border-color: #8b1a1a;
-  box-shadow: 0 0 0 2px #050608, 0 0 35px rgba(139, 26, 26, 0.35);
-}
-
-.modal-card.draw {
-  border-color: #4b5563;
-  box-shadow: 0 0 0 2px #050608, 0 0 35px rgba(75, 85, 99, 0.35);
+  box-shadow: 0 0 0 3px #050608, 0 0 30px rgba(139, 26, 26, 0.35);
 }
 
 .outcome-icon {
-  font-size: 50px;
-  margin-bottom: 1rem;
+  font-size: 3.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .outcome-title {
-  font-family: 'Cinzel', serif;
-  font-size: 2.2rem;
+  font-size: 1.9rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  margin: 0 0 0.5rem;
   color: #f3ede2;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.05em;
 }
 
+.modal-card.won .outcome-title { color: #e6c845; text-shadow: 0 0 15px rgba(230, 200, 69, 0.4); }
+.modal-card.lost .outcome-title { color: #ef4444; text-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+
 .outcome-subtitle {
-  font-family: 'VT323', monospace;
-  color: #8c887b;
-  margin: 0 0 2rem;
-  font-size: 1.2rem;
+  color: #9ca3af;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
 }
 
 .rewards-box {
-  background: #0a0a0f;
+  background: #09090e;
   border: 1px solid #202230;
-  border-radius: 2px;
   padding: 1.2rem;
-  margin-bottom: 2rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  text-align: left;
 }
 
 .reward-row {
   display: flex;
   justify-content: space-between;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.7rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #14141e;
+  font-size: 0.88rem;
+  color: #d1d5db;
 }
 
-.reward-row:last-child { border-bottom: none; }
-.pos { color: #34d399; }
-.neg { color: #f87171; }
-.gold { color: #e6c845; }
-.xp { color: #c084fc; }
+.reward-row:last-child {
+  border-bottom: none;
+}
+
+.reward-row strong.pos { color: #34d399; }
+.reward-row strong.neg { color: #ef4444; }
+.reward-row strong.gold { color: #e6c845; }
+.reward-row strong.xp { color: #a78bfa; }
+
+.elo-disclaimer-note {
+  font-size: 0.55rem;
+  color: #94a3b8;
+  margin-top: 0.75rem;
+  line-height: 1.4;
+}
 
 .btn-return {
-  background: #181926;
-  color: #e6c845;
-  border: 2px solid #b59410;
-  box-shadow: 0 0 0 2px #050608;
-  padding: 0.9rem 2rem;
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
+  background: #8b1a1a;
+  color: #fde8e8;
+  border: 1px solid #e02424;
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   border-radius: 2px;
@@ -752,115 +1159,23 @@ function returnToHub() {
 }
 
 .btn-return:hover {
-  background: #25283d;
-  color: #fef08a;
-  transform: translateY(-2px);
+  background: #b91c1c;
 }
 
-/* ══ HIT EFFECT OVERLAY ══ */
-.hit-fx-overlay {
-  position: fixed;
-  top: 30%;
-  right: 15%;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 900;
-  animation: hitFxPop 0.7s ease-out forwards;
-}
-
-.hit-fx-overlay.hit-focus    { background: radial-gradient(circle, #ffffff 0%, rgba(255,255,255,0) 70%); box-shadow: 0 0 40px white; }
-.hit-fx-overlay.hit-psych    { background: radial-gradient(circle, #b91c1c 0%, rgba(185,28,28,0) 70%); box-shadow: 0 0 40px #b91c1c; }
-.hit-fx-overlay.hit-mind     { background: radial-gradient(circle, #a855f7 0%, rgba(168,85,247,0) 70%); box-shadow: 0 0 40px #9333ea; }
-.hit-fx-overlay.hit-collapse { background: radial-gradient(circle, #050608 0%, transparent 70%); box-shadow: 0 0 60px rgba(185,28,28,0.8); }
-
-@keyframes hitFxPop {
-  0%   { transform: scale(0.2); opacity: 0; }
-  35%  { transform: scale(1.3); opacity: 1; }
-  60%  { transform: scale(0.95); opacity: 0.9; }
-  100% { transform: scale(0.2); opacity: 0; }
-}
-
-.hit-fx-enter-active  { animation: hitFxPop 0.7s ease-out forwards; }
-.hit-fx-leave-active  { opacity: 0; }
-
-/* ══ FINISHER EFFECT OVERLAY ══ */
-.finisher-fx-overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 2rem;
-  flex-direction: column;
-  z-index: 5;
-  pointer-events: none;
-  animation: finisherFade 1.2s ease-out;
-}
-
-.finisher-fx-overlay.finish-flash     { background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); }
-.finisher-fx-overlay.finish-insight   { background: rgba(181, 148, 16, 0.1); border: 2px solid rgba(181, 148, 16, 0.3); }
-.finisher-fx-overlay.finish-enlighten { background: rgba(230, 200, 69, 0.1); border: 2px solid rgba(230, 200, 69, 0.3); }
-.finisher-fx-overlay.finish-legend    {
-  background: linear-gradient(135deg, rgba(139, 26, 26, 0.15), rgba(181, 148, 16, 0.15));
-  border: 2px solid rgba(181, 148, 16, 0.4);
-  box-shadow: 0 0 60px rgba(181, 148, 16, 0.3);
-}
-
-.finisher-rays-wrap {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: finisherRaysSpin 1.2s ease-out;
-  overflow: hidden;
-  border-radius: 4px;
-}
-
-.finisher-ray {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 3px;
-  height: 200px;
-  transform-origin: 0 0;
-  border-radius: 2px;
-}
-.finish-flash     .finisher-ray { background: linear-gradient(to top, rgba(255,255,255,0.5), transparent); }
-.finish-insight   .finisher-ray { background: linear-gradient(to top, rgba(181, 148, 16, 0.6), transparent); }
-.finish-enlighten .finisher-ray { background: linear-gradient(to top, rgba(230, 200, 69, 0.7), transparent); }
-.finish-legend    .finisher-ray { background: linear-gradient(to top, rgba(185, 28, 28, 0.7), transparent); }
-
-.finisher-title-text {
-  position: relative;
-  z-index: 1;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  color: #e6c845;
-  text-shadow: 0 0 12px rgba(230, 200, 69, 0.7);
-  text-transform: uppercase;
-  animation: finisherTextFade 1.2s ease-out;
-}
-
-@keyframes finisherFade {
-  0%   { opacity: 0; transform: scale(0.94); }
-  30%  { opacity: 1; transform: scale(1.02); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-@keyframes finisherRaysSpin {
-  0%   { transform: rotate(0deg); opacity: 0; }
-  20%  { opacity: 1; }
-  100% { transform: rotate(45deg); opacity: 0.6; }
-}
-
-@keyframes finisherTextFade {
-  0%   { opacity: 0; transform: translateY(8px); }
-  40%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 1; }
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .battlefield-controls-split {
+    grid-template-columns: 1fr;
+  }
+  .slot-enemy {
+    right: 2%;
+    top: 10px;
+    transform: scale(0.9);
+  }
+  .slot-player {
+    left: 2%;
+    bottom: 35px;
+    transform: scale(0.9);
+  }
 }
 </style>

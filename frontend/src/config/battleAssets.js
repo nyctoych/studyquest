@@ -4,13 +4,14 @@
  * Future custom sprites can be plugged in here without altering battlefield components.
  */
 
+import { CHAPTER_MINIONS, getChapterMinion, getMinionAssetUrl, preloadMinionAssets } from './chapterMinions'
+
 export const battleAssets = {
   // Player Battle Sprite Placeholder
   playerPlaceholder: {
     id: 'scholar_default',
     name: 'Scholar Adventurer',
     type: 'placeholder',
-    // Future sprite sheet / asset path can be placed here:
     spriteUrl: '',
     role: 'Scholar of the Mind',
     defaultScale: 1.0,
@@ -18,14 +19,16 @@ export const battleAssets = {
     attackAnimation: 'anim-player-attack',
   },
 
-  // Minion / Normal Level Enemy Placeholder
+  // Authoritative Chapter Minions Registry (1 minion per chapter)
+  chapterMinions: CHAPTER_MINIONS,
+
+  // Fallback Minion Configuration
   minionPlaceholder: {
-    id: 'fracture_specter',
-    name: 'Fracture Specter',
-    title: 'Cognitive Aberration',
-    type: 'placeholder',
-    // Future sprite sheet / asset path can be placed here:
-    spriteUrl: '',
+    id: 'plant_minion',
+    name: 'Plant Minion',
+    title: 'Verdant Sprout of Development',
+    type: 'minion',
+    spriteUrl: getMinionAssetUrl(1),
     defaultScale: 1.0,
     idleAnimation: 'anim-minion-idle',
     hitAnimation: 'anim-minion-hit',
@@ -132,4 +135,5 @@ export function getRandomWrongSpeech(chapterId = 1, isBoss = false) {
   return general[Math.floor(Math.random() * general.length)]
 }
 
+export { CHAPTER_MINIONS, getChapterMinion, getMinionAssetUrl, preloadMinionAssets }
 export default battleAssets

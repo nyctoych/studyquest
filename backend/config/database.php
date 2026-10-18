@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Manila');
+
 class Database {
     private static ?PDO $instance = null;
 
@@ -18,6 +20,7 @@ class Database {
             ];
             try {
                 self::$instance = new PDO($dsn, self::$username, self::$password, $options);
+                self::$instance->exec("SET time_zone = '+08:00'");
             } catch (PDOException $e) {
                 http_response_code(500);
                 echo json_encode(['success' => false, 'message' => 'Database connection failed: ' . $e->getMessage()]);

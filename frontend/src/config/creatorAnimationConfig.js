@@ -131,6 +131,13 @@ export async function preloadCreatorAnimations() {
   })
 
   await Promise.all(promises)
+  try {
+    const { preloadFinalBossEffects } = await import('./finalBossEffectsConfig.js')
+    await preloadFinalBossEffects()
+  } catch (err) {
+    console.warn('[CreatorPreload] Effect preloading fallback:', err)
+  }
 }
 
 export default CREATOR_ANIMATION_CONFIG
+

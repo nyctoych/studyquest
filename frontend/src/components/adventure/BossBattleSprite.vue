@@ -37,7 +37,7 @@
       </div>
 
       <!-- Boss HP Bar (Pokemon Style) -->
-      <div class="boss-hp-bar-container">
+      <div class="boss-hp-bar-container" :title="`HP: ${displayHpText} (${Math.round(displayHpPct)}%)`">
         <span class="boss-hp-label">HP</span>
         <div class="boss-hp-track">
           <div
@@ -46,7 +46,7 @@
             :style="{ width: `${displayHpPct}%` }"
           ></div>
         </div>
-        <span class="boss-hp-val">{{ Math.round(displayHpPct) }}%</span>
+        <span class="boss-hp-val">{{ displayHpText }}</span>
       </div>
 
       <div class="boss-sub-row">
@@ -85,6 +85,14 @@ const props = defineProps({
   speechText: {
     type: String,
     default: ''
+  },
+  bossHp: {
+    type: Number,
+    default: null
+  },
+  bossMaxHp: {
+    type: Number,
+    default: null
   },
   bossHpPct: {
     type: Number,
@@ -133,6 +141,18 @@ const isEnragedMode = computed(() => {
 
 const displayHpPct = computed(() => {
   return Math.max(0, Math.min(100, props.bossHpPct))
+})
+
+const displayHpText = computed(() => {
+  if (props.bossHp !== null && props.bossHp !== undefined) {
+    const cur = Math.max(0, Math.round(props.bossHp))
+    if (props.bossMaxHp !== null && props.bossMaxHp !== undefined && props.bossMaxHp > 0) {
+      const max = Math.round(props.bossMaxHp)
+      return `${cur} / ${max}`
+    }
+    return `${cur} HP`
+  }
+  return `${Math.round(displayHpPct.value)}%`
 })
 
 const bossAccent = computed(() => {
@@ -473,10 +493,10 @@ const bossReactionLabel = computed(() => {
 
 .boss-hp-val {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.42rem;
+  font-size: 0.38rem;
   color: #e2e8f0;
-  min-width: 32px;
   text-align: right;
+  white-space: nowrap;
 }
 
 .boss-sub-row {
@@ -551,5 +571,36 @@ const bossReactionLabel = computed(() => {
   width: clamp(170px, 24vw, 240px) !important;
   height: clamp(170px, 24vw, 240px) !important;
   object-fit: contain !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES
+   ══════════════════════════════════════════════════════════════ */
+:global(.theme-morning) .boss-nameplate,
+:global([data-theme="morning"]) .boss-nameplate {
+  background: rgba(254, 252, 248, 0.96) !important;
+  border: 2px solid #b89758 !important;
+  box-shadow: 0 4px 16px rgba(80, 55, 20, 0.25), 0 0 12px rgba(184, 151, 88, 0.25) !important;
+}
+
+:global(.theme-morning) .boss-display-name,
+:global([data-theme="morning"]) .boss-display-name {
+  color: #2b2216 !important;
+}
+
+:global(.theme-morning) .boss-title-tag,
+:global([data-theme="morning"]) .boss-title-tag {
+  color: #78350f !important;
+}
+
+:global(.theme-morning) .boss-hp-track,
+:global([data-theme="morning"]) .boss-hp-track {
+  background: rgba(180, 150, 110, 0.35) !important;
+  border: 1px solid rgba(184, 151, 88, 0.4);
+}
+
+:global(.theme-morning) .boss-hp-val,
+:global([data-theme="morning"]) .boss-hp-val {
+  color: #4b3e2e !important;
 }
 </style>

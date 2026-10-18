@@ -36,10 +36,6 @@ class BattleEngine {
      * @return array Standardized authoritative combat outcome
      */
     public function resolveBattleAttempt(int $userId, int $battleId, array $payload): array {
-        if (!$battleId) {
-            return ['status' => 400, 'data' => ['success' => false, 'message' => 'Missing battle session ID']];
-        }
-
         $selectedChoice = strtoupper(trim((string)($payload['selected_choice'] ?? '')));
         if ($selectedChoice === '') {
             return ['status' => 400, 'data' => ['success' => false, 'message' => 'No action choice selected']];
@@ -56,12 +52,24 @@ class BattleEngine {
             : (isset($payload['current_question_index']) ? (int)$payload['current_question_index'] : null);
 
         // 1. Fetch authoritative active battle session
-        $bStmt = $this->db->prepare("SELECT * FROM adventure_active_battles WHERE id = ? AND user_id = ?");
-        $bStmt->execute([$battleId, $userId]);
-        $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
+        $battle = null;
+        if ($battleId > 0) {
+            $bStmt = $this->db->prepare("SELECT * FROM adventure_active_battles WHERE id = ? AND user_id = ?");
+            $bStmt->execute([$battleId, $userId]);
+            $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
+        }
+        if (!$battle) {
+            // Fallback: look up latest active session for this user
+            $bStmt = $this->db->prepare("SELECT * FROM adventure_active_battles WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1");
+            $bStmt->execute([$userId]);
+            $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
+            if ($battle) {
+                $battleId = (int)$battle['id'];
+            }
+        }
 
         if (!$battle) {
-            return ['status' => 404, 'data' => ['success' => false, 'message' => 'Active battle session not found']];
+            return ['status' => 400, 'data' => ['success' => false, 'message' => 'No active battle session found. Please re-enter battle.']];
         }
 
         if ($battle['status'] !== 'active') {
@@ -100,8 +108,16 @@ class BattleEngine {
         $correctAnswer = '';
         $explanation = '';
 
+        // Priority 0: The question at the current index of the server-issued sequence
+        // (authoritative; avoids id collisions between the `questions` and `learning_questions` tables)
+        if ($currentQuestionData && !empty($currentQuestionData['correct_answer'])
+            && ($questionId <= 0 || (int)($currentQuestionData['id'] ?? 0) === $questionId)) {
+            $correctAnswer = strtoupper(trim($currentQuestionData['correct_answer']));
+            $explanation = $currentQuestionData['explanation'] ?? '';
+        }
+
         // Priority 1: Match inside the server-issued session sequence by question id
-        if ($questionId > 0 && !empty($sequence)) {
+        if ($correctAnswer === '' && $questionId > 0 && !empty($sequence)) {
             foreach ($sequence as $item) {
                 if (isset($item['id']) && (int)$item['id'] === $questionId && !empty($item['correct_answer'])) {
                     $correctAnswer = strtoupper(trim($item['correct_answer']));
@@ -293,6 +309,171 @@ class BattleEngine {
                 'correct_answer' => $correctAnswer,
                 'explanation' => $explanation,
                 'next_question' => $nextQuestion
+            ]
+        ];
+    }
+
+    /**
+     * Resolve Dodge Potion consumption and cancel the current question attempt.
+     * Skips the current inquiry without dealing or receiving damage.
+     * Advances to the next question in the sequence.
+     */
+    public function resolveDodgePotion(int $userId, int $battleId, array $payload): array {
+        $submittedIndex = isset($payload['question_index']) 
+            ? (int)$payload['question_index'] 
+            : (isset($payload['current_question_index']) ? (int)$payload['current_question_index'] : null);
+        $questionId = (int)($payload['question_id'] ?? 0);
+
+        // 1. Fetch authoritative active battle session
+        $battle = null;
+        if ($battleId > 0) {
+            $bStmt = $this->db->prepare("SELECT * FROM adventure_active_battles WHERE id = ? AND user_id = ?");
+            $bStmt->execute([$battleId, $userId]);
+            $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
+        }
+        if (!$battle) {
+            // Fallback: look up latest active session for this user
+            $bStmt = $this->db->prepare("SELECT * FROM adventure_active_battles WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1");
+            $bStmt->execute([$userId]);
+            $battle = $bStmt->fetch(PDO::FETCH_ASSOC);
+            if ($battle) {
+                $battleId = (int)$battle['id'];
+            }
+        }
+
+        if (!$battle) {
+            return ['status' => 400, 'data' => ['success' => false, 'message' => 'No active battle session found. Please re-enter battle.']];
+        }
+
+        if ($battle['status'] !== 'active') {
+            return [
+                'status' => 400,
+                'data' => [
+                    'success' => false,
+                    'message' => 'Battle has already concluded',
+                    'battle_status' => $battle['status']
+                ]
+            ];
+        }
+
+        $currentIndex = (int)($battle['current_question_index'] ?? 0);
+
+        // 2. Prevent race conditions / duplicate skips
+        if ($submittedIndex !== null && $submittedIndex < $currentIndex) {
+            return [
+                'status' => 409,
+                'data' => [
+                    'success' => false,
+                    'message' => 'This inquiry attempt has already been resolved.',
+                    'battle_id' => $battleId,
+                    'current_question_index' => $currentIndex,
+                    'player_current_health' => (int)$battle['player_current_health'],
+                    'enemy_current_health' => (int)$battle['enemy_current_health'],
+                    'battle_status' => $battle['status']
+                ]
+            ];
+        }
+
+        // 3. Server-authoritative Dodge Potion consumption
+        require_once __DIR__ . '/DodgePotionService.php';
+        $potionResult = DodgePotionService::getInstance()->consume($userId, $battleId, $questionId);
+
+        if (!$potionResult['success']) {
+            return [
+                'status' => 400,
+                'data' => [
+                    'success' => false,
+                    'error_code' => $potionResult['error_code'] ?? 'POTION_FAILED',
+                    'message' => $potionResult['message'] ?? 'Failed to consume Dodge Potion.',
+                    'current_question_index' => $currentIndex,
+                    'player_current_health' => (int)$battle['player_current_health'],
+                    'enemy_current_health' => (int)$battle['enemy_current_health']
+                ]
+            ];
+        }
+
+        // 4. Combat parameters remain unchanged: NO DAMAGE to player or enemy!
+        $playerHp = (int)$battle['player_current_health'];
+        $enemyHp = (int)$battle['enemy_current_health'];
+        $nextIndex = $currentIndex + 1;
+        $battleStatus = 'active';
+
+        // Check sequence boundaries
+        $sequence = !empty($battle['question_sequence']) ? json_decode($battle['question_sequence'], true) : [];
+        if ($nextIndex >= count($sequence) && count($sequence) > 0) {
+            // Reached end of inquiries: evaluate according to existing encounter rules
+            if ($playerHp <= 0) {
+                $battleStatus = 'defeat';
+            } elseif ($enemyHp <= 0) {
+                $battleStatus = 'victory';
+            }
+        }
+
+        // 5. Update battle state
+        $upStmt = $this->db->prepare("
+            UPDATE adventure_active_battles
+            SET status = ?,
+                current_question_index = ?
+            WHERE id = ?
+        ");
+        $upStmt->execute([$battleStatus, $nextIndex, $battleId]);
+
+        // 6. Log Dodge Potion combat event (excluded from correct/incorrect counts)
+        $evStmt = $this->db->prepare("
+            INSERT INTO adventure_combat_events
+            (battle_id, user_id, question_id, selected_choice, is_correct, critical_active,
+             damage_type, damage_dealt, player_damage_taken, player_hp_after, enemy_hp_after)
+            VALUES (?, ?, ?, 'SKIPPED', NULL, 0, 'dodge_potion', 0, 0, ?, ?)
+        ");
+        $evStmt->execute([
+            $battleId, $userId, $questionId,
+            $playerHp, $enemyHp
+        ]);
+
+        // 7. Prepare next question if active
+        $nextQuestion = null;
+        if ($battleStatus === 'active' && isset($sequence[$nextIndex])) {
+            $nq = $sequence[$nextIndex];
+            $nextQuestion = [
+                'id' => $nq['id'],
+                'question' => $nq['question'],
+                'choices' => [
+                    'A' => $nq['choice_a'],
+                    'B' => $nq['choice_b'],
+                    'C' => $nq['choice_c'],
+                    'D' => $nq['choice_d'],
+                ],
+                'difficulty' => $nq['difficulty'] ?? 'intermediate',
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'data' => [
+                'success' => true,
+                'action_type' => 'dodge_potion',
+                'skipped' => true,
+                'is_correct' => null,
+                'damage_dealt' => 0,
+                'player_damage_taken' => 0,
+                'damage_type' => 'dodge_potion',
+                'battle_id' => $battleId,
+                'battle_mode' => $battle['battle_mode'] ?? 'adventure',
+                'current_question_index' => $nextIndex,
+                'player_hp' => $playerHp,
+                'player_current_health' => $playerHp,
+                'player_max_health' => (int)$battle['player_max_health'],
+                'enemy_hp' => $enemyHp,
+                'enemy_current_health' => $enemyHp,
+                'enemy_max_health' => (int)$battle['enemy_max_health'],
+                'battle_status' => $battleStatus,
+                'battle_result' => ($battleStatus === 'victory' || $battleStatus === 'defeat') ? $battleStatus : null,
+                'is_victory' => ($battleStatus === 'victory'),
+                'is_defeat' => ($battleStatus === 'defeat'),
+                'next_question' => $nextQuestion,
+                'potion_state' => $potionResult,
+                'dodge_potion' => $potionResult,
+                'charges' => $potionResult
             ]
         ];
     }

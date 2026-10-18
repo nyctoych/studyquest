@@ -52,6 +52,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { resolveAsset } from '../../services/bossMapping'
 
 const props = defineProps({
   character: {
@@ -63,15 +64,24 @@ const props = defineProps({
 const isLoading = ref(true)
 const hasFailed = ref(false)
 const renderKey = ref(0)
+const replayTimestamp = ref(Date.now())
 
 const openingSrc = computed(() => {
   // Use explicit opening_gif_path or fallback to idle_asset_path or sprite_path
-  return props.character.opening_gif_path || props.character.idle_asset_path || props.character.sprite_path || ''
+  const raw = props.character.opening_gif_path || props.character.idle_asset_path || props.character.sprite_path || ''
+  if (!raw) return ''
+  const resolved = resolveAsset(raw)
+  if (resolved.toLowerCase().endsWith('.gif') || resolved.toLowerCase().includes('.gif?')) {
+    const sep = resolved.includes('?') ? '&' : '?'
+    return `${resolved}${sep}anim_t=${replayTimestamp.value}`
+  }
+  return resolved
 })
 
 watch(() => props.character?.id, () => {
   isLoading.value = true
   hasFailed.value = false
+  replayTimestamp.value = Date.now()
   renderKey.value++
 })
 
@@ -88,6 +98,7 @@ function onMediaError() {
 function replayAnimation() {
   isLoading.value = true
   hasFailed.value = false
+  replayTimestamp.value = Date.now()
   renderKey.value++
 }
 </script>

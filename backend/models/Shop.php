@@ -81,14 +81,38 @@ class ShopItem {
         foreach ($items as &$item) {
             $item['is_equipped'] = !is_null($item['is_equipped']);
         }
+
+        // Include Dodge Potion charges & purchased stock in consumable inventory
+        require_once __DIR__ . '/../services/DodgePotionService.php';
+        $dodgeState = DodgePotionService::getInstance()->getCharges($userId);
+        if ($dodgeState['total_available'] > 0) {
+            $dodgeItemStmt = $this->db->prepare("
+                SELECT i.*, ic.name AS category_name, ic.slug AS category_slug,
+                       NOW() as purchased_at, 0 as is_equipped
+                FROM items i
+                JOIN item_categories ic ON i.category_id = ic.id
+                WHERE i.effect_key = 'dodge-potion' OR i.type = 'dodge_potion'
+                LIMIT 1
+            ");
+            $dodgeItemStmt->execute();
+            $dodgeItem = $dodgeItemStmt->fetch();
+            if ($dodgeItem) {
+                $dodgeItem['quantity'] = $dodgeState['total_available'];
+                $dodgeItem['daily_charges'] = $dodgeState['daily_charges'];
+                $dodgeItem['purchased_stock'] = $dodgeState['purchased_stock'];
+                $dodgeItem['is_equipped'] = false;
+                $items[] = $dodgeItem;
+            }
+        }
+
         return $items;
     }
 
     public function userOwns(int $userId, int $itemId): bool {
         $item = $this->getById($itemId);
         if (!$item) return false;
-        // Potions are instant consumables, not permanently owned items
-        if (($item['type'] ?? '') === 'potion' || ($item['category_slug'] ?? '') === 'potion' || ($item['category_slug'] ?? '') === 'potions') {
+        // Potions are consumables, not permanently owned one-off cosmetic items
+        if (($item['type'] ?? '') === 'potion' || ($item['type'] ?? '') === 'dodge_potion' || ($item['category_slug'] ?? '') === 'potion' || ($item['category_slug'] ?? '') === 'potions') {
             return false;
         }
         if (!empty($item['is_default']) || (int)$item['coin_cost'] === 0) {
@@ -101,9 +125,27 @@ class ShopItem {
         return (bool) $stmt->fetchColumn();
     }
 
+    public function resolveUserClass(int $userId): string {
+        $userStmt = $this->db->prepare("
+            SELECT COALESCE(c.class_type, 'mage') as class_type
+            FROM users u
+            LEFT JOIN characters c ON u.selected_character_id = c.id
+            WHERE u.id = ?
+        ");
+        $userStmt->execute([$userId]);
+        $raw = strtolower((string)($userStmt->fetchColumn() ?: 'mage'));
+        if (str_contains($raw, 'range') || str_contains($raw, 'archer')) {
+            return 'range';
+        }
+        if (str_contains($raw, 'melee') || str_contains($raw, 'warrior')) {
+            return 'melee';
+        }
+        return 'mage';
+    }
+
     /**
      * Get all equipped items for a user, keyed by category_slug.
-     * Returns: { 'aura' => {...item}, 'character_skin' => {...item}, ... }
+     * If no attack or splash effects are equipped, automatically equips the common default skin.
      */
     public function getEquipped(int $userId): array {
         $stmt = $this->db->prepare(
@@ -119,6 +161,73 @@ class ShopItem {
         foreach ($rows as $row) {
             $equipped[$row['slot']] = $row;
         }
+
+        $userClass = $this->resolveUserClass($userId);
+
+        // Verify class match for attack_effect (if equipped skin belongs to another class, fall back to current class common skin)
+        if (!empty($equipped['attack_effect'])) {
+            $itemClass = strtolower((string)($equipped['attack_effect']['character_class'] ?? 'all'));
+            if ($itemClass !== 'all' && $itemClass !== $userClass) {
+                unset($equipped['attack_effect']);
+            }
+        }
+
+        // Auto-equip common default attack effect if none equipped
+        if (empty($equipped['attack_effect'])) {
+            $attStmt = $this->db->prepare("
+                SELECT i.*, ic.slug AS category_slug, ic.name AS category_name
+                FROM items i
+                JOIN item_categories ic ON i.category_id = ic.id
+                WHERE ic.slug = 'attack_effect' 
+                  AND (i.character_class = ? OR i.character_class = 'all')
+                  AND (i.is_default = 1 OR i.rarity = 'common' OR i.coin_cost = 0)
+                ORDER BY i.is_default DESC, i.coin_cost ASC, i.id ASC
+                LIMIT 1
+            ");
+            $attStmt->execute([$userClass]);
+            $defaultAttack = $attStmt->fetch();
+            if ($defaultAttack) {
+                $this->db->prepare("
+                    INSERT INTO user_equipped_items (user_id, slot, item_id)
+                    VALUES (?, 'attack_effect', ?)
+                    ON DUPLICATE KEY UPDATE item_id = VALUES(item_id)
+                ")->execute([$userId, $defaultAttack['id']]);
+                $equipped['attack_effect'] = $defaultAttack;
+            }
+        }
+
+        // Verify class match for splash_effect
+        if (!empty($equipped['splash_effect'])) {
+            $splashClass = strtolower((string)($equipped['splash_effect']['character_class'] ?? 'all'));
+            if ($splashClass !== 'all' && $splashClass !== $userClass) {
+                unset($equipped['splash_effect']);
+            }
+        }
+
+        // Auto-equip common default splash effect if none equipped
+        if (empty($equipped['splash_effect'])) {
+            $splashStmt = $this->db->prepare("
+                SELECT i.*, ic.slug AS category_slug, ic.name AS category_name
+                FROM items i
+                JOIN item_categories ic ON i.category_id = ic.id
+                WHERE ic.slug = 'splash_effect'
+                  AND (i.character_class = ? OR i.character_class = 'all')
+                  AND (i.is_default = 1 OR i.rarity = 'common' OR i.coin_cost = 0)
+                ORDER BY i.is_default DESC, i.coin_cost ASC, i.id ASC
+                LIMIT 1
+            ");
+            $splashStmt->execute([$userClass]);
+            $defaultSplash = $splashStmt->fetch();
+            if ($defaultSplash) {
+                $this->db->prepare("
+                    INSERT INTO user_equipped_items (user_id, slot, item_id)
+                    VALUES (?, 'splash_effect', ?)
+                    ON DUPLICATE KEY UPDATE item_id = VALUES(item_id)
+                ")->execute([$userId, $defaultSplash['id']]);
+                $equipped['splash_effect'] = $defaultSplash;
+            }
+        }
+
         return $equipped;
     }
 
@@ -126,6 +235,12 @@ class ShopItem {
         $item = $this->getById($itemId);
         if (!$item) {
             return ['success' => false, 'message' => 'Item not found'];
+        }
+
+        // Dodge Potion Consumable Routing
+        if (($item['type'] ?? '') === 'dodge_potion' || ($item['effect_key'] ?? '') === 'dodge-potion' || ($item['name'] ?? '') === 'Dodge Potion') {
+            require_once __DIR__ . '/../services/DodgePotionService.php';
+            return DodgePotionService::getInstance()->purchase($userId, $itemId);
         }
 
         // Instant Consumable Potion Routing (Health Potion +200 HP)
@@ -151,8 +266,8 @@ class ShopItem {
                 return ['success' => false, 'message' => 'Insufficient Scholar Coins'];
             }
 
-            // Deduct coins
-            $this->db->prepare("UPDATE users SET coins = coins - ? WHERE id = ?")->execute([$item['coin_cost'], $userId]);
+            // Deduct coins & points
+            $this->db->prepare("UPDATE users SET coins = GREATEST(0, coins - ?), points = GREATEST(0, points - ?) WHERE id = ?")->execute([$item['coin_cost'], $item['coin_cost'], $userId]);
 
             // Record new balance
             $stmt = $this->db->prepare("SELECT coins FROM users WHERE id = ?");
@@ -208,6 +323,9 @@ class ShopItem {
             "DELETE FROM user_equipped_items WHERE user_id = ? AND slot = ?"
         )->execute([$userId, $slot]);
 
-        return ['success' => true, 'message' => 'Item unequipped'];
+        // Calling getEquipped will auto-equip the common default skin if slot is attack_effect or splash_effect
+        $equipped = $this->getEquipped($userId);
+
+        return ['success' => true, 'message' => 'Cosmetic reset to default', 'equipped' => $equipped];
     }
 }

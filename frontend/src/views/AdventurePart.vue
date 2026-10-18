@@ -1,5 +1,5 @@
 <template>
-  <div class="adv-part" :class="{ 'is-in-battle': phase === 'battle' }">
+  <div class="adv-part" :class="{ 'is-in-battle': phase === 'battle', 'theme-morning': isMorning, 'is-morning': isMorning }">
     <!-- Gothic Atmosphere Backdrop -->
     <div class="adv-part-bg">
       <img :src="bgImageUrl" class="adv-part-bg-img" alt="Backdrop" />
@@ -37,7 +37,7 @@
           :academic-connection="part?.academic_connection"
           :enemy-name="part?.enemy_name || 'Manifestation of the Fracture'"
           :enemy-flavor="part?.enemy_flavor"
-          :enemy-hp="Number(part?.enemy_max_hp) || 100"
+          :enemy-hp="Number(part?.enemy_max_hp) || 30"
           :boss-name="part?.boss_name"
           @proceed="phase = 'learn'"
           @skip-to-battle="startBattle"
@@ -101,7 +101,7 @@
           <!-- Loading placeholder if preparing battle questions -->
           <div v-if="!currentQ && !adventure.battleComplete" class="part-loading">
             <div class="loading-spinner"></div>
-            <p class="pixel-text">SUMMONING ABERRATION TO ARENA…</p>
+            <p class="pixel-text">SUMMONING {{ chapterMinion?.name?.toUpperCase() || 'MINION' }} TO ARENA…</p>
           </div>
 
           <!-- Classic Turn-Based RPG Battlefield (Pokemon-inspired layout) -->
@@ -112,8 +112,8 @@
             :part-num="partNum"
             :chapter-title="part?.domain_name || 'PSYCHOPATHOLOGY SANCTUM'"
             :part-title="part?.title || ('Part ' + partNum)"
-            :enemy-name="part?.enemy_name || 'Fracture Specter'"
-            :enemy-title="part?.enemy_flavor || 'Cognitive Aberration'"
+            :enemy-name="chapterMinion?.name || part?.enemy_name || 'Regional Minion'"
+            :enemy-title="part?.enemy_name && !['Fracture Specter', 'Study Specter'].includes(part.enemy_name) ? part.enemy_name : (chapterMinion?.title || part?.enemy_flavor || 'Regional Creature')"
             :player-hp="adventure.playerHP"
             :player-max-hp="adventure.playerMaxHP"
             :player-level="adventure.playerLevel"
@@ -134,13 +134,14 @@
             @answer="handleAnswer"
             @answered="onQuestionAnswered"
             @next="nextQuestion"
+            @dodge-potion="handleDodgePotion"
           />
 
           <!-- Battle complete (victory) -->
           <div v-if="adventure.battleComplete && adventure.battleResult === 'victory'" class="battle-victory gothic-panel animate-scale-up">
             <!-- Primary Animated Battle Result Character (Player Character Victory) -->
             <BattleResultCharacter result="victory" size="xl" />
-            <h3 class="victory-title">SPECTER BANISHED!</h3>
+            <h3 class="victory-title">{{ (chapterMinion?.name?.toUpperCase() || 'MINION') }} BANISHED!</h3>
             <p class="victory-desc">{{ part?.story_after || 'You have cleansed this trial of falsehood.' }}</p>
             <button class="btn btn-gothic-crimson btn-lg" @click="claimRewards">
               CLAIM SANCTUM REWARDS →
@@ -162,7 +163,7 @@
               </div>
               <div class="rec-metric">
                 <span class="rec-label font-pixel">RECOVERY</span>
-                <span class="rec-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+                <span class="rec-val text-gold font-pixel">+1 HP / MIN</span>
               </div>
               <div class="rec-metric">
                 <span class="rec-label font-pixel">NEXT RECOVERY</span>
@@ -212,7 +213,7 @@
           </div>
           <div class="reward-items">
             <div class="reward-item-card">
-              <span class="ri-icon"><PixelEmoji emoji="star" size="sm" /></span>
+              <span class="ri-icon"><PixelEmoji emoji="sparkles" size="sm" /></span>
               <span class="ri-amount">+{{ rewardData.xp_earned }} XP</span>
             </div>
             <div class="reward-item-card">
@@ -244,14 +245,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdventureStore } from '../stores/adventure'
+import { useGameStore } from '../stores/game'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useHealthStore } from '../stores/health'
 import { useTransitionStore } from '../stores/transition'
 import { resolveAsset } from '../services/bossMapping'
+import { getChapterMinion } from '../config/chapterMinions'
 import AvatarImg from '../components/AvatarImg.vue'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
 import StoryScene from '../components/adventure/StoryScene.vue'
@@ -261,13 +264,17 @@ import BattleResultCharacter from '../components/adventure/BattleResultCharacter
 const route = useRoute()
 const router = useRouter()
 const adventure = useAdventureStore()
+const gameStore = useGameStore()
 const auth = useAuthStore()
 const toast = useToastStore()
 const healthStore = useHealthStore()
 const transitionStore = useTransitionStore()
 
+const isMorning = computed(() => gameStore.isMorning)
+
 const chapterId = computed(() => Number(route.params.chapterId))
 const partNum = computed(() => Number(route.params.partNum))
+const chapterMinion = computed(() => getChapterMinion(chapterId.value))
 
 const phase = ref(route.query.phase || (route.query.battle ? 'battle' : 'story'))
 const loading = computed(() => adventure.loading)
@@ -340,6 +347,12 @@ onMounted(async () => {
   }
 })
 
+onUnmounted(() => {
+  if (phase.value === 'battle' && !adventure.battleComplete) {
+    adventure.abandonActiveBattle()
+  }
+})
+
 function getCharacterBaseHealth() {
   const c = auth.selectedCharacter || auth.user?.selected_character
   if (c?.health) return Number(c.health)
@@ -356,7 +369,7 @@ async function startBattle() {
   }
 
   const charBaseHealth = getCharacterBaseHealth()
-  const enemyMax = part.value?.enemy_max_hp || 100
+  const enemyMax = part.value?.enemy_max_hp || 30
   adventure.battleComplete = false
   adventure.battleResult = null
   answered.value = false
@@ -380,6 +393,12 @@ async function startBattle() {
 
   if (res && res.success) {
     healthStore.updateFromBattleAction(res)
+    // Use the server-issued 50-question sequence (the part preview only has 5),
+    // so the match only ends when a health bar is drained.
+    if (Array.isArray(res.questions) && res.questions.length > 0) {
+      adventure.questions = res.questions
+      adventure.currentQuestionIndex = 0
+    }
   }
 
   phase.value = 'battle'
@@ -436,6 +455,29 @@ async function handleAnswer(payload) {
   }
 }
 
+async function handleDodgePotion({ questionId, questionIndex, resolve } = {}) {
+  try {
+    const res = await adventure.useDodgePotion({
+      battle_id: adventure.activeBattleId,
+      question_id: questionId || currentQ.value?.id,
+      question_index: questionIndex ?? adventure.currentQuestionIndex
+    })
+    if (res?.success) {
+      answers.value.push({
+        question_id: questionId || currentQ.value?.id,
+        chosen: 'SKIPPED',
+        is_skipped: true
+      })
+      toast.success(`Dodge Potion activated! Question skipped. (${adventure.dodgePotionState.daily_charges}/${adventure.dodgePotionState.daily_max} remaining)`)
+    } else {
+      toast.error(res?.message || 'Failed to use Dodge Potion')
+    }
+    if (resolve) resolve(res)
+  } catch (err) {
+    if (resolve) resolve({ success: false, message: 'Dodge Potion request failed' })
+  }
+}
+
 function onQuestionAnswered(serverRes) {
   answered.value = true
   lastCorrect.value = Boolean(serverRes?.is_correct ?? serverRes?.correct)
@@ -476,12 +518,10 @@ function nextQuestion() {
   const isFinal = adventure.currentQuestionIndex >= qCount - 1
 
   if (isFinal) {
-    // End of inquiries: if player survived without dying, victory!
-    if (adventure.playerHP <= 0) {
-      adventure.battleResult = 'defeat'
-    } else {
-      adventure.battleResult = 'victory'
-    }
+    // Safety net only (server normally ends the match at 0 HP): resolve by remaining HP %, same as the server
+    const playerPct = adventure.playerHP / Math.max(1, adventure.playerMaxHP)
+    const enemyPct = adventure.enemyHP / Math.max(1, adventure.enemyMaxHP)
+    adventure.battleResult = (adventure.playerHP > 0 && playerPct >= enemyPct) ? 'victory' : 'defeat'
     adventure.battleComplete = true
     return
   }
@@ -517,31 +557,77 @@ function goToShop() {
 </script>
 
 <style scoped>
+/* Full-bleed layout overrides to eliminate boxed margins */
+:global(.app-page-wrapper:has(.adv-part)),
+:global(.app-page-wrapper.has-hud:has(.adv-part)) {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+}
+
+:global(html:has(.adv-part)),
+:global(body:has(.adv-part)),
+:global(#app:has(.adv-part)) {
+  background: #050608 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .adv-part {
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   position: relative;
-  padding-top: 0;
-  background: var(--gothic-void, #050608);
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
+  padding-bottom: 0;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  background: #050608;
   user-select: none;
 }
 .adv-part-bg {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
 .adv-part-bg-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  object-fit: cover !important;
+  object-position: center !important;
   filter: brightness(0.42) contrast(1.15) saturate(0.85);
   transform: scale(1.02);
+  display: block !important;
 }
 .adv-part-bg-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   background:
     radial-gradient(ellipse at 50% 30%, rgba(139, 26, 26, 0.18) 0%, transparent 60%),
     radial-gradient(ellipse at 50% 90%, rgba(10, 11, 15, 0.8) 0%, #050608 95%);
@@ -551,28 +637,35 @@ function goToShop() {
 .defeat-part-recovery-box {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  background: rgba(18, 5, 10, 0.95);
-  border: 1px solid rgba(225, 29, 72, 0.5);
+  gap: 0.65rem;
+  background: rgba(14, 6, 10, 0.85);
+  border: 1px solid rgba(225, 29, 72, 0.45);
   border-radius: 6px;
-  padding: 0.65rem;
-  margin: 1rem 0;
+  padding: 0.75rem 0.9rem;
+  margin: 0.5rem auto 1.5rem;
   width: 100%;
-  max-width: 480px;
+  max-width: 460px;
+  box-sizing: border-box;
 }
 .rec-metric {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  justify-content: center;
+  padding: 0.45rem 0.35rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  gap: 0.25rem;
 }
 .rec-label {
-  font-size: 0.48rem;
+  font-size: 0.46rem;
   color: #9ca3af;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 .rec-val {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 .text-red { color: #f87171; }
 .text-gold { color: #fbbf24; }
@@ -588,8 +681,8 @@ function goToShop() {
 }
 
 .adv-part.is-in-battle {
-  padding-top: 0;
-  margin-top: -0.75rem;
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
+  margin-top: 0;
   min-height: auto;
   box-sizing: border-box;
 }
@@ -1007,37 +1100,65 @@ function goToShop() {
 
 .battle-victory, .battle-defeat {
   text-align: center;
-  padding: 2.5rem 1.5rem;
-  background: #0f1017;
-  border: 2px solid var(--color-stone-600, #3a3b4c);
-  outline: 2px solid #050608;
+  padding: 2.25rem 2rem 2.5rem;
+  background: radial-gradient(ellipse at 50% 15%, rgba(45, 14, 22, 0.96) 0%, rgba(14, 8, 14, 0.98) 70%, #0a060a 100%);
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 30px rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 580px;
+  width: 100%;
+  margin: 2rem auto;
+  box-sizing: border-box;
+  position: relative;
 }
 .battle-victory {
-  border-color: var(--color-gold-ancient, #b59410);
+  background: radial-gradient(ellipse at 50% 15%, rgba(35, 30, 14, 0.96) 0%, rgba(12, 12, 10, 0.98) 70%, #0a0a06 100%);
+  border-color: rgba(234, 179, 8, 0.6);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 30px rgba(234, 179, 8, 0.25);
 }
 .victory-emoji, .defeat-emoji { font-size: 3.5rem; margin-bottom: 0.75rem; }
 .victory-title {
   font-family: var(--font-pixel, monospace);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   color: var(--color-gold-ancient, #e6c845);
-  margin-bottom: 0.5rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+  text-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+  letter-spacing: 0.04em;
 }
 .victory-desc, .defeat-desc {
   font-family: var(--font-body, serif);
-  font-size: 0.85rem;
-  color: var(--color-bone-dark, #8c8273);
-  margin-bottom: 1.25rem;
+  font-size: 0.92rem;
+  color: #c4b5a5;
+  max-width: 440px;
+  line-height: 1.55;
+  margin: 0 auto 1.25rem;
 }
 .defeat-title {
   font-family: var(--font-pixel, monospace);
-  font-size: 1.1rem;
-  color: var(--color-crimson-bright, #b91c1c);
-  margin-bottom: 0.5rem;
+  font-size: 1.35rem;
+  color: #ef4444;
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+  text-shadow: 0 0 16px rgba(239, 68, 68, 0.75), 0 2px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.08em;
 }
 .defeat-btn-row {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.defeat-btn-row .btn[disabled] {
+  opacity: 0.6;
+  filter: grayscale(0.6);
+  cursor: not-allowed;
 }
 
 /* ── REWARD PHASE ───────────────────────────── */
@@ -1049,7 +1170,6 @@ function goToShop() {
   outline: 2px solid #050608;
 }
 .reward-header { margin-bottom: 1.25rem; }
-.reward-star { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
 .reward-title {
   font-family: var(--font-pixel, monospace);
   font-size: 1.2rem;
@@ -1180,5 +1300,181 @@ function goToShop() {
 
 @media (max-width: 580px) {
   .q-choices { grid-template-columns: 1fr; }
+}
+
+</style>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   ADVENTURE PART — MORNING / LIGHT MODE STYLES (UNSCOPED GLOBAL)
+   Preserves background image and environment atmospheric backdrop.
+   Changes only the modal, panels, containers, and cards.
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="morning"] .adv-part .part-loading .pixel-text,
+.theme-morning .adv-part .part-loading .pixel-text {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .adv-part .loading-spinner,
+.theme-morning .adv-part .loading-spinner {
+  border-color: #D4C3A3 !important;
+  border-top-color: #B91C1C !important;
+}
+
+/* Phase Learn / Grimoire Repository (Layer 2) */
+[data-theme="morning"] .adv-part .phase-learn,
+.theme-morning .adv-part .phase-learn {
+  background: #FFFDF7 !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.18) !important;
+  outline: none !important;
+}
+
+[data-theme="morning"] .adv-part .learn-tag,
+.theme-morning .adv-part .learn-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .adv-part .learn-title,
+.theme-morning .adv-part .learn-title {
+  color: #2D1E12 !important;
+}
+
+[data-theme="morning"] .adv-part .sec-title,
+.theme-morning .adv-part .sec-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .adv-part .sec-desc,
+.theme-morning .adv-part .sec-desc {
+  color: #3D2B1F !important;
+  line-height: 1.6;
+}
+
+[data-theme="morning"] .adv-part .learn-body::-webkit-scrollbar-thumb,
+.theme-morning .adv-part .learn-body::-webkit-scrollbar-thumb {
+  background: #B88A42 !important;
+}
+
+[data-theme="morning"] .adv-part .learn-body::-webkit-scrollbar-track,
+.theme-morning .adv-part .learn-body::-webkit-scrollbar-track {
+  background: #F3E4C8 !important;
+}
+
+[data-theme="morning"] .adv-part .concept-card,
+.theme-morning .adv-part .concept-card {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+
+[data-theme="morning"] .adv-part .concept-term,
+.theme-morning .adv-part .concept-term {
+  color: #2D1E12 !important;
+}
+
+[data-theme="morning"] .adv-part .concept-def,
+.theme-morning .adv-part .concept-def {
+  color: #5A4535 !important;
+}
+
+[data-theme="morning"] .adv-part .clinical-box,
+.theme-morning .adv-part .clinical-box {
+  background: #F5EBE1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+
+[data-theme="morning"] .adv-part .learn-ready-btn,
+.theme-morning .adv-part .learn-ready-btn {
+  box-shadow: 0 4px 18px rgba(185, 28, 28, 0.35) !important;
+}
+
+/* Battle Victory, Defeat & Reward Cards */
+[data-theme="morning"] .adv-part .battle-victory,
+.theme-morning .adv-part .battle-victory {
+  background: #FFFDF7 !important;
+  border: 2px solid #B88A42 !important;
+  outline: none !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.18) !important;
+}
+[data-theme="morning"] .adv-part .victory-title,
+.theme-morning .adv-part .victory-title {
+  color: #8F642D !important;
+}
+[data-theme="morning"] .adv-part .victory-desc,
+.theme-morning .adv-part .victory-desc {
+  color: #5A4535 !important;
+}
+
+[data-theme="morning"] .adv-part .battle-defeat,
+.theme-morning .adv-part .battle-defeat {
+  background: #FFFDF7 !important;
+  border: 2px solid #EF4444 !important;
+  outline: none !important;
+  box-shadow: 0 16px 40px rgba(185, 28, 28, 0.18) !important;
+}
+[data-theme="morning"] .adv-part .defeat-desc,
+.theme-morning .adv-part .defeat-desc {
+  color: #5A4535 !important;
+}
+[data-theme="morning"] .adv-part .defeat-part-recovery-box,
+.theme-morning .adv-part .defeat-part-recovery-box {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+[data-theme="morning"] .adv-part .rec-label,
+.theme-morning .adv-part .rec-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .adv-part .phase-reward,
+.theme-morning .adv-part .phase-reward {
+  background: #FFFDF7 !important;
+  border: 2px solid #B88A42 !important;
+  outline: none !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.18) !important;
+}
+[data-theme="morning"] .adv-part .reward-title,
+.theme-morning .adv-part .reward-title {
+  color: #8F642D !important;
+}
+[data-theme="morning"] .adv-part .score-sep,
+.theme-morning .adv-part .score-sep,
+[data-theme="morning"] .adv-part .score-total,
+.theme-morning .adv-part .score-total,
+[data-theme="morning"] .adv-part .score-label,
+.theme-morning .adv-part .score-label {
+  color: #77634F !important;
+}
+[data-theme="morning"] .adv-part .reward-item-card,
+.theme-morning .adv-part .reward-item-card {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+[data-theme="morning"] .adv-part .ri-amount,
+.theme-morning .adv-part .ri-amount {
+  color: #2D1E12 !important;
+}
+[data-theme="morning"] .adv-part .reward-story-outro,
+.theme-morning .adv-part .reward-story-outro {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+[data-theme="morning"] .adv-part .outro-tag,
+.theme-morning .adv-part .outro-tag {
+  color: #8F642D !important;
+}
+[data-theme="morning"] .adv-part .outro-text,
+.theme-morning .adv-part .outro-text {
+  color: #3D2B1F !important;
+}
+[data-theme="morning"] .adv-part .outro-clue,
+.theme-morning .adv-part .outro-clue {
+  background: #F3E8FF !important;
+  border-left: 2px solid #7E22CE !important;
+  color: #581C87 !important;
+}
+[data-theme="morning"] .adv-part .clue-label,
+.theme-morning .adv-part .clue-label {
+  color: #6B21A8 !important;
 }
 </style>

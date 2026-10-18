@@ -3,11 +3,14 @@ require_once __DIR__ . '/../config/Database.php';
 
 class AdventureBattleMigration {
     public static function run(): void {
+        $db = Database::getInstance();
+        if ($db->inTransaction()) {
+            return;
+        }
+
         static $alreadyRun = false;
         if ($alreadyRun) return;
         $alreadyRun = true;
-
-        $db = Database::getInstance();
 
         try {
             // 1. Create adventure_active_battles table

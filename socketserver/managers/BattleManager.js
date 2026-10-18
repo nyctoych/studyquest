@@ -74,9 +74,9 @@ class BattleManager {
   }
 
   /**
-   * Process a player's answer submission.
+   * Process a player's answer submission with Adventure Gate arithmetic and effect resolution.
    */
-  submitAnswer(userId, questionId, answer) {
+  submitAnswer(userId, questionId, answer, isCritical = false) {
     const { room, io } = this
 
     if (this.battleEnded) return
@@ -94,28 +94,60 @@ class BattleManager {
     }
 
     // Prevent double-answering
-    if (this.answerTracker[room.currentIndex][userId]) {
+    if (this.answerTracker[room.currentIndex]?.[userId]) {
       return
     }
 
-    // Server-side validation
-    const isCorrect = answer.toLowerCase() === currentQuestion.correct_answer.toLowerCase()
+    const opponent = this._getOpponent(userId)
 
-    this.answerTracker[room.currentIndex][userId] = {
-      isCorrect,
-      damage: isCorrect ? DAMAGE_PER_CORRECT : 0,
-    }
+    // Server-side validation
+    const isCorrect = String(answer).trim().toLowerCase() === String(currentQuestion.correct_answer).trim().toLowerCase()
+
+    let damageAmount = 0
+    let attacker = null
+    let target = null
+    let damageType = 'normal'
 
     if (isCorrect) {
+      // ══════════════════════════════════════════════════════════════
+      // CORRECT ANSWER:
+      // Answering player attacks opponent!
+      // ══════════════════════════════════════════════════════════════
+      attacker = player
+      target = opponent
+      damageAmount = isCritical ? (player.crit_damage || 35) : (player.damage || 10)
+      damageType = isCritical ? 'critical' : 'normal'
       player.correct++
-
-      // Find opponent
-      const opponent = this._getOpponent(userId)
       if (opponent) {
-        opponent.hp = Math.max(0, opponent.hp - DAMAGE_PER_CORRECT)
+        opponent.hp = Math.max(0, opponent.hp - damageAmount)
       }
     } else {
+      // ══════════════════════════════════════════════════════════════
+      // INCORRECT ANSWER:
+      // Opposing player becomes the attacker!
+      // ══════════════════════════════════════════════════════════════
+      attacker = opponent || player
+      target = player
+      damageAmount = isCritical ? (player.crit_damage || 35) : (opponent?.damage || player.damage || 10)
+      damageType = isCritical ? 'critical_backfire' : 'normal_damage'
       player.wrong++
+      player.hp = Math.max(0, player.hp - damageAmount)
+    }
+
+    const attemptId = `${room.roomId}_q${room.currentIndex}_u${userId}`
+
+    if (!this.answerTracker[room.currentIndex]) {
+      this.answerTracker[room.currentIndex] = {}
+    }
+
+    this.answerTracker[room.currentIndex][userId] = {
+      attemptId,
+      isCorrect,
+      damage: damageAmount,
+      isCritical,
+      damageType,
+      attackerId: attacker?.userId,
+      targetId: target?.userId,
     }
 
     // Record question attempt for psychology learning analytics
@@ -129,23 +161,47 @@ class BattleManager {
       log(`[BATTLE] Attempt recording err: ${e.message}`)
     }
 
-    // Send result to the answering player
+    const hpState = this._getHpState()
+
+    // Broadcast authoritative combat action to both players
+    const combatAction = {
+      attemptId,
+      questionIndex: room.currentIndex,
+      answeringUserId: userId,
+      isCorrect,
+      isCritical,
+      attackerId: attacker?.userId,
+      targetId: target?.userId,
+      damage: damageAmount,
+      damageType,
+      attackEffect: attacker?.equipped?.attack_effect || null,
+      splashEffect: attacker?.equipped?.splash_effect || null,
+      attackerClass: attacker?.character_class || attacker?.class_type || 'MAGE',
+      targetClass: target?.character_class || target?.class_type || 'MAGE',
+      attackerName: attacker?.username,
+      targetName: target?.username,
+      hp: hpState,
+    }
+    io.to(room.roomId).emit('battle:combat_action', combatAction)
+
+    // Send answer_result to the answering player
     player.socket.emit('answer_result', {
+      attemptId,
       correct:        isCorrect,
       correct_answer: currentQuestion.correct_answer,
       explanation:    currentQuestion.explanation,
-      damage:         isCorrect ? DAMAGE_PER_CORRECT : 0,
+      damage:         damageAmount,
+      isCritical,
     })
 
     // Broadcast HP update to both players
-    const hpState = this._getHpState()
     io.to(room.roomId).emit('hp_update', hpState)
 
-    log(`[BATTLE] ${room.roomId} — ${player.username} answered ${isCorrect ? 'CORRECT' : 'WRONG'} | HP: ${JSON.stringify(hpState)}`)
+    log(`[BATTLE] ${room.roomId} — ${player.username} answered ${isCorrect ? 'CORRECT' : 'WRONG'} | Dmg: ${damageAmount} (${damageType}) | Attacker: ${attacker?.username} → Target: ${target?.username} | HP: ${JSON.stringify(hpState)}`)
 
-    // Check if any player is defeated
-    const opponent = this._getOpponent(userId)
-    if (opponent && opponent.hp <= 0) {
+    // Check if either player is defeated (HP clamped at 0)
+    if (player.hp <= 0 || (opponent && opponent.hp <= 0)) {
+      const winnerId = (opponent && opponent.hp <= 0) ? player.userId : opponent?.userId
       const playerResults = {}
       for (const p of Object.values(room.players)) {
         const tr = this.answerTracker[room.currentIndex]?.[p.userId]
@@ -161,14 +217,14 @@ class BattleManager {
         playerResults,
       })
 
-      // Slight delay for animation
-      setTimeout(() => this._endBattle('hp_depleted', userId), 1200)
+      // Slight delay for animation completion
+      setTimeout(() => this._endBattle('hp_depleted', winnerId), 1500)
       return
     }
 
     // Check if all players answered this question
     const allAnswered = Object.values(room.players).every(
-      p => this.answerTracker[room.currentIndex][p.userId]
+      p => this.answerTracker[room.currentIndex]?.[p.userId]
     )
 
     if (allAnswered) {
@@ -214,27 +270,92 @@ class BattleManager {
     const { room, io } = this
     if (room.currentIndex !== questionIndex) return
 
+    if (!this.answerTracker[questionIndex]) {
+      this.answerTracker[questionIndex] = {}
+    }
+
     // Close question — players who didn't answer get it wrong automatically
     for (const player of Object.values(room.players)) {
       if (!this.answerTracker[questionIndex][player.userId]) {
-        this.answerTracker[questionIndex][player.userId] = {
-          isCorrect: false,
-          damage: 0,
-        }
+        const opponent = this._getOpponent(player.userId)
+        const damageAmount = opponent?.damage || player.damage || 10
+        player.hp = Math.max(0, player.hp - damageAmount)
         player.wrong++
 
+        const attemptId = `${room.roomId}_q${questionIndex}_u${player.userId}_timeout`
+        this.answerTracker[questionIndex][player.userId] = {
+          attemptId,
+          isCorrect: false,
+          damage: damageAmount,
+          isCritical: false,
+          damageType: 'normal_damage',
+          attackerId: opponent?.userId,
+          targetId: player.userId,
+        }
+
+        const hpState = this._getHpState()
+
+        const combatAction = {
+          attemptId,
+          questionIndex,
+          answeringUserId: player.userId,
+          isCorrect: false,
+          isCritical: false,
+          attackerId: opponent?.userId,
+          targetId: player.userId,
+          damage: damageAmount,
+          damageType: 'normal_damage',
+          attackEffect: opponent?.equipped?.attack_effect || null,
+          splashEffect: opponent?.equipped?.splash_effect || null,
+          attackerClass: opponent?.character_class || opponent?.class_type || 'MAGE',
+          targetClass: player?.character_class || player?.class_type || 'MAGE',
+          attackerName: opponent?.username,
+          targetName: player?.username,
+          hp: hpState,
+        }
+        io.to(room.roomId).emit('battle:combat_action', combatAction)
+
         player.socket.emit('answer_result', {
-          correct:        false,
+          attemptId,
+          correct: false,
           correct_answer: room.questions[questionIndex].correct_answer,
-          explanation:    room.questions[questionIndex].explanation,
-          damage:         0,
-          timeout:        true,
+          explanation: room.questions[questionIndex].explanation,
+          damage: damageAmount,
+          timeout: true,
         })
       }
     }
 
     const hpState = this._getHpState()
     io.to(room.roomId).emit('hp_update', hpState)
+
+    // Check if any player is defeated
+    const playersList = Object.values(room.players)
+    const p1 = playersList[0]
+    const p2 = playersList[1]
+    if (p1 && p2 && (p1.hp <= 0 || p2.hp <= 0)) {
+      let winnerId = null
+      if (p1.hp <= 0 && p2.hp > 0) winnerId = p2.userId
+      else if (p2.hp <= 0 && p1.hp > 0) winnerId = p1.userId
+
+      const q = room.questions[questionIndex]
+      const playerResults = {}
+      for (const p of playersList) {
+        const tr = this.answerTracker[questionIndex]?.[p.userId]
+        playerResults[p.userId] = {
+          correct: tr?.isCorrect ?? false,
+          damageDealt: tr?.damage ?? 0,
+        }
+      }
+      io.to(room.roomId).emit('battle:round_result', {
+        correctAnswer: q.correct_answer,
+        explanation: q.explanation,
+        hp: hpState,
+        playerResults,
+      })
+      setTimeout(() => this._endBattle('hp_depleted', winnerId), 1500)
+      return
+    }
 
     const q = room.questions[questionIndex]
     const playerResults = {}
@@ -310,13 +431,16 @@ class BattleManager {
       }
     }
 
-    // Calculate ELO changes
+    // Calculate standard ELO changes (Rating deduction/gain is NOT based on coin bet)
     const eloChanges = this._calculateElo(p1, p2, outcome[p1.userId])
+
+    // Ranked coin bet: winner gains bet amount, loser loses bet amount, draw 0
+    const coinBet = this.room.coinBet || 100
 
     const playersPayload = players.map(p => {
       const oc        = outcome[p.userId]
       const xp        = oc === 'won' ? XP_WIN : oc === 'lost' ? XP_LOSS : XP_DRAW
-      const coins     = oc === 'won' ? COINS_WIN : oc === 'lost' ? COINS_LOSS : COINS_DRAW
+      const coins     = oc === 'won' ? coinBet : oc === 'lost' ? -coinBet : 0
       const ratingChg = eloChanges[p.userId]?.change ?? 0
       const newRating = Math.max(800, p.rating + ratingChg)
 
@@ -351,6 +475,7 @@ class BattleManager {
         wrong:         p.wrong,
         xp_earned:     pd.xp_earned,
         coins_earned:  pd.coins_earned,
+        coin_bet:      coinBet,
         rating_change: pd.rating_after - pd.rating_before,
         new_rating:    pd.rating_after,
         opponent:      { username: this._getOpponent(p.userId)?.username, hp: oppPd?.hp_end },
@@ -375,6 +500,8 @@ class BattleManager {
     io.to(room.roomId).emit('battle:game_over', {
       reason,
       winnerId: winnerUserId,
+      coinBet,
+      pot: coinBet * 2,
       playerResults: playerResultsMap,
     })
 

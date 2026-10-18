@@ -15,37 +15,6 @@
 
     <!-- ── Main In-World Market Stage ── -->
     <div class="market-stage-container">
-      <!-- Top Sub-Bar (Local Balance & Quick Navigation) -->
-      <header class="market-nav-bar">
-        <button class="btn-return-world" @click="handleLeaveMarket">
-          <span class="back-arrow">‹</span>
-          <span class="back-text">WORLD HUB</span>
-        </button>
-
-        <div class="shop-title-emblem">
-          <span class="emblem-star">✦</span>
-          <h1 class="shop-title-text">THE MYSTIC MARKET</h1>
-          <span class="emblem-star">✦</span>
-        </div>
-
-        <div class="market-header-pills flex items-center gap-3">
-          <!-- Adventure Health & Recovery Status Pill -->
-          <div class="market-hp-pill" :title="`Adventure Health: ${adventureHp} / ${adventureMaxHp} (+50 HP / hour)`">
-            <span class="hp-heart-icon">💖</span>
-            <div class="hp-pill-content">
-              <span class="hp-amount font-pixel">{{ adventureHp }} / {{ adventureMaxHp }}</span>
-              <span class="hp-regen-tag font-pixel">+50 HP/hr</span>
-            </div>
-          </div>
-
-          <div class="market-wallet-pill">
-            <PixelEmoji emoji="coin" size="xs" />
-            <span class="wallet-amount">{{ (auth.user?.coins ?? auth.coins ?? 0).toLocaleString() }}</span>
-            <span class="wallet-currency">COINS</span>
-          </div>
-        </div>
-      </header>
-
       <!-- ── 2-Column RPG Layout ── -->
       <div class="market-main-grid">
         <!-- ── LEFT: NPC Shopkeeper "Raven" ── -->
@@ -317,11 +286,11 @@
                       <span class="section-icon">🧪</span>
                       <h2 class="section-title font-pixel">POTIONS</h2>
                     </div>
-                    <span class="section-badge font-pixel potion-badge">INSTANT VITALITY • {{ potionItems.length }} POTION</span>
+                    <span class="section-badge font-pixel potion-badge">POTIONS & CONSUMABLES • {{ potionItems.length }} ITEMS</span>
                   </div>
-                  <p class="section-sub font-pixel">Restorative draughts that immediately heal your persistent Adventure HP.</p>
+                  <p class="section-sub font-pixel">Restorative draughts and tactical battle consumables sourced from the Mindrealm.</p>
 
-                  <div class="goods-grid">
+                  <div class="goods-grid potion-goods-grid">
                     <article
                       v-for="item in potionItems"
                       :key="item.id"
@@ -339,7 +308,7 @@
                       <div class="card-inner-halo potion-halo"></div>
 
                       <div class="card-head">
-                        <span class="slot-badge potion-slot">POTION</span>
+                        <span class="slot-badge potion-slot">{{ item.type === 'dodge_potion' || item.effect_key === 'dodge-potion' ? 'DODGE' : 'POTION' }}</span>
                         <span class="rarity-tag" :class="item.rarity">{{ item.rarity }}</span>
                       </div>
 
@@ -353,8 +322,13 @@
 
                       <div class="item-title-meta">
                         <h3 class="item-name font-pixel" :title="item.name">{{ item.name }}</h3>
-                        <p class="item-category-label font-pixel">Restores 200 HP.</p>
-                        <div class="potion-restore-pill font-pixel">+200 HEALTH</div>
+                        <p class="item-category-label font-pixel">
+                          {{ (item.type === 'dodge_potion' || item.effect_key === 'dodge-potion') ? 'Skip active battle question without damage.' : (item.description || 'Restores 200 HP.') }}
+                        </p>
+                        <div v-if="item.type === 'dodge_potion' || item.effect_key === 'dodge-potion'" class="potion-restore-pill dodge-pill font-pixel">
+                          QUESTION SKIP
+                        </div>
+                        <div v-else class="potion-restore-pill font-pixel">+200 HEALTH</div>
                       </div>
 
                       <div class="card-footer">
@@ -407,6 +381,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useTransitionStore } from '../stores/transition'
 import { useHealthStore } from '../stores/health'
+import { useAdventureStore } from '../stores/adventure'
 import shopService from '../services/shopService'
 import api from '../services/api'
 import marketNpc from '../services/marketNpcService'
@@ -423,6 +398,7 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const transitionStore = useTransitionStore()
 const healthStore = useHealthStore()
+const adventure = useAdventureStore()
 
 // ── Background Asset ──
 const bgImage = computed(() => resolveAsset('assets/game/market-shop-bg.jpg'))
@@ -513,23 +489,69 @@ const splashEffectItems = computed(() => {
 
 const potionItems = computed(() => {
   return filteredItems.value.filter(
-    item => item.category_slug === 'potions' || item.category_slug === 'potion' || item.type === 'potion'
+    item => item.category_slug === 'potions' || item.category_slug === 'potion' || item.type === 'potion' || item.type === 'dodge_potion'
   )
 })
 
 // ── Helpers ──
 function isOwned(itemId) {
   const item = items.value.find(i => i.id === itemId)
-  // Potions are instant consumables, not owned permanently
-  if (item && (item.type === 'potion' || item.category_slug === 'potion' || item.category_slug === 'potions')) {
+  // Potions and dodge consumables are not permanent cosmetics; they are repeatable consumables
+  if (item && (item.type === 'potion' || item.type === 'dodge_potion' || item.category_slug === 'potion' || item.category_slug === 'potions')) {
     return false
   }
-  if (item && (item.is_default || item.coin_cost === 0)) return true
+  if (item && (item.is_default || item.coin_cost === 0 || item.rarity === 'common')) return true
   return inventory.value.some(inv => inv.id === itemId)
 }
 
 function isEquipped(itemId) {
-  return Object.values(equippedItems.value).some(e => e?.id === itemId)
+  if (!itemId) return false
+  if (Object.values(equippedItems.value).some(e => e?.id === itemId)) return true
+
+  const item = items.value.find(i => i.id === itemId)
+  if (!item) return false
+
+  // If no attack effect skin is explicitly equipped, the common skin for player's class is default and auto-equipped
+  if (item.category_slug === 'attack_effect' && !equippedItems.value['attack_effect']) {
+    const isCommonDefault = (item.is_default || item.rarity === 'common' || item.coin_cost === 0) &&
+      normalizeCharacterClass(item.character_class) === userClass.value
+    if (isCommonDefault) return true
+  }
+
+  // If no splash effect skin is explicitly equipped, the common skin for player's class is default and auto-equipped
+  if (item.category_slug === 'splash_effect' && !equippedItems.value['splash_effect']) {
+    const isCommonDefault = (item.is_default || item.rarity === 'common' || item.coin_cost === 0) &&
+      (item.character_class === 'all' || normalizeCharacterClass(item.character_class) === userClass.value)
+    if (isCommonDefault) return true
+  }
+
+  return false
+}
+
+function ensureDefaultCosmeticsEquipped() {
+  // Auto-equip common attack effect if nothing equipped
+  if (!equippedItems.value['attack_effect'] && items.value.length > 0) {
+    const defaultAttack = items.value.find(
+      i => i.category_slug === 'attack_effect' &&
+        (i.is_default || i.rarity === 'common' || i.coin_cost === 0) &&
+        normalizeCharacterClass(i.character_class) === userClass.value
+    )
+    if (defaultAttack) {
+      equippedItems.value['attack_effect'] = defaultAttack
+    }
+  }
+
+  // Auto-equip common splash effect if nothing equipped
+  if (!equippedItems.value['splash_effect'] && items.value.length > 0) {
+    const defaultSplash = items.value.find(
+      i => i.category_slug === 'splash_effect' &&
+        (i.is_default || i.rarity === 'common' || i.coin_cost === 0) &&
+        (i.character_class === 'all' || normalizeCharacterClass(i.character_class) === userClass.value)
+    )
+    if (defaultSplash) {
+      equippedItems.value['splash_effect'] = defaultSplash
+    }
+  }
 }
 
 function getCategoryIconSymbol(slug) {
@@ -560,13 +582,14 @@ async function loadShop() {
     if (res.success) {
       // Focus strictly on attack_effect, splash_effect, and potions
       items.value = (res.items || []).filter(
-        item => item.category_slug === 'attack_effect' || item.category_slug === 'splash_effect' || item.category_slug === 'potions' || item.category_slug === 'potion' || item.type === 'potion'
+        item => item.category_slug === 'attack_effect' || item.category_slug === 'splash_effect' || item.category_slug === 'potions' || item.category_slug === 'potion' || item.type === 'potion' || item.type === 'dodge_potion'
       )
       categories.value = [
         { id: 'attack_effect', slug: 'attack_effect', name: 'Attack Effects', icon: '⚔️' },
         { id: 'splash_effect', slug: 'splash_effect', name: 'Splash Effects', icon: '💥' },
         { id: 'potions', slug: 'potions', name: 'Potions', icon: '🧪' }
       ]
+      ensureDefaultCosmeticsEquipped()
     }
   } catch (err) {
     console.error('Failed to load shop wares:', err)
@@ -581,6 +604,7 @@ async function loadInventory() {
     if (res.success) {
       inventory.value = res.inventory || []
       equippedItems.value = res.equipped || {}
+      ensureDefaultCosmeticsEquipped()
     }
   } catch (err) {
     console.error('Failed to load player inventory:', err)
@@ -679,16 +703,23 @@ async function quickEquip(itemId) {
 // ── Transaction Handlers ──
 async function handlePurchase(item) {
   const currentCoins = auth.user?.coins ?? auth.coins ?? 0
-  const isPotion = Boolean(
-    item.type === 'potion' ||
-    item.category_slug === 'potion' ||
-    item.category_slug === 'potions' ||
-    item.effect_key === 'health-potion'
+  const isDodgePotion = Boolean(
+    item.type === 'dodge_potion' ||
+    item.effect_key === 'dodge-potion' ||
+    item.name === 'Dodge Potion'
+  )
+  const isHealthPotion = Boolean(
+    !isDodgePotion && (
+      item.type === 'potion' ||
+      item.category_slug === 'potion' ||
+      item.category_slug === 'potions' ||
+      item.effect_key === 'health-potion'
+    )
   )
 
   if (currentCoins < item.coin_cost) {
     marketNpc.react('insufficient_coins', { item })
-    toast.error(isPotion ? "Even healing has a price. Insufficient Scholar Coins!" : "You don't have enough Scholar Coins!")
+    toast.error(isHealthPotion ? "Even healing has a price. Insufficient Scholar Coins!" : (isDodgePotion ? "Evasion requires resources. Insufficient Scholar Coins!" : "You don't have enough Scholar Coins!"))
     return
   }
 
@@ -698,7 +729,14 @@ async function handlePurchase(item) {
     if (res.success) {
       battleAudio.playPurchase()
       marketNpc.react('purchase_success', { item })
-      if (isPotion) {
+      if (isDodgePotion) {
+        toast.success(`Dodge Potion Acquired! (+1 potion added to your battlefield inventory)`)
+        if (auth.user && res.new_coin_balance !== undefined) {
+          auth.user.coins = res.new_coin_balance
+          auth.user.points = res.new_coin_balance
+        }
+        adventure.fetchDodgePotionStatus()
+      } else if (isHealthPotion) {
         toast.success(`Health Potion Purchased! +${res.healed_amount ?? 200} HP (${res.current_hp} / ${res.max_hp} HP)`)
         healthStore.updateFromPotion(res)
         if (!healthData.value) healthData.value = {}
@@ -708,10 +746,15 @@ async function handlePurchase(item) {
           auth.user.adventure_current_hp = res.current_hp
           if (res.new_coin_balance !== undefined) {
             auth.user.coins = res.new_coin_balance
+            auth.user.points = res.new_coin_balance
           }
         }
       } else {
         toast.success(`Acquired ${item.name}!`)
+        if (auth.user && res.new_coin_balance !== undefined) {
+          auth.user.coins = res.new_coin_balance
+          auth.user.points = res.new_coin_balance
+        }
       }
       await auth.fetchUser()
       await loadInventory()
@@ -719,6 +762,10 @@ async function handlePurchase(item) {
     } else {
       if (res.error_code === 'ALREADY_FULL_HEALTH') {
         marketNpc.react('already_full', { item })
+        if (res.current_hp !== undefined && res.max_hp !== undefined) {
+          healthStore.currentHp = Number(res.current_hp)
+          healthStore.maxHp = Number(res.max_hp)
+        }
         toast.info(res.message || 'Your Adventure Health is already at maximum!')
       } else if (res.error_code === 'INSUFFICIENT_COINS') {
         marketNpc.react('insufficient_coins', { item })
@@ -732,6 +779,10 @@ async function handlePurchase(item) {
     const errData = err.response?.data
     if (errData?.error_code === 'ALREADY_FULL_HEALTH') {
       marketNpc.react('already_full', { item })
+      if (errData.current_hp !== undefined && errData.max_hp !== undefined) {
+        healthStore.currentHp = Number(errData.current_hp)
+        healthStore.maxHp = Number(errData.max_hp)
+      }
       toast.info(errData.message || 'Your Adventure Health is already at maximum!')
     } else if (errData?.error_code === 'INSUFFICIENT_COINS') {
       marketNpc.react('insufficient_coins', { item })
@@ -799,37 +850,77 @@ function handleLeaveMarket() {
 </script>
 
 <style scoped>
+/* Full-bleed layout overrides to eliminate boxed margins */
+:global(.app-page-wrapper:has(.market-view-root)),
+:global(.app-page-wrapper.has-hud:has(.market-view-root)) {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+}
+
+:global(html:has(.market-view-root)),
+:global(body:has(.market-view-root)),
+:global(#app:has(.market-view-root)) {
+  background: #06040b !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .market-view-root {
   position: relative;
   width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: #06040b;
   overflow: hidden;
   user-select: none;
   padding-top: var(--hud-height, 56px);
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
   box-sizing: border-box;
 }
 
 /* ── Pixel Art Backdrop ── */
 .market-backdrop-wrap {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
 
 .market-bg-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center bottom;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  object-fit: cover !important;
+  object-position: center bottom !important;
   image-rendering: pixelated;
   opacity: 0.92;
   transform: scale(1.01);
+  display: block !important;
 }
 
 .market-ambient-vignette {
@@ -878,142 +969,16 @@ function handleLeaveMarket() {
   z-index: 10;
   flex: 1;
   min-height: 0;
-  height: calc(100vh - var(--hud-height, 56px));
-  max-height: calc(100vh - var(--hud-height, 56px));
+  height: calc(100vh - var(--hud-height, 60px));
+  max-height: calc(100vh - var(--hud-height, 60px));
   display: flex;
   flex-direction: column;
-  padding: 0.6rem 1.5rem 0.85rem;
+  padding: 0.75rem 1.5rem 0.85rem;
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-/* ── Top Nav Sub-Bar ── */
-.market-nav-bar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.45rem 1.25rem;
-  background: rgba(14, 10, 24, 0.85);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  border-radius: 6px;
-  backdrop-filter: blur(8px);
-  margin-bottom: 0.65rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
-}
-
-.btn-return-world {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
-  background: rgba(46, 16, 101, 0.5);
-  border: 1px solid rgba(168, 85, 247, 0.4);
-  border-radius: 4px;
-  color: #e9d5ff;
-  font-family: Georgia, 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btn-return-world:hover {
-  background: rgba(88, 28, 135, 0.8);
-  border-color: #c084fc;
-  color: #ffffff;
-  transform: translateX(-2px);
-}
-.back-arrow {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.shop-title-emblem {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.emblem-star {
-  color: #fbbf24;
-  font-size: 0.85rem;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
-}
-.shop-title-text {
-  font-family: Georgia, 'Cinzel', serif;
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #faf5ff;
-  margin: 0;
-  text-shadow: 0 0 14px rgba(168, 85, 247, 0.6), 0 2px 4px rgba(0, 0, 0, 0.9);
-}
-
-.market-header-pills {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.market-hp-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.85rem;
-  background: rgba(35, 12, 18, 0.9);
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
-}
-.hp-heart-icon {
-  font-size: 0.85rem;
-  display: inline-block;
-}
-.hp-pill-content {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-.hp-amount {
-  font-weight: 700;
-  color: #fca5a5;
-  font-size: 0.76rem;
-  letter-spacing: 0.02em;
-}
-.hp-regen-tag {
-  font-size: 0.58rem;
-  color: #86efac;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
-}
-
-.market-wallet-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.85rem;
-  background: rgba(26, 18, 43, 0.9);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);
-}
-.wallet-amount {
-  font-family: Georgia, 'Cinzel', serif;
-  font-weight: 800;
-  color: #fbbf24;
-  font-size: 0.95rem;
-  letter-spacing: 0.05em;
-}
-.wallet-currency {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #e2d9cc;
-  letter-spacing: 0.1em;
 }
 
 /* ── 2-Column Main Grid ── */
@@ -1237,8 +1202,15 @@ function handleLeaveMarket() {
 
 .goods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+}
+
+.potion-goods-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
   padding-bottom: 1rem;
 }
 
@@ -1247,10 +1219,11 @@ function handleLeaveMarket() {
   position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: linear-gradient(180deg, #171128 0%, #0d0917 100%);
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 6px;
-  padding: 0.75rem;
+  padding: 0.65rem 0.75rem 0.7rem;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8);
   cursor: pointer;
   transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.22s, box-shadow 0.22s;
@@ -1271,6 +1244,15 @@ function handleLeaveMarket() {
 }
 
 /* Rarity Accents */
+.shop-item-card.mythical {
+  border-color: rgba(244, 63, 94, 0.65);
+  background: linear-gradient(180deg, #1f0d1b 0%, #0d0611 100%);
+}
+.shop-item-card.mythical:hover {
+  border-color: #f43f5e;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 24px rgba(244, 63, 94, 0.55);
+}
+
 .shop-item-card.legendary {
   border-color: rgba(251, 191, 36, 0.5);
 }
@@ -1328,12 +1310,13 @@ function handleLeaveMarket() {
 .rarity-tag.rare { color: #60a5fa; }
 .rarity-tag.epic { color: #c084fc; }
 .rarity-tag.legendary { color: #fbbf24; }
+.rarity-tag.mythical { color: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 8px rgba(244, 63, 94, 0.35); }
 
 /* Visual Preview Frame */
 .item-visual-frame {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.1 / 1;
+  height: 120px;
   background: radial-gradient(circle at center, rgba(30, 20, 50, 0.7) 0%, rgba(8, 5, 14, 0.9) 80%);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 4px;
@@ -1341,32 +1324,44 @@ function handleLeaveMarket() {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Item Title & Meta */
 .item-title-meta {
   text-align: center;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.5rem;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .item-name {
   font-family: Georgia, 'Cinzel', serif;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #faf5ff;
-  margin: 0 0 0.2rem;
-  white-space: nowrap;
+  margin: 0 0 0.25rem;
+  letter-spacing: 0.03em;
+  white-space: normal;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.04em;
 }
 
 .item-category-label {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: #94a3b8;
   margin: 0;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Card Footer */
@@ -1375,8 +1370,9 @@ function handleLeaveMarket() {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding-top: 0.5rem;
+  padding-top: 0.45rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: auto;
 }
 
 .price-pill {
@@ -1570,7 +1566,8 @@ function handleLeaveMarket() {
 
 /* ── Responsive Behavior ── */
 @media (max-width: 1024px) {
-  .goods-grid {
+  .goods-grid,
+  .potion-goods-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
@@ -1620,7 +1617,8 @@ function handleLeaveMarket() {
   .back-text {
     display: none;
   }
-  .goods-grid {
+  .goods-grid,
+  .potion-goods-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.65rem;
   }
@@ -1673,6 +1671,13 @@ function handleLeaveMarket() {
   color: #fecaca;
   font-weight: 700;
   text-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.potion-restore-pill.dodge-pill {
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  text-shadow: 0 0 6px rgba(6, 182, 212, 0.6);
 }
 
 .btn-potion-buy {

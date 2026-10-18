@@ -139,12 +139,13 @@ const pageTitles = {
   '/shop': { title: 'The Raven Market', sub: 'Equip Attack & Splash Effects for battle' },
   '/leaderboard': { title: 'Hall of Records', sub: 'Grand Hall of Champions and Scholars' },
   '/records': { title: 'Hall of Records', sub: 'Grand Hall of Champions and Scholars' },
-  '/special-event': { title: 'The Daily Trial', sub: '140-Question Board-Exam Assessment' },
+  '/special-event': { title: 'Test Your Knowledge', sub: 'Daily Psychometrician Board Examination Simulator' },
   '/quests': { title: 'Psychology Study Paths', sub: 'Follow your structured board-exam reviewer' },
   '/quests/create': { title: 'Forge Quest', sub: 'Create a new study challenge' },
   '/rewards': { title: 'Reward Shop', sub: 'Spend your hard-earned points' },
   '/chronicle': { title: 'Chronicle Hall', sub: 'Scholarly accomplishments & world records' },
   '/achievements': { title: 'Achievements', sub: 'Your milestone collection' },
+  '/hall-of-fame': { title: 'Hall of Fame', sub: 'Celebrating Verified Board Examination Passers' },
   '/profile': { title: 'Adventurer Profile', sub: 'Your student identity and statistics' },
   '/settings': { title: 'Settings', sub: 'Manage your account preferences' },
 }
@@ -170,9 +171,12 @@ const isActive = (path) => route.path.startsWith(path)
 
 const healthTooltip = computed(() => {
   if (healthStore.isDefeated) {
-    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\n+${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
+    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\nRecovery Rate: +1 HP / Minute\nNext +1 HP in: ${healthStore.formattedCountdown} (Progress: ${healthStore.regenProgressPercent}%)\nRecover at least 1 HP to battle!\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
   }
-  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRegeneration: +${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion`
+  if (healthStore.isRecovering) {
+    return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRecovery Rate: +1 HP / Minute\nNext +1 HP in: ${healthStore.formattedCountdown} (Progress: ${healthStore.regenProgressPercent}%)\nClick to visit Grand Bazaar for Health Potion`
+  }
+  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP (Full Health)\nClick to visit Grand Bazaar for Health Potion`
 })
 
 onMounted(() => {

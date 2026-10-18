@@ -285,13 +285,28 @@ export const useAdventureStore = defineStore('adventure', () => {
       return res.data
     } catch (e) {
       console.warn('[adventureStore] submitBattleAction fallback:', e)
+      if (e.response?.status === 409 && e.response?.data) {
+        const d = e.response.data
+        if (d.player_current_health !== undefined) playerHP.value = Number(d.player_current_health)
+        if (d.enemy_current_health !== undefined) enemyHP.value = Number(d.enemy_current_health)
+        if (d.current_question_index !== undefined) currentQuestionIndex.value = Number(d.current_question_index)
+        if (d.battle_status && d.battle_status !== 'active') {
+          battleComplete.value = true
+          battleResult.value = d.battle_status
+        }
+        try {
+          const { useHealthStore } = await import('./health')
+          useHealthStore().updateFromBattleAction(d)
+        } catch (_) {}
+        return { success: false, isConflict: true, ...d }
+      }
       return { success: false, message: e.response?.data?.message || 'Combat resolution error' }
     }
   }
 
   function resetBattle(customPlayerMaxHp, customEnemyMaxHp) {
     activeBattleId.value = null
-    const maxHp = customEnemyMaxHp || currentPart.value?.enemy_max_hp || 100
+    const maxHp = customEnemyMaxHp || currentPart.value?.enemy_max_hp || 30
     if (customPlayerMaxHp) {
       playerMaxHP.value = Number(customPlayerMaxHp)
     }
@@ -303,6 +318,16 @@ export const useAdventureStore = defineStore('adventure', () => {
     lastDamageDealt.value = 0
     lastPlayerDamageTaken.value = 0
     battleDamageTarget.value = null
+  }
+
+  async function abandonActiveBattle() {
+    const bId = activeBattleId.value
+    resetBattle()
+    if (bId) {
+      try {
+        await api.post('/adventure/battle/abandon', { battle_id: bId })
+      } catch (_) {}
+    }
   }
 
   function advanceQuestion() {
@@ -390,6 +415,64 @@ export const useAdventureStore = defineStore('adventure', () => {
     }
   }
 
+  // Dodge Potion State
+  const dodgePotionState = ref({
+    daily_charges: 3,
+    daily_max: 3,
+    purchased_stock: 0,
+    total_available: 3
+  })
+
+  async function fetchDodgePotionStatus() {
+    try {
+      const res = await api.get('/adventure/dodge-potion/status')
+      if (res.data?.success && res.data?.charges) {
+        dodgePotionState.value = {
+          daily_charges: Number(res.data.charges.daily_charges ?? 3),
+          daily_max: Number(res.data.charges.daily_max ?? 3),
+          purchased_stock: Number(res.data.charges.purchased_stock ?? 0),
+          total_available: Number(res.data.charges.total_available ?? 3)
+        }
+      }
+      return res.data
+    } catch (e) {
+      return { success: false, message: e.response?.data?.message || 'Failed to fetch dodge potion status' }
+    }
+  }
+
+  async function useDodgePotion(params = {}) {
+    try {
+      let bId = params.battle_id || activeBattleId.value
+      if (!bId) {
+        return { success: false, message: 'No active battlefield encounter found' }
+      }
+      const payload = {
+        battle_id: bId,
+        question_id: params.question_id,
+        question_index: params.question_index ?? currentQuestionIndex.value
+      }
+      const res = await api.post('/adventure/battle/dodge-potion', payload)
+      if (res.data?.success) {
+        if (res.data.dodge_potion) {
+          dodgePotionState.value = {
+            daily_charges: Number(res.data.dodge_potion.daily_charges ?? 0),
+            daily_max: Number(res.data.dodge_potion.daily_max ?? 3),
+            purchased_stock: Number(res.data.dodge_potion.purchased_stock ?? 0),
+            total_available: Number(res.data.dodge_potion.total_available ?? 0)
+          }
+        }
+        // Player & Enemy HP remain identical; zero combat damage
+        lastDamageDealt.value = 0
+        lastPlayerDamageTaken.value = 0
+        lastDamageType.value = 'dodge_potion'
+        battleDamageTarget.value = null
+      }
+      return res.data
+    } catch (e) {
+      return { success: false, message: e.response?.data?.message || 'Dodge potion failed' }
+    }
+  }
+
   return {
     finalBoss, loadFinalBoss, completeFinalBossBattle, advanceFinalStory, completeFatherRevelation,
     chapters, currentChapter, currentPart, questions, loading, error,
@@ -400,10 +483,11 @@ export const useAdventureStore = defineStore('adventure', () => {
     currentQuestionIndex, battleComplete, battleResult,
     lastDamageDealt, lastPlayerDamageTaken, lastDamageType, battleDamageTarget,
     currentQuestion, progress,
+    dodgePotionState, fetchDodgePotionStatus, useDodgePotion,
     loadChapters, loadChapter, loadPart, submitPartAnswers, completeBossBattle,
     startBattleSession, submitBattleAction,
     fetchStoryState, fetchBlackArchive, completeBlackArchivePhase,
-    resetBattle, advanceQuestion,
+    resetBattle, advanceQuestion, abandonActiveBattle,
   }
 })
 

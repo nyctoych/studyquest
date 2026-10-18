@@ -42,7 +42,7 @@ function getInitialHealthState() {
       const scaledCrit = Math.round(baseCrit * (1 + bonus))
       const current = (u?.adventure_current_hp !== undefined && u?.adventure_current_hp !== null)
         ? Number(u.adventure_current_hp)
-        : (u?.adventure_health?.current_hp !== undefined ? Number(u.adventure_health.current_hp) : Math.round(scaledMax * 0.45))
+        : (u?.adventure_health?.current_hp !== undefined ? Number(u.adventure_health.current_hp) : scaledMax)
       return {
         currentHp: current,
         maxHp: scaledMax,
@@ -67,7 +67,8 @@ export const useHealthStore = defineStore('adventureHealth', () => {
   const initStats = getInitialHealthState()
   const currentHp = ref(initStats.currentHp)
   const maxHp = ref(initStats.maxHp)
-  const regenRate = ref(50)
+  const regenRate = ref(1)
+  const regenIntervalSeconds = ref(60)
   const secondsUntilNextRegen = ref(0)
   const lastRegenAt = ref(null)
   const attackPower = ref(initStats.attackPower)
@@ -82,6 +83,15 @@ export const useHealthStore = defineStore('adventureHealth', () => {
   // Minimum required health to enter Adventure is strictly 1 HP
   const isDefeated = computed(() => currentHp.value < 1)
   const canBattle = computed(() => currentHp.value >= 1)
+  const isRecovering = computed(() => currentHp.value < maxHp.value)
+
+  // Recovery progress of the current 1-minute tick (0% to 100%)
+  const regenProgressPercent = computed(() => {
+    if (!isRecovering.value) return 100
+    const rem = Math.max(0, Math.min(60, Number(secondsUntilNextRegen.value || 0)))
+    const elapsed = 60 - rem
+    return Math.min(100, Math.max(0, Math.round((elapsed / 60) * 100)))
+  })
 
   const hpPercent = computed(() => {
     if (!maxHp.value || maxHp.value <= 0) return 0
@@ -115,10 +125,14 @@ export const useHealthStore = defineStore('adventureHealth', () => {
   function startTimer() {
     if (timerId) clearInterval(timerId)
     timerId = setInterval(() => {
-      if (currentHp.value < maxHp.value && secondsUntilNextRegen.value > 0) {
-        secondsUntilNextRegen.value--
+      if (currentHp.value < maxHp.value) {
+        if (secondsUntilNextRegen.value > 0) {
+          secondsUntilNextRegen.value--
+        }
         if (secondsUntilNextRegen.value <= 0) {
-          // When countdown ticks to 0, trigger authoritative server recalculation
+          // Gained 1 HP from 1-minute tick: advance locally and sync with authoritative server
+          currentHp.value = Math.min(maxHp.value, currentHp.value + 1)
+          secondsUntilNextRegen.value = 60
           fetchHealth(true)
         }
       }
@@ -177,12 +191,22 @@ export const useHealthStore = defineStore('adventureHealth', () => {
       else { baseHealth = 150; baseDmg = 10; baseCrit = 35; characterName.value = 'Necromancer' }
     }
     const bonus = (lvl - 1) * 0.10
-    const scaledMax = u?.adventure_max_hp ? Number(u.adventure_max_hp) : Math.round(baseHealth * (1 + bonus))
+    const allocDmg = Number(u?.allocated_bonuses?.attack_damage || c?.allocated_bonuses?.attack_damage || 0)
+    const allocHp = Number(u?.allocated_bonuses?.health || c?.allocated_bonuses?.health || 0)
+    const allocCrit = Number(u?.allocated_bonuses?.critical_damage || c?.allocated_bonuses?.critical_damage || 0)
+
+    const serverMax = (u?.adventure_max_hp !== undefined && u?.adventure_max_hp !== null)
+      ? Number(u.adventure_max_hp)
+      : (u?.adventure_health?.max_hp !== undefined ? Number(u.adventure_health.max_hp) : null)
+
+    const scaledMax = serverMax || (Math.round(baseHealth * (1 + bonus)) + allocHp)
     maxHp.value = scaledMax
-    attackPower.value = Math.round(baseDmg * (1 + bonus))
-    criticalAttackPower.value = Math.round(baseCrit * (1 + bonus))
+    attackPower.value = Math.round(baseDmg * (1 + bonus)) + allocDmg
+    criticalAttackPower.value = Math.round(baseCrit * (1 + bonus)) + allocCrit
     if (u?.adventure_current_hp !== undefined && u?.adventure_current_hp !== null) {
       currentHp.value = Math.min(scaledMax, Number(u.adventure_current_hp))
+    } else {
+      currentHp.value = scaledMax
     }
   }
 
@@ -252,6 +276,9 @@ export const useHealthStore = defineStore('adventureHealth', () => {
     characterLevel,
     isDefeated,
     canBattle,
+    isRecovering,
+    regenProgressPercent,
+    regenIntervalSeconds,
     hpPercent,
     statusState,
     formattedCountdown,

@@ -4,7 +4,10 @@
     :class="[
       `env-${environment.groundType}`,
       `lighting-${environment.lighting}`,
-      { 'is-boss-env': isBoss }
+      {
+        'is-boss-env': isBoss,
+        'is-morning-battle': gameStore.isMorning
+      }
     ]"
     :style="environmentStyles"
   >
@@ -55,6 +58,7 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue'
 import { resolveAsset } from '../../services/bossMapping'
+import { useGameStore } from '../../stores/game'
 
 const props = defineProps({
   environment: {
@@ -67,6 +71,7 @@ const props = defineProps({
   }
 })
 
+const gameStore = useGameStore()
 const imageLoadFailed = ref(false)
 
 watch(() => props.environment?.backgroundAsset, () => {
@@ -392,5 +397,17 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. MORNING MODE ENVIRONMENTAL LIGHTING
+   ══════════════════════════════════════════════════════════════ */
+.is-morning-battle .atmosphere-sky-tint {
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.25) 0%,
+    rgba(254, 240, 138, 0.12) 55%,
+    transparent 100%
+  ) !important;
 }
 </style>

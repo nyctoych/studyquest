@@ -1,5 +1,6 @@
 const { log } = require('../utils/logger')
-const { fetchQuestionsForBattle } = require('../config/database')
+const { fetchQuestionsForBattle, getUserCombatProfile } = require('../config/database')
+const { getCombatProfile } = require('../utils/phpApi')
 const BattleManager    = require('./BattleManager')
 const TimerManager     = require('./TimerManager')
 const DisconnectManager = require('./DisconnectManager')
@@ -56,8 +57,31 @@ class RoomManager {
       return
     }
 
+    const coinBet = playerA.coinBet || 100
+    const pot = coinBet * 2
+
+    // Fetch authoritative combat stats and equipped effects for both players
+    const origIdA = playerA.originalUserId || playerA.userId
+    const origIdB = playerB.originalUserId || playerB.userId
+
+    let profileA = await getCombatProfile(origIdA)
+    if (!profileA) profileA = await getUserCombatProfile(origIdA)
+
+    let profileB = await getCombatProfile(origIdB)
+    if (!profileB) profileB = await getUserCombatProfile(origIdB)
+
+    const statsA = profileA?.stats || { max_health: 150, damage: 10, crit_damage: 35 }
+    const statsB = profileB?.stats || { max_health: 150, damage: 10, crit_damage: 35 }
+    const equippedA = profileA?.equipped || {}
+    const equippedB = profileB?.equipped || {}
+    const charA = profileA?.character || null
+    const charB = profileB?.character || null
+
     const room = {
       roomId,
+      mode:             'ranked',
+      coinBet,
+      pot,
       status:           'waiting',  // waiting → starting → in_progress → completed
       players: {
         [playerA.userId]: {
@@ -65,28 +89,52 @@ class RoomManager {
           username: playerA.username,
           socketId: playerA.socketId,
           socket:   playerA.socket,
-          hp:       100,
+          hp:       statsA.max_health || 150,
+          max_health: statsA.max_health || 150,
+          damage:   statsA.damage || 10,
+          crit_damage: statsA.crit_damage || 35,
+          stats:    statsA,
+          character: charA,
+          equipped: equippedA,
           score:    0,
           correct:  0,
           wrong:    0,
           ready:    false,
           slot:     'player1',
           rating:   playerA.rating,
-          level:    playerA.level,
+          level:    statsA.level || playerA.level,
+          character_class: charA?.class_type || playerA.character_class || 'MAGE',
+          class_type: charA?.class_type || playerA.character_class || 'MAGE',
+          selected_character_id: charA?.id || playerA.selected_character_id || 1,
+          avatar_style: playerA.avatar_style || 'adventurer',
+          avatar_seed: playerA.avatar_seed || 'self',
+          avatar_options: playerA.avatar_options || {},
         },
         [playerB.userId]: {
           userId:   playerB.userId,
           username: playerB.username,
           socketId: playerB.socketId,
           socket:   playerB.socket,
-          hp:       100,
+          hp:       statsB.max_health || 150,
+          max_health: statsB.max_health || 150,
+          damage:   statsB.damage || 10,
+          crit_damage: statsB.crit_damage || 35,
+          stats:    statsB,
+          character: charB,
+          equipped: equippedB,
           score:    0,
           correct:  0,
           wrong:    0,
           ready:    false,
           slot:     'player2',
           rating:   playerB.rating,
-          level:    playerB.level,
+          level:    statsB.level || playerB.level,
+          character_class: charB?.class_type || playerB.character_class || 'MAGE',
+          class_type: charB?.class_type || playerB.character_class || 'MAGE',
+          selected_character_id: charB?.id || playerB.selected_character_id || 1,
+          avatar_style: playerB.avatar_style || 'adventurer',
+          avatar_seed: playerB.avatar_seed || 'opponent',
+          avatar_options: playerB.avatar_options || {},
         },
       },
       questions,       // Full question objects (with correct_answer) — server only
@@ -115,20 +163,47 @@ class RoomManager {
       userId: playerA.userId,
       username: playerA.username,
       battle_rating: playerA.rating,
-      level: playerA.level,
+      level: statsA.level || playerA.level,
+      hp: statsA.max_health || 150,
+      max_health: statsA.max_health || 150,
+      damage: statsA.damage || 10,
+      crit_damage: statsA.crit_damage || 35,
+      character: charA,
+      equipped: equippedA,
+      character_class: charA?.class_type || playerA.character_class || 'MAGE',
+      class_type: charA?.class_type || playerA.character_class || 'MAGE',
+      selected_character_id: charA?.id || playerA.selected_character_id || 1,
+      avatar_style: playerA.avatar_style || 'adventurer',
+      avatar_seed: playerA.avatar_seed || 'self',
+      avatar_options: playerA.avatar_options || {},
     }
     const p2Payload = {
       userId: playerB.userId,
       username: playerB.username,
       battle_rating: playerB.rating,
-      level: playerB.level,
+      level: statsB.level || playerB.level,
+      hp: statsB.max_health || 150,
+      max_health: statsB.max_health || 150,
+      damage: statsB.damage || 10,
+      crit_damage: statsB.crit_damage || 35,
+      character: charB,
+      equipped: equippedB,
+      character_class: charB?.class_type || playerB.character_class || 'MAGE',
+      class_type: charB?.class_type || playerB.character_class || 'MAGE',
+      selected_character_id: charB?.id || playerB.selected_character_id || 1,
+      avatar_style: playerB.avatar_style || 'adventurer',
+      avatar_seed: playerB.avatar_seed || 'opponent',
+      avatar_options: playerB.avatar_options || {},
     }
 
     const matchPayloadA = {
       roomId,
       mode: 'ranked',
+      coinBet,
+      pot,
       totalQuestions: questions.length,
       questionsCount: questions.length,
+      self: p1Payload,
       player1: p1Payload,
       player2: p2Payload,
       opponent: safeOpponentA,
@@ -137,8 +212,11 @@ class RoomManager {
     const matchPayloadB = {
       roomId,
       mode: 'ranked',
+      coinBet,
+      pot,
       totalQuestions: questions.length,
       questionsCount: questions.length,
+      self: p2Payload,
       player1: p1Payload,
       player2: p2Payload,
       opponent: safeOpponentB,
@@ -256,6 +334,18 @@ class RoomManager {
       rating:   player.rating,
       level:    player.level,
       slot:     player.slot,
+      hp:       player.hp,
+      max_health: player.max_health || 150,
+      damage:   player.damage || 10,
+      crit_damage: player.crit_damage || 35,
+      character: player.character,
+      equipped: player.equipped,
+      character_class: player.character_class || 'MAGE',
+      class_type: player.character_class || 'MAGE',
+      selected_character_id: player.selected_character_id || 1,
+      avatar_style: player.avatar_style || 'adventurer',
+      avatar_seed: player.avatar_seed || 'opponent',
+      avatar_options: player.avatar_options || {},
     }
   }
 }

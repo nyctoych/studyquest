@@ -14,12 +14,16 @@ require_once __DIR__ . '/../controllers/ChronicleController.php';
 require_once __DIR__ . '/../controllers/SpecialEventController.php';
 require_once __DIR__ . '/../controllers/SpecialEventAdminController.php';
 require_once __DIR__ . '/../controllers/CharacterController.php';
+require_once __DIR__ . '/../controllers/VaultController.php';
+require_once __DIR__ . '/../controllers/BattlefieldPreferenceController.php';
+require_once __DIR__ . '/../controllers/HallOfFameController.php';
+require_once __DIR__ . '/../controllers/DailyChestController.php';
 
 function dispatch(string $method, string $path): void {
     $segments = array_values(array_filter(explode('/', trim($path, '/'))));
 
-    // ── CHARACTERS (SELECTION & IDENTITY) ──────────────────────
-    if (!empty($segments) && $segments[0] === 'characters') {
+    // ── CHARACTERS (SELECTION & ATTRIBUTE ALLOCATION) ─────────
+    if (!empty($segments) && ($segments[0] === 'characters' || $segments[0] === 'character')) {
         $ctrl = new CharacterController();
         $sub = $segments[1] ?? '';
 
@@ -34,6 +38,20 @@ function dispatch(string $method, string $path): void {
         if (($sub === 'current' || $sub === 'me') && $method === 'GET') {
             $ctrl->current();
             return;
+        }
+        if ($sub === 'attribute-allocations' || $sub === 'attributes') {
+            if (isset($segments[2]) && $segments[2] === 'claim' && $method === 'POST') {
+                $ctrl->claimAttributeAllocation();
+                return;
+            }
+            if ($method === 'GET') {
+                $ctrl->getAttributeAllocations();
+                return;
+            }
+            if ($method === 'POST') {
+                $ctrl->claimAttributeAllocation();
+                return;
+            }
         }
         if ($method === 'GET' && !empty($sub)) {
             $ctrl->show($sub);
@@ -86,6 +104,13 @@ function dispatch(string $method, string $path): void {
             }
         }
 
+        if ($sub === 'dodge-potion' || $sub === 'dodge_potion' || (($sub === 'dodge-potion' || $sub === 'dodge_potion') && isset($segments[2]) && ($segments[2] === 'status' || $segments[2] === 'charges'))) {
+            if ($method === 'GET') {
+                $ctrl->dodgePotionStatus();
+                return;
+            }
+        }
+
         if ($sub === 'battle') {
             if (isset($segments[2]) && $segments[2] === 'start' && $method === 'POST') {
                 $ctrl->startBattle();
@@ -93,6 +118,14 @@ function dispatch(string $method, string $path): void {
             }
             if (isset($segments[2]) && $segments[2] === 'action' && $method === 'POST') {
                 $ctrl->battleAction();
+                return;
+            }
+            if (isset($segments[2]) && ($segments[2] === 'dodge-potion' || $segments[2] === 'dodge_potion') && $method === 'POST') {
+                $ctrl->dodgePotion();
+                return;
+            }
+            if (isset($segments[2]) && ($segments[2] === 'abandon' || $segments[2] === 'leave') && $method === 'POST') {
+                $ctrl->abandonBattle();
                 return;
             }
         }
@@ -183,6 +216,16 @@ function dispatch(string $method, string $path): void {
             return;
         }
 
+        if ($sub === 'analytics' && $method === 'GET') {
+            $ctrl->analytics();
+            return;
+        }
+
+        if ($sub === 'audit' && $method === 'GET') {
+            $ctrl->auditCoverage();
+            return;
+        }
+
         // /special-event/bloom/history
         if ($sub === 'bloom' && isset($segments[2]) && $segments[2] === 'history' && $method === 'GET') {
             $ctrl->bloomHistory();
@@ -195,12 +238,20 @@ function dispatch(string $method, string $path): void {
             return;
         }
 
+        // /special-event/{id}/overview
+        if (is_numeric($sub) && isset($segments[2]) && $segments[2] === 'overview' && $method === 'GET') {
+            $ctrl->overview((int)$sub);
+            return;
+        }
+
         // /special-event/attempts/{attemptId}/...
         if ($sub === 'attempts' && $id !== null) {
             $action = $segments[3] ?? '';
             if ($action === 'answer' && $method === 'POST') { $ctrl->submitAnswer($id); return; }
             if ($action === 'mark' && $method === 'POST') { $ctrl->toggleMark($id); return; }
             if ($action === 'submit' && $method === 'POST') { $ctrl->finish($id); return; }
+            if ($action === 'disqualify' && $method === 'POST') { $ctrl->disqualify($id); return; }
+            if ($action === 'tab-switch' && $method === 'POST') { $ctrl->tabSwitch($id); return; }
             if ($action === 'review' && $method === 'GET') { $ctrl->review($id); return; }
             if ($action === 'bloom' && isset($segments[4]) && $segments[4] === 'domains' && $method === 'GET') { $ctrl->bloomDomains($id); return; }
             if ($action === 'bloom' && $method === 'GET') { $ctrl->bloom($id); return; }
@@ -211,76 +262,7 @@ function dispatch(string $method, string $path): void {
         return;
     }
 
-    // ── ADVENTURE ─────────────────────────────────────────────
-    if ($segments[0] === 'adventure') {
-        $ctrl = new AdventureController();
-        $sub  = $segments[1] ?? '';
-        $id   = (isset($segments[2]) && is_numeric($segments[2])) ? (int)$segments[2] : null;
 
-        if ($sub === 'chapters') {
-            if ($id === null && $method === 'GET') { $ctrl->chapters(); return; }
-            if ($id !== null) {
-                // /adventure/chapters/{id}/boss/complete or complete-boss
-                if (isset($segments[3]) && $segments[3] === 'boss' && isset($segments[4]) && $segments[4] === 'complete') {
-                    if ($method === 'POST') { $ctrl->completeBoss($id); return; }
-                }
-                if (isset($segments[3]) && $segments[3] === 'complete-boss') {
-                    if ($method === 'POST') { $ctrl->completeBoss($id); return; }
-                }
-                if (isset($segments[3]) && $segments[3] === 'boss' && !isset($segments[4])) {
-                    if ($method === 'GET') { $ctrl->boss($id); return; }
-                }
-                // /adventure/chapters/{id}/parts/{num}
-                if (isset($segments[3]) && $segments[3] === 'parts' && isset($segments[4])) {
-                    if ($method === 'GET') { $ctrl->part($id, (int)$segments[4]); return; }
-                }
-                if ($method === 'GET') { $ctrl->chapter($id); return; }
-            }
-        }
-        if ($sub === 'story-state' && $method === 'GET') {
-            $ctrl->storyState();
-            return;
-        }
-
-        if ($sub === 'black-archive') {
-            if ($method === 'GET' && !isset($segments[2])) {
-                $ctrl->blackArchive();
-                return;
-            }
-            if (isset($segments[2]) && $segments[2] === 'complete-phase' && $method === 'POST') {
-                $ctrl->completeBlackArchivePhase();
-                return;
-            }
-        }
-
-        if ($sub === 'parts' && $id !== null) {
-            if (isset($segments[3]) && $segments[3] === 'submit') {
-                if ($method === 'POST') { $ctrl->submitPart($id); return; }
-            }
-        }
-        if ($sub === 'tutorial' && isset($segments[2]) && $segments[2] === 'complete') {
-            if ($method === 'POST') { $ctrl->completeTutorial(); return; }
-        }
-
-        if ($sub === 'health' && $method === 'GET') {
-            $ctrl->health();
-            return;
-        }
-
-        if ($sub === 'battle') {
-            if (isset($segments[2]) && $segments[2] === 'start' && $method === 'POST') {
-                $ctrl->startBattle();
-                return;
-            }
-            if (isset($segments[2]) && $segments[2] === 'action' && $method === 'POST') {
-                $ctrl->battleAction();
-                return;
-            }
-        }
-
-        notFound();
-        return;
-    }
 
     // ── CHRONICLE ──────────────────────────────────────────────
     if ($segments[0] === 'chronicle') {
@@ -333,7 +315,15 @@ function dispatch(string $method, string $path): void {
     // ── AUTH ──────────────────────────────────────────────────
     if ($segments[0] === 'auth') {
         $ctrl = new AuthController();
-        match([$method, $segments[1] ?? '']) {
+        $sub1 = $segments[1] ?? '';
+        $sub2 = $segments[2] ?? '';
+
+        if ($sub1 === 'password' && $sub2 === 'update' && $method === 'POST') {
+            $ctrl->updatePassword();
+            return;
+        }
+
+        match([$method, $sub1]) {
             ['POST', 'register'] => $ctrl->register(),
             ['POST', 'login']    => $ctrl->login(),
             ['POST', 'logout']   => $ctrl->logout(),
@@ -456,19 +446,13 @@ function dispatch(string $method, string $path): void {
         return;
     }
 
-    // ── ACHIEVEMENTS ──────────────────────────────────────────
-    if ($segments[0] === 'achievements') {
-        $ctrl = new AchievementController();
-        match($method) {
-            'GET'   => $ctrl->index(),
-            default => notFound(),
-        };
-        return;
-    }
-
     // ── PROFILE ───────────────────────────────────────────────
     if ($segments[0] === 'profile') {
         $ctrl = new ProfileController();
+
+        if (isset($segments[1]) && ($segments[1] === 'mindkeeper' || $segments[1] === 'public') && isset($segments[2]) && is_numeric($segments[2])) {
+            if ($method === 'GET') { $ctrl->mindkeeper((int)$segments[2]); return; }
+        }
 
         if (isset($segments[1]) && $segments[1] === 'stats') {
             if ($method === 'GET') { $ctrl->stats(); return; }
@@ -479,6 +463,73 @@ function dispatch(string $method, string $path): void {
             'PUT'  => $ctrl->update(),
             default => notFound(),
         };
+        return;
+    }
+
+    // ── VAULT (PERSONAL REVIEWER ARCHIVE) ─────────────────────
+    if ($segments[0] === 'vault') {
+        $ctrl = new VaultController();
+        $sub  = $segments[1] ?? '';
+        $id   = (isset($segments[1]) && is_numeric($segments[1])) ? (int)$segments[1] : null;
+
+        if ($sub === 'upload' && $method === 'POST') {
+            $ctrl->upload();
+            return;
+        }
+
+        if ($sub === 'user' && isset($segments[2]) && is_numeric($segments[2])) {
+            if ($method === 'GET') { $ctrl->userVault((int)$segments[2]); return; }
+        }
+
+        if ($sub === 'view' && isset($segments[2]) && is_numeric($segments[2])) {
+            if ($method === 'GET') { $ctrl->preview((int)$segments[2]); return; }
+        }
+
+        if ($id !== null) {
+            $action = $segments[2] ?? '';
+            if ($action === 'preview' && $method === 'GET') { $ctrl->preview($id); return; }
+            if ($action === 'content' && $method === 'GET') { $ctrl->content($id); return; }
+            if (($action === 'content' || $action === 'save') && ($method === 'PUT' || $method === 'POST')) { $ctrl->saveContent($id); return; }
+            if ($action === 'download' && $method === 'GET') { $ctrl->download($id); return; }
+            if ($method === 'GET') { $ctrl->show($id); return; }
+            if ($method === 'PUT' || $method === 'POST') { $ctrl->update($id); return; }
+            if ($method === 'DELETE') { $ctrl->destroy($id); return; }
+        }
+
+        if ($method === 'GET') {
+            $ctrl->index();
+            return;
+        }
+        if ($method === 'POST') {
+            $ctrl->upload();
+            return;
+        }
+
+        notFound();
+        return;
+    }
+
+    // ── ACHIEVEMENTS ──────────────────────────────────────────
+    if ($segments[0] === 'achievements') {
+        $ctrl = new AchievementController();
+        $sub  = $segments[1] ?? '';
+
+        if ($sub === '' || $sub === null) {
+            if ($method === 'GET') { $ctrl->index(); return; }
+        }
+        if ($sub === 'claim' && $method === 'POST') {
+            $ctrl->claim();
+            return;
+        }
+        if ($sub === 'claim-all' && $method === 'POST') {
+            $ctrl->claimAll();
+            return;
+        }
+        if ($sub === 'public' && isset($segments[2])) {
+            if ($method === 'GET') { $ctrl->publicShare((string)$segments[2]); return; }
+        }
+
+        notFound();
         return;
     }
 
@@ -509,6 +560,9 @@ function dispatch(string $method, string $path): void {
         }
         if ($sub === 'my-rank') {
             if ($method === 'GET') { $ctrl->getMyRank(); return; }
+        }
+        if ($sub === 'combat-profile') {
+            if ($method === 'GET') { $ctrl->getCombatProfile(); return; }
         }
         notFound();
         return;
@@ -541,6 +595,114 @@ function dispatch(string $method, string $path): void {
         if ($method === 'GET') { $ctrl->index(); return; }
         notFound();
         return;
+    }
+
+    // ── BATTLEFIELD PREFERENCES ───────────────────────────────
+    if (!empty($segments) && $segments[0] === 'battlefield') {
+        $ctrl = new BattlefieldPreferenceController();
+        $sub = $segments[1] ?? '';
+        if ($sub === 'preferences') {
+            if ($method === 'GET') { $ctrl->getPreferences(); return; }
+            if ($method === 'POST') { $ctrl->updatePreferences(); return; }
+        }
+        notFound();
+        return;
+    }
+
+    // ── HALL OF FAME ──────────────────────────────────────────
+    if (!empty($segments) && ($segments[0] === 'hall-of-fame' || $segments[0] === 'halloffame')) {
+        $ctrl = new HallOfFameController();
+        $sub = $segments[1] ?? '';
+
+        if ($sub === 'announcements' && $method === 'GET') {
+            $ctrl->announcements();
+            return;
+        }
+        if (($sub === 'latest-passers' || $sub === 'latest') && $method === 'GET') {
+            $ctrl->latestPassers();
+            return;
+        }
+        if ($sub === 'batches' && $method === 'GET') {
+            $ctrl->batches();
+            return;
+        }
+        if (($sub === 'my-claims' || $sub === 'my-claim') && $method === 'GET') {
+            $ctrl->myClaims();
+            return;
+        }
+        if ($sub === 'claim' && $method === 'POST') {
+            $ctrl->submitClaim();
+            return;
+        }
+        if ($sub === 'admin') {
+            $adminSub = $segments[2] ?? '';
+            if ($adminSub === 'queue' && $method === 'GET') {
+                $ctrl->adminQueue();
+                return;
+            }
+            if ($adminSub === 'decide' && $method === 'POST') {
+                $ctrl->adminDecide();
+                return;
+            }
+        }
+        notFound();
+        return;
+    }
+
+    // ── TUTORIAL ONBOARDING & PROGRESS ────────────────────────
+    if (!empty($segments) && $segments[0] === 'tutorial') {
+        require_once __DIR__ . '/../controllers/TutorialController.php';
+        $ctrl = new TutorialController();
+        $sub = $segments[1] ?? '';
+
+        if ($sub === 'status' && $method === 'GET') {
+            $ctrl->getStatus();
+            return;
+        }
+        if ($sub === 'progress' && $method === 'POST') {
+            $ctrl->saveProgress();
+            return;
+        }
+        if ($sub === 'complete' && $method === 'POST') {
+            $ctrl->complete();
+            return;
+        }
+        if ($sub === 'skip' && $method === 'POST') {
+            $ctrl->skip();
+            return;
+        }
+        if (($sub === 'reset' || $sub === 'replay') && $method === 'POST') {
+            $ctrl->reset();
+            return;
+        }
+        notFound();
+        return;
+    }
+
+    // ── DAILY CHEST ───────────────────────────────────────────
+    if (!empty($segments) && ($segments[0] === 'daily-chest' || $segments[0] === 'daily_chest')) {
+        $ctrl = new DailyChestController();
+        $sub = $segments[1] ?? '';
+        if (($sub === '' || $sub === 'status') && $method === 'GET') { $ctrl->getStatus(); return; }
+        if ($sub === 'claim' && $method === 'POST') { $ctrl->claim(); return; }
+        notFound();
+        return;
+    }
+
+    // ── DIRECT BATTLE & DODGE POTION ROOT FALLBACKS ───────────
+    if (!empty($segments) && $segments[0] === 'battle') {
+        $ctrl = new AdventureController();
+        $action = $segments[1] ?? '';
+        if ($action === 'start' && $method === 'POST') { $ctrl->startBattle(); return; }
+        if ($action === 'action' && $method === 'POST') { $ctrl->battleAction(); return; }
+        if (($action === 'dodge-potion' || $action === 'dodge_potion') && $method === 'POST') { $ctrl->dodgePotion(); return; }
+        if (($action === 'abandon' || $action === 'leave') && $method === 'POST') { $ctrl->abandonBattle(); return; }
+    }
+
+    if (!empty($segments) && ($segments[0] === 'dodge-potion' || $segments[0] === 'dodge_potion')) {
+        $ctrl = new AdventureController();
+        if ($method === 'GET') { $ctrl->dodgePotionStatus(); return; }
+        if ($method === 'POST') { $ctrl->dodgePotion(); return; }
     }
 
     notFound();

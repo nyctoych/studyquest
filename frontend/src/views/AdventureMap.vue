@@ -6,7 +6,7 @@
         <span class="ribbon-skull">💀</span>
         <div class="ribbon-info">
           <strong class="font-pixel">ADVENTURE UNAVAILABLE — YOU ARE DEFEATED</strong>
-          <span class="ribbon-sub">HP: 0 / {{ healthStore.maxHp }} • +{{ healthStore.regenRate }} HP/Hour • Next Recovery: {{ healthStore.formattedCountdown }} • Recover at least 1 HP to battle</span>
+          <span class="ribbon-sub">HP: 0 / {{ healthStore.maxHp }} • +1 HP / Min • Next Recovery: {{ healthStore.formattedCountdown }} • Recover at least 1 HP to battle</span>
         </div>
         <button class="btn btn-gothic-crimson btn-xs ribbon-btn" @click="goToMarketForPotion">
           🧪 RESTORE (+200 HP)
@@ -65,11 +65,14 @@
               <div class="totem-hex-pedestal"></div>
             </div>
 
-            <!-- 3-Star Rating (⭐⭐⭐) below pedestal -->
-            <div class="stage-stars-row">
-              <span v-for="s in 3" :key="s" class="stage-star" :class="{ 'star-lit': s <= ep.stars }">
-                <PixelEmoji emoji="star" size="xs" />
-              </span>
+            <!-- Completion status indicator (replaces star rating) -->
+            <div v-if="ep.isCompleted" class="stage-status-indicator status-completed">
+              <PixelEmoji emoji="check" size="xs" />
+              <span class="status-label">CLEARED</span>
+            </div>
+            <div v-else-if="ep.unlocked && ep.isCurrent" class="stage-status-indicator status-ready">
+              <span class="status-pulse-dot"></span>
+              <span class="status-label">READY</span>
             </div>
           </div>
 
@@ -107,11 +110,14 @@
               <div class="boss-hex-pedestal"></div>
             </div>
 
-            <!-- Boss 3-Star Rating -->
-            <div class="stage-stars-row boss-stars-row">
-              <span v-for="s in 3" :key="s" class="stage-star" :class="{ 'star-lit': s <= bossEpisode.stars }">
-                <PixelEmoji emoji="star" size="xs" />
-              </span>
+            <!-- Boss completion status indicator (replaces star rating) -->
+            <div v-if="activeBossDefeated" class="stage-status-indicator status-completed boss-status-indicator">
+              <PixelEmoji emoji="crown" size="xs" />
+              <span class="status-label">RESTORED</span>
+            </div>
+            <div v-else-if="bossEpisode.unlocked && bossEpisode.isCurrent" class="stage-status-indicator status-ready boss-status-indicator">
+              <span class="status-pulse-dot"></span>
+              <span class="status-label">READY</span>
             </div>
           </div>
 
@@ -169,11 +175,14 @@
               </div>
             </div>
 
-            <!-- Stars / Complete Badge -->
-            <div class="stage-stars-row boss-stars-row">
-              <span v-for="s in 3" :key="s" class="stage-star" :class="{ 'star-lit': finalBossState === 'completed' }">
-                <PixelEmoji emoji="star" size="xs" />
-              </span>
+            <!-- Final Boss completion status indicator (replaces star rating) -->
+            <div v-if="finalBossState === 'completed'" class="stage-status-indicator status-completed boss-status-indicator">
+              <PixelEmoji emoji="crown" size="xs" />
+              <span class="status-label">PACIFIED</span>
+            </div>
+            <div v-else-if="finalBossState === 'unlocked'" class="stage-status-indicator status-ready boss-status-indicator">
+              <span class="status-pulse-dot"></span>
+              <span class="status-label">READY</span>
             </div>
           </div>
         </div>
@@ -189,44 +198,8 @@
         </div>
       </Transition>
 
-      <!-- Top Overlay: Total Stars (Top Left), Chapter Switcher (Center), Quest Objective (Top Right) -->
+      <!-- Top Overlay: Chapter Switcher (Center) -->
       <div class="map-top-bar">
-        <!-- Top Left Badges: Stars & Mind Seals -->
-        <div class="top-left-badges-group">
-          <!-- Total Stars Medal -->
-          <div class="total-stars-medal">
-            <div class="star-crest-icon">
-              <PixelEmoji emoji="star" size="sm" />
-            </div>
-            <div class="star-crest-info">
-              <span class="stars-fraction">{{ totalStarsEarned }}/36</span>
-              <span class="stars-label">Stars</span>
-            </div>
-          </div>
-
-          <!-- Mind Seals Codex Medal -->
-          <div class="total-stars-medal mind-seals-codex-medal" @click="showSealsModal = true" title="View Recovered Mind Seals">
-            <div class="star-crest-icon seal-crest-icon">
-              <span class="seal-icon-symbol">🔮</span>
-            </div>
-            <div class="star-crest-info">
-              <span class="stars-fraction">{{ recoveredSealsCount }}/12</span>
-              <span class="stars-label">Mind Seals</span>
-            </div>
-          </div>
-
-          <!-- Adventure Health & Recovery Status -->
-          <div class="total-stars-medal adv-health-recovery-badge" :title="`Adventure Health: ${advHp} / ${advMaxHp} (+50 HP / hour)`">
-            <div class="star-crest-icon health-crest-icon">
-              <span class="health-icon-symbol">💖</span>
-            </div>
-            <div class="star-crest-info">
-              <span class="stars-fraction">{{ advHp }}/{{ advMaxHp }}</span>
-              <span class="stars-label health-regen-sub">+50 HP/hr</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Chapter Switcher in Center -->
         <div class="chapter-center-col">
           <div class="chapter-nav-pill-wrap">
@@ -267,39 +240,6 @@
               <button class="btn btn-gothic-crimson btn-xs return-curr-ch-btn" @click="goToCurrentUnlockedChapter">
                 GO TO CURRENT CHAPTER →
               </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Right: Black Archive (if unlocked) & Quest Objective -->
-        <div class="top-right-group">
-          <!-- Black Archive Portal Button -->
-          <button
-            class="black-archive-top-btn"
-            :class="{
-              'is-locked': finalBossState === 'locked',
-              'is-unlocked animate-pulse': finalBossState === 'unlocked',
-              'is-completed': finalBossState === 'completed'
-            }"
-            @click="showBlackArchiveModal = true"
-            title="The Black Archive — Final Encounter"
-          >
-            <span class="ba-key-icon">{{ finalBossState === 'completed' ? '🕊️' : (finalBossState === 'unlocked' ? '🗝️' : '🔒') }}</span>
-            <span class="ba-key-text">THE BLACK ARCHIVE — FINAL ENCOUNTER</span>
-            <span class="ba-status-badge">{{ finalBossState.toUpperCase() }}</span>
-          </button>
-
-          <!-- Quest Objective Banner -->
-          <div class="quest-objective-banner" @click="openQuestModal">
-            <div class="objective-icon-box">
-              <PixelEmoji emoji="sword" size="sm" />
-            </div>
-            <div class="objective-text-group">
-              <span class="objective-title">{{ activeObjective.title }}</span>
-              <span class="objective-sub">{{ activeObjective.sub }}</span>
-            </div>
-            <div class="quill-scroll-deco">
-              <PixelEmoji emoji="scroll" size="sm" />
             </div>
           </div>
         </div>
@@ -393,12 +333,24 @@
           <span class="clue-tag">🔮 FRACTURE CLUE:</span> {{ selectedEpisodeData.fractureClue }}
         </div>
 
+        <!-- Regional Foe Preview for Non-Boss Trials -->
+        <div v-if="!selectedEpisodeData.isBoss && currentChapterMinion && !isViewedChapterLocked" class="modal-regional-minion-row">
+          <div class="minion-preview-avatar">
+            <img :src="currentChapterMinionImg" :alt="currentChapterMinion.name" class="minion-preview-thumb pixel-art" />
+          </div>
+          <div class="minion-preview-text">
+            <div class="minion-preview-tag font-pixel">{{ currentChapterMinion.iconEmoji }} REGIONAL FOE</div>
+            <div class="minion-preview-name">{{ currentChapterMinion.name }}</div>
+            <div class="minion-preview-lore">{{ currentChapterMinion.title }}</div>
+          </div>
+        </div>
+
         <!-- Rewards preview -->
         <div class="stage-rewards-preview">
           <h4 class="rewards-sec-title">ESTIMATED REWARDS</h4>
           <div class="rewards-chips-row">
             <div class="reward-chip xp-chip">
-              <PixelEmoji emoji="star" size="xs" />
+              <PixelEmoji emoji="sparkles" size="xs" />
               <span>+{{ selectedEpisodeData.xpReward }} XP</span>
             </div>
             <div class="reward-chip coin-chip">
@@ -443,7 +395,7 @@
             </div>
             <div class="stat-cell">
               <span class="cell-label font-pixel">RECOVERY</span>
-              <span class="cell-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+              <span class="cell-val text-gold font-pixel">+1 HP / MIN</span>
             </div>
             <div class="stat-cell">
               <span class="cell-label font-pixel">NEXT RECOVERY</span>
@@ -571,7 +523,7 @@
           <div class="recovery-metric-card">
             <span class="metric-label font-pixel">HEALTH RECOVERY</span>
             <div class="metric-val text-gold font-pixel">
-              +{{ healthStore.regenRate }} HP / HOUR
+              +1 HP / MINUTE
             </div>
             <span class="metric-sub">Passive recovery runs continuously (online & offline)</span>
           </div>
@@ -600,7 +552,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdventureStore } from '../stores/adventure'
 import { useAuthStore } from '../stores/auth'
@@ -609,6 +561,7 @@ import { useTransitionStore } from '../stores/transition'
 import api from '../services/api'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
 import { getBossForChapter, getFinalBoss, resolveAsset } from '../services/bossMapping'
+import { getChapterMinion, getMinionAssetUrl } from '../config/chapterMinions'
 import ChapterIntro from '../components/adventure/ChapterIntro.vue'
 import BlackArchiveModal from '../components/adventure/BlackArchiveModal.vue'
 import { getChapterEnvironment, preloadAdjacentBackgrounds } from '../config/chapterEnvironments'
@@ -761,6 +714,14 @@ const activeChapterActTitle = computed(() => {
   return activeChapterDetails.value?.act_title || activeChapter.value?.act_title || ''
 })
 
+const currentChapterMinion = computed(() => {
+  return getChapterMinion(activeChapterNum.value)
+})
+
+const currentChapterMinionImg = computed(() => {
+  return getMinionAssetUrl(activeChapterNum.value)
+})
+
 const recoveredSealsCount = computed(() => {
   return adventure.recoveredMindSeals?.length || chapters.value.filter(c => c.boss_defeated).length
 })
@@ -824,8 +785,7 @@ const regularEpisodes = computed(() => {
         unlocked: isAvailable,
         isCompleted: isComplete,
         isCurrent: !isChLocked && (p.part_status === 'available' || p.part_status === 'in_progress'),
-        stars: isComplete ? 3 : 0,
-        xpReward: p.xp_reward || 50,
+        xpReward: p.xp_reward || (2000 + (ch - 1) * 1000),
         coinReward: p.coin_reward || 25,
       }
     })
@@ -843,8 +803,7 @@ const regularEpisodes = computed(() => {
       unlocked: !isChLocked && (i === 1),
       isCompleted: false,
       isCurrent: !isChLocked && (i === 1),
-      stars: 0,
-      xpReward: 50 + i * 10,
+      xpReward: 2000 + (ch - 1) * 1000,
       coinReward: 25 + i * 5,
     })
   }
@@ -865,21 +824,13 @@ const bossEpisode = computed(() => {
     unlocked: isUnlocked,
     isCompleted: !isChLocked && activeBossDefeated.value,
     isCurrent: !isChLocked && canFightBoss.value && !activeBossDefeated.value,
-    stars: (!isChLocked && activeBossDefeated.value) ? 3 : 0,
-    xpReward: activeBoss.value?.xp_reward || 500,
+    xpReward: activeBoss.value?.xp_reward || (6000 + (ch - 1) * 3000),
     coinReward: activeBoss.value?.point_reward || 300,
   }
 })
 
 const completedPartsCount = computed(() => {
   return regularEpisodes.value.filter(e => e.isCompleted).length
-})
-
-const totalStarsEarned = computed(() => {
-  let s = 0
-  regularEpisodes.value.forEach(e => s += e.stars)
-  s += bossEpisode.value.stars
-  return s
 })
 
 const activeObjective = computed(() => {
@@ -951,7 +902,11 @@ function chapterStatusLabel(status) {
   }
 }
 
+let isMounted = false
+
 onMounted(() => {
+  isMounted = true
+
   // Sync target chapter immediately without waiting
   const targetId = Number(route.params.chapterId || route.query.chapter)
   if (targetId) {
@@ -969,6 +924,7 @@ onMounted(() => {
 
   // Load all chapters in background and re-verify index
   loadAllChapters().then(() => {
+    if (!isMounted || !route.path.startsWith('/adventure')) return
     const freshTarget = Number(route.params.chapterId || route.query.chapter)
     if (freshTarget) {
       const idx = chapters.value.findIndex(c => c.id === freshTarget || c.display_order === freshTarget)
@@ -986,7 +942,13 @@ onMounted(() => {
   }
 })
 
+onUnmounted(() => {
+  isMounted = false
+  activeChapterRequestId++
+})
+
 watch(() => [route.params.chapterId, route.query.chapter], ([newParam, newQuery]) => {
+  if (!isMounted || !route.path.startsWith('/adventure')) return
   const target = Number(newParam || newQuery)
   if (target) {
     const idx = chapters.value.findIndex(c => c.id === target || c.display_order === target)
@@ -1011,12 +973,13 @@ async function loadAllChapters() {
 let activeChapterRequestId = 0
 
 async function loadActiveChapterData() {
+  if (!isMounted || !route.path.startsWith('/adventure')) return
   const ch = activeChapter.value
   if (!ch) return
 
   const reqId = ++activeChapterRequestId
   const data = await adventure.loadChapter(ch.id)
-  if (reqId !== activeChapterRequestId) {
+  if (!isMounted || reqId !== activeChapterRequestId || !route.path.startsWith('/adventure')) {
     return
   }
 
@@ -1030,16 +993,23 @@ async function loadActiveChapterData() {
   // Preload adjacent environments for instant, seamless transitions
   preloadAdjacentBackgrounds(activeChapterNum.value)
 
-  // Sync route path and query cleanly without loop
-  const query = { ...route.query }
-  delete query.unlocked
-  router.replace({
-    path: `/adventure/${ch.id}`,
-    query: { ...query, chapter: ch.display_order }
-  }).catch(() => {})
+  // Sync route path and query cleanly only if still on adventure map and route differs
+  if (isMounted && route.path.startsWith('/adventure')) {
+    const targetPath = `/adventure/${ch.id}`
+    const targetQueryChapter = String(ch.display_order)
+    if (route.path !== targetPath || route.query.chapter !== targetQueryChapter) {
+      const query = { ...route.query }
+      delete query.unlocked
+      router.replace({
+        path: targetPath,
+        query: { ...query, chapter: ch.display_order }
+      }).catch(() => {})
+    }
+  }
 }
 
 function switchChapter(idx) {
+  if (!isMounted || !route.path.startsWith('/adventure')) return
   if (idx < 0 || idx >= chapters.value.length) return
   currentChapterIndex.value = idx
   activeParts.value = []
@@ -1047,12 +1017,16 @@ function switchChapter(idx) {
   const ch = chapters.value[idx]
   if (ch?.id) {
     localStorage.setItem('sq_active_chapter', String(ch.id))
-    const query = { ...route.query }
-    delete query.unlocked
-    router.replace({
-      path: `/adventure/${ch.id}`,
-      query: { ...query, chapter: ch.display_order }
-    }).catch(() => {})
+    const targetPath = `/adventure/${ch.id}`
+    const targetQueryChapter = String(ch.display_order)
+    if (route.path !== targetPath || route.query.chapter !== targetQueryChapter) {
+      const query = { ...route.query }
+      delete query.unlocked
+      router.replace({
+        path: targetPath,
+        query: { ...query, chapter: ch.display_order }
+      }).catch(() => {})
+    }
   }
   loadActiveChapterData()
 }
@@ -1262,41 +1236,12 @@ function openBonusModal() {
   right: 1.2rem;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: center;
   z-index: 20;
   pointer-events: none;
 }
 
-.total-stars-medal {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: rgba(14, 15, 22, 0.95);
-  border: 2px solid #3a3225;
-  border-left: 3px solid var(--color-gold-ancient, #b59410);
-  padding: 0.35rem 0.8rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
-}
-.star-crest-icon {
-  display: flex;
-  align-items: center;
-}
-.star-crest-info {
-  display: flex;
-  flex-direction: column;
-}
-.stars-fraction {
-  font-family: var(--font-pixel, monospace);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-gold-ancient, #e6c845);
-}
-.stars-label {
-  font-family: var(--font-body, serif);
-  font-size: 0.7rem;
-  color: var(--color-bone-dark, #8c8273);
-}
+
 
 .adv-health-recovery-badge {
   border-left: 3px solid #ef4444;
@@ -1540,17 +1485,17 @@ function openBonusModal() {
 }
 
 /* Precise Node Coordinates along the winding gothic road & bridge */
-.node-pos-1  { top: 85%; left: 13%; }
-.node-pos-2  { top: 78%; left: 20%; }
-.node-pos-3  { top: 72%; left: 28%; }
-.node-pos-4  { top: 65%; left: 35%; }
-.node-pos-5  { top: 60%; left: 42%; }
-.node-pos-6  { top: 66%; left: 50%; }
-.node-pos-7  { top: 60%; left: 58%; }
-.node-pos-8  { top: 52%; left: 66%; }
-.node-pos-9  { top: 45%; left: 73%; }
-.node-pos-10 { top: 38%; left: 78%; }
-.node-pos-boss { top: 21%; left: calc(82.5% - 52px); }
+.node-pos-1  { top: 89%; left: 13%; }
+.node-pos-2  { top: 87%; left: 21%; }
+.node-pos-3  { top: 84%; left: 29%; }
+.node-pos-4  { top: 83%; left: 37%; }
+.node-pos-5  { top: 74%; left: 42%; }
+.node-pos-6  { top: 73%; left: 51%; }
+.node-pos-7  { top: 63%; left: 50%; }
+.node-pos-8  { top: 59%; left: 58%; }
+.node-pos-9  { top: 55%; left: 66%; }
+.node-pos-10 { top: 50%; left: 72%; }
+.node-pos-boss { top: 32%; left: calc(82.5% - 52px); }
 
 /* Stage Pill Tag */
 .stage-pill-tag {
@@ -1634,21 +1579,52 @@ function openBonusModal() {
   margin-top: -2px;
 }
 
-/* Stars Row */
-.stage-stars-row {
-  display: flex;
+/* Stage Status Indicator (Replaces Star Rating) */
+.stage-status-indicator {
+  display: inline-flex;
   align-items: center;
-  gap: 1px;
-  margin-top: 3px;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.42rem;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-top: 0.2rem;
+  user-select: none;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
 }
-.stage-star {
-  opacity: 0.2;
-  filter: grayscale(1);
+
+.stage-status-indicator.status-completed {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.6);
+  color: #34d399;
 }
-.stage-star.star-lit {
-  opacity: 1;
-  filter: grayscale(0) drop-shadow(0 0 4px rgba(230, 200, 69, 0.8));
+
+.stage-status-indicator.status-ready {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
+}
+
+.status-pulse-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 4px #f59e0b;
+  animation: pulseDot 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.boss-status-indicator {
+  font-size: 0.45rem;
+  padding: 0.15rem 0.45rem;
 }
 
 /* Boss Unit (Pure transparent silhouette, no artificial box or rectangular background) */
@@ -2626,5 +2602,444 @@ function openBonusModal() {
   background: rgba(225, 29, 72, 0.25);
   border-color: rgba(225, 29, 72, 0.7);
   color: #fecdd3;
+}
+
+/* Regional Minion Encounter Preview */
+.modal-regional-minion-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: rgba(18, 6, 14, 0.75);
+  border: 1px solid rgba(225, 29, 72, 0.35);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  margin: 0.85rem 0 0.5rem;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+}
+.minion-preview-avatar {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.25) 0%, rgba(10, 3, 7, 0.8) 70%);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.minion-preview-thumb {
+  max-width: 44px;
+  max-height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+}
+.minion-preview-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.minion-preview-tag {
+  font-size: 0.46rem;
+  color: #f43f5e;
+  letter-spacing: 0.08em;
+}
+.minion-preview-name {
+  font-family: 'Cinzel', serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.1;
+}
+.minion-preview-lore {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   ADVENTURE MAP — MORNING / LIGHT MODE STYLES
+   Preserves the map background artwork 100% while styling UI.
+   ══════════════════════════════════════════════════════════════ */
+
+
+[data-theme="morning"] .mind-seals-codex-medal,
+.theme-morning .mind-seals-codex-medal {
+  border-left-color: #8F642D !important;
+}
+
+[data-theme="morning"] .adv-health-recovery-badge,
+.theme-morning .adv-health-recovery-badge {
+  border-left: 3px solid #16a34a !important;
+  border-color: #B88A42 !important;
+}
+
+
+[data-theme="morning"] .adv-health-recovery-badge .health-regen-sub,
+.theme-morning .adv-health-recovery-badge .health-regen-sub {
+  color: #166534 !important;
+  text-shadow: none !important;
+}
+
+/* Chapter Switcher Center Pill */
+[data-theme="morning"] .chapter-nav-pill,
+.theme-morning .chapter-nav-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .ch-nav-num,
+.theme-morning .ch-nav-num {
+  color: #991b1b !important;
+}
+
+[data-theme="morning"] .ch-nav-story-highlight,
+.theme-morning .ch-nav-story-highlight {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-nav-title,
+.theme-morning .ch-nav-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-nav-act-tag,
+.theme-morning .ch-nav-act-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-status-badge-inline,
+.theme-morning .ch-status-badge-inline {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-badge-completed,
+.theme-morning .ch-badge-completed {
+  color: #166534 !important;
+  border-color: #16a34a !important;
+}
+
+[data-theme="morning"] .ch-badge-boss_available,
+.theme-morning .ch-badge-boss_available {
+  color: #991b1b !important;
+  border-color: #dc2626 !important;
+}
+
+[data-theme="morning"] .ch-nav-btn,
+.theme-morning .ch-nav-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-nav-btn:hover:not(:disabled),
+.theme-morning .ch-nav-btn:hover:not(:disabled) {
+  background: #B88A42 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .story-prologue-btn,
+.theme-morning .story-prologue-btn,
+[data-theme="morning"] .all-chapters-btn,
+.theme-morning .all-chapters-btn {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.12) !important;
+}
+
+[data-theme="morning"] .story-prologue-btn:hover,
+.theme-morning .story-prologue-btn:hover,
+[data-theme="morning"] .all-chapters-btn:hover,
+.theme-morning .all-chapters-btn:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  color: #8F642D !important;
+}
+
+/* Black Archive Top Button */
+[data-theme="morning"] .black-archive-top-btn,
+.theme-morning .black-archive-top-btn {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn.is-completed,
+.theme-morning .black-archive-top-btn.is-completed {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn.is-locked,
+.theme-morning .black-archive-top-btn.is-locked {
+  background: #EAD8B5 !important;
+  border-color: #c4b59d !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn .ba-key-text,
+.theme-morning .black-archive-top-btn .ba-key-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn .ba-status-badge,
+.theme-morning .black-archive-top-btn .ba-status-badge {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #166534 !important;
+}
+
+/* Quest Objective Banner */
+[data-theme="morning"] .quest-objective-banner,
+.theme-morning .quest-objective-banner {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  border-left: 3px solid #8F642D !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-title,
+.theme-morning .quest-objective-banner .objective-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-sub,
+.theme-morning .quest-objective-banner .objective-sub {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-icon-box,
+.theme-morning .quest-objective-banner .objective-icon-box {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+/* Modals */
+[data-theme="morning"] .rpg-stage-modal,
+.theme-morning .rpg-stage-modal,
+[data-theme="morning"] .stage-modal-card,
+.theme-morning .stage-modal-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .stage-modal-title,
+.theme-morning .stage-modal-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stage-topic-desc,
+.theme-morning .stage-topic-desc {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .chapter-grid-card,
+.theme-morning .chapter-grid-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .chapter-grid-card .ch-card-num,
+.theme-morning .chapter-grid-card .ch-card-num {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .chapter-grid-card .ch-card-name,
+.theme-morning .chapter-grid-card .ch-card-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-card-act-pill,
+.theme-morning .ch-card-act-pill {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .seal-relic-card,
+.theme-morning .seal-relic-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .seal-relic-card .seal-name,
+.theme-morning .seal-relic-card .seal-name {
+  color: #3D2B1F !important;
+}
+
+/* Stage Modal Header & Badges */
+[data-theme="morning"] .stage-code-badge,
+.theme-morning .stage-code-badge,
+[data-theme="morning"] .modal-stage-code,
+.theme-morning .modal-stage-code {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .modal-close-btn,
+.theme-morning .modal-close-btn,
+[data-theme="morning"] .close-modal-btn,
+.theme-morning .close-modal-btn {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .modal-close-btn:hover,
+.theme-morning .modal-close-btn:hover,
+[data-theme="morning"] .close-modal-btn:hover,
+.theme-morning .close-modal-btn:hover {
+  color: #2D1E12 !important;
+}
+
+/* Stage Modal Narrative Phase & Subtitle */
+[data-theme="morning"] .modal-story-title-sub,
+.theme-morning .modal-story-title-sub {
+  color: #5A4535 !important;
+}
+
+[data-theme="morning"] .modal-phase-pill.phase-discovery,
+.theme-morning .modal-phase-pill.phase-discovery {
+  background: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border: 1px solid #3B82F6 !important;
+}
+
+[data-theme="morning"] .modal-phase-pill.phase-investigation,
+.theme-morning .modal-phase-pill.phase-investigation {
+  background: #FEF3C7 !important;
+  color: #B45309 !important;
+  border: 1px solid #D97706 !important;
+}
+
+[data-theme="morning"] .modal-phase-pill.phase-escalation,
+.theme-morning .modal-phase-pill.phase-escalation {
+  background: #FEE2E2 !important;
+  color: #B91C1C !important;
+  border: 1px solid #EF4444 !important;
+}
+
+[data-theme="morning"] .modal-phase-pill.phase-revelation,
+.theme-morning .modal-phase-pill.phase-revelation {
+  background: #F3E8FF !important;
+  color: #6B21A8 !important;
+  border: 1px solid #A855F7 !important;
+}
+
+[data-theme="morning"] .modal-phase-pill.phase-trial,
+.theme-morning .modal-phase-pill.phase-trial {
+  background: #FEF9C3 !important;
+  color: #854D0E !important;
+  border: 1px solid #CA8A04 !important;
+}
+
+[data-theme="morning"] .modal-fracture-clue,
+.theme-morning .modal-fracture-clue {
+  background: #F3E8FF !important;
+  border-left: 3px solid #7E22CE !important;
+  color: #581C87 !important;
+}
+
+[data-theme="morning"] .modal-fracture-clue .clue-tag,
+.theme-morning .modal-fracture-clue .clue-tag {
+  color: #6B21A8 !important;
+}
+
+/* Stage Modal Regional Foe Row */
+[data-theme="morning"] .modal-regional-minion-row,
+.theme-morning .modal-regional-minion-row {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .modal-regional-minion-row .minion-preview-avatar,
+.theme-morning .modal-regional-minion-row .minion-preview-avatar {
+  background: #F3E4C8 !important;
+  border: 1.5px solid #C8B28C !important;
+}
+
+[data-theme="morning"] .modal-regional-minion-row .minion-preview-tag,
+.theme-morning .modal-regional-minion-row .minion-preview-tag {
+  color: #B91C1C !important;
+}
+
+[data-theme="morning"] .modal-regional-minion-row .minion-preview-name,
+.theme-morning .modal-regional-minion-row .minion-preview-name {
+  color: #2D1E12 !important;
+}
+
+[data-theme="morning"] .modal-regional-minion-row .minion-preview-lore,
+.theme-morning .modal-regional-minion-row .minion-preview-lore {
+  color: #5A4535 !important;
+}
+
+/* Stage Modal Estimated Rewards Preview */
+[data-theme="morning"] .stage-rewards-preview,
+.theme-morning .stage-rewards-preview {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .stage-rewards-preview .rewards-sec-title,
+.theme-morning .stage-rewards-preview .rewards-sec-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .stage-rewards-preview .reward-chip,
+.theme-morning .stage-rewards-preview .reward-chip {
+  background: #EEDFC3 !important;
+  border: 1px solid #CDBA93 !important;
+  color: #2D1E12 !important;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+[data-theme="morning"] .stage-rewards-preview .reward-chip.xp-chip,
+.theme-morning .stage-rewards-preview .reward-chip.xp-chip {
+  color: #92400E !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .stage-rewards-preview .reward-chip.coin-chip,
+.theme-morning .stage-rewards-preview .reward-chip.coin-chip {
+  color: #3D2B1F !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .stage-lock-notice,
+.theme-morning .stage-lock-notice {
+  background: #FEF2F2 !important;
+  border: 1px solid #FCA5A5 !important;
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .stage-modal-actions .btn-gothic-stone,
+.theme-morning .stage-modal-actions .btn-gothic-stone {
+  background: #EAD8B5 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stage-modal-actions .btn-gothic-stone:hover,
+.theme-morning .stage-modal-actions .btn-gothic-stone:hover {
+  background: #DFCDA5 !important;
+  color: #1F140A !important;
 }
 </style>

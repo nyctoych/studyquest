@@ -21,6 +21,7 @@ class SpecialEventAdminController {
     public function generate(): void {
         AuthMiddleware::check();
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $date = !empty($body['date']) ? trim((string)$body['date']) : date('Y-m-d');
         $userId = isset($body['user_id']) ? (int)$body['user_id'] : (int)(AuthMiddleware::userId() ?? 0);
         $force = !empty($body['force']);
 
@@ -103,11 +104,11 @@ class SpecialEventAdminController {
         $count = $this->eventModel->countQuestions($eventId);
         $approvedCount = $this->eventModel->countApprovedQuestions($eventId);
 
-        if ($count !== 140 || $approvedCount !== 140) {
+        if ($count < 1 || $approvedCount !== $count) {
             http_response_code(400);
             echo json_encode([
                 'success' => false,
-                'message' => "Cannot publish: Event has {$count} questions ({$approvedCount} approved). Exactly 140 approved questions required."
+                'message' => "Cannot publish: Event has {$count} questions ({$approvedCount} approved). All generated questions must be approved before publishing."
             ]);
             return;
         }

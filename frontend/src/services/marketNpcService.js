@@ -154,9 +154,9 @@ const STAGE_ENTER_DIALOGUES = {
   ],
   father: [
     "You know who I am now. The shelves are yours to browse, as always.",
-    "He would have liked that you came back. I keep this stall in his memory.",
-    "Some stories end unfinished. I am grateful you stayed to hear his.",
-    "Take what you need. I could not control how his story ended, but I can still keep this door open."
+    "She would have appreciated that you came back. I keep this stall in her memory.",
+    "Some stories end unfinished. I am grateful you stayed to face her other side and hear her story.",
+    "Take what you need. I could not change how her story ended, but I can still keep this door open."
   ]
 }
 
@@ -198,6 +198,11 @@ class MarketNpcService {
   /** Set story stage from server value; unknown values fall back to normal. */
   setStage(stage) {
     this.stage = STAGE_ENTER_DIALOGUES[stage] ? stage : 'normal'
+    if (this.stage === 'father') {
+      this.state.npcRole = 'The Father of the Creator'
+    } else {
+      this.state.npcRole = 'Item Merchant'
+    }
   }
 
   get dialogue() {

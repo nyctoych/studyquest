@@ -17,9 +17,11 @@ class ChronicleController {
 
         $stmt = $this->db->prepare("
             SELECT cp.id, cp.post_type, cp.title, cp.body, cp.metadata, cp.created_at,
-                   u.nickname, u.level, u.avatar_style, u.avatar_seed, u.avatar_options
+                   u.nickname, u.level, u.avatar_style, u.avatar_seed, u.avatar_options,
+                   u.selected_character_id, COALESCE(c.class_type, 'MAGE') AS character_class, COALESCE(c.key_name, 'mage') AS character_key
             FROM chronicle_posts cp
             JOIN users u ON u.id = cp.user_id
+            LEFT JOIN characters c ON COALESCE(u.selected_character_id, 1) = c.id
             WHERE cp.is_public = 1
             ORDER BY cp.created_at DESC
             LIMIT ? OFFSET ?

@@ -19,9 +19,11 @@ class AdventureHealthService {
     private PDO $db;
     private Character $charModel;
 
-    public const REGEN_HP_PER_HOUR = 50;
-    public const SECONDS_PER_HOUR  = 3600;
-    public const POTION_HEAL_AMOUNT = 200;
+    public const REGEN_HP_PER_MINUTE  = 1;
+    public const SECONDS_PER_INTERVAL  = 60;
+    public const REGEN_HP_PER_HOUR     = 60;
+    public const SECONDS_PER_HOUR      = 3600;
+    public const POTION_HEAL_AMOUNT    = 200;
 
     public function __construct() {
         AdventureBattleMigration::run();
@@ -53,7 +55,9 @@ class AdventureHealthService {
              ?: $this->charModel->findByKey('mage')
              ?: ['health' => 150, 'damage' => 10, 'crit_damage' => 35, 'name' => 'Mage'];
 
-        $scaled = Character::calculateScaledStats($char, $userLevel);
+        require_once __DIR__ . '/../models/AttributeAllocation.php';
+        $allocTotals = (new AttributeAllocation())->getAllocationTotals($userId, (int)($char['id'] ?? 1));
+        $scaled = Character::calculateScaledStats($char, $userLevel, $allocTotals);
         $maxHp = (int)($scaled['max_health'] ?? $scaled['scaled_health'] ?? $scaled['health'] ?? 150);
         $damage = (int)($scaled['damage'] ?? $scaled['scaled_damage'] ?? 10);
         $critDamage = (int)($scaled['crit_damage'] ?? $scaled['scaled_crit_damage'] ?? 35);
@@ -115,9 +119,9 @@ class AdventureHealthService {
             $now = time();
 
             // 1. Initialization Rule:
-            // If persistent Adventure HP does not exist yet, initialize to 45% of scaled Max HP.
+            // If persistent Adventure HP does not exist yet, initialize to 100% of scaled Max HP.
             if ($currentHp === null || !$isPersisted) {
-                $currentHp = (int)round($maxHp * 0.45);
+                $currentHp = $maxHp;
                 $lastRegenStr = date('Y-m-d H:i:s', $now);
 
                 $up = $this->db->prepare("
@@ -139,15 +143,15 @@ class AdventureHealthService {
                 $lastRegenStr = date('Y-m-d H:i:s', $now);
             }
 
-            // 2. Passive Regeneration Rule (+50 HP per completed hour):
+            // 2. Passive Regeneration Rule (+1 HP per completed minute):
             // Only applies if currentHp < maxHp
             $elapsedSeconds = max(0, $now - $lastRegenTime);
-            $completedHours = (int)floor($elapsedSeconds / self::SECONDS_PER_HOUR);
+            $completedMinutes = (int)floor($elapsedSeconds / self::SECONDS_PER_INTERVAL);
 
             $recoveredHp = 0;
             if ($currentHp < $maxHp) {
-                if ($completedHours > 0) {
-                    $recoveredHp = $completedHours * self::REGEN_HP_PER_HOUR;
+                if ($completedMinutes > 0) {
+                    $recoveredHp = $completedMinutes * self::REGEN_HP_PER_MINUTE;
                     $currentHp = min($maxHp, $currentHp + $recoveredHp);
 
                     if ($currentHp >= $maxHp) {
@@ -155,8 +159,8 @@ class AdventureHealthService {
                         $lastRegenTime = $now;
                         $lastRegenStr = date('Y-m-d H:i:s', $now);
                     } else {
-                        // Advance checkpoint by completed hours to preserve fractional progress
-                        $lastRegenTime += ($completedHours * self::SECONDS_PER_HOUR);
+                        // Advance checkpoint by completed minutes to preserve fractional seconds
+                        $lastRegenTime += ($completedMinutes * self::SECONDS_PER_INTERVAL);
                         $lastRegenStr = date('Y-m-d H:i:s', $lastRegenTime);
                     }
 
@@ -183,19 +187,21 @@ class AdventureHealthService {
                 $this->db->commit();
             }
 
-            // Calculate countdown until next +50 HP tick
-            $remainingSecondsInHour = 0;
+            // Calculate countdown until next +1 HP tick (0 to 60 seconds)
+            $remainingSecondsInInterval = 0;
             if ($currentHp < $maxHp) {
                 $currentElapsed = max(0, time() - $lastRegenTime);
-                $remainingSecondsInHour = max(0, self::SECONDS_PER_HOUR - ($currentElapsed % self::SECONDS_PER_HOUR));
+                $remainingSecondsInInterval = max(0, self::SECONDS_PER_INTERVAL - ($currentElapsed % self::SECONDS_PER_INTERVAL));
             }
 
             return [
                 'current_hp' => (int)$currentHp,
                 'max_hp' => (int)$maxHp,
-                'regen_rate' => self::REGEN_HP_PER_HOUR,
+                'regen_rate' => self::REGEN_HP_PER_MINUTE,
+                'regen_rate_label' => '+1 HP / Min',
+                'interval_seconds' => self::SECONDS_PER_INTERVAL,
                 'recovered_now' => $recoveredHp,
-                'seconds_until_next_regen' => $remainingSecondsInHour,
+                'seconds_until_next_regen' => $remainingSecondsInInterval,
                 'last_regen_at' => $lastRegenStr,
                 'attack_power' => $stats['damage'],
                 'critical_attack_power' => $stats['crit_damage'],
@@ -243,12 +249,64 @@ class AdventureHealthService {
         $coinCost = (int)$item['coin_cost'];
         $healAmount = self::POTION_HEAL_AMOUNT; // Authoritative +200 HP
 
+        // 1. Fetch user data and calculate scaled stats BEFORE transaction
+        // (Prevents any DDL from model initialization running inside the active transaction)
+        $preStmt = $this->db->prepare("
+            SELECT id, coins, level, selected_character_id, adventure_current_hp,
+                   adventure_hp_persisted, health_regen_last_at
+            FROM users
+            WHERE id = ?
+        ");
+        $preStmt->execute([$userId]);
+        $preUser = $preStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$preUser) {
+            return ['success' => false, 'message' => 'User not found.'];
+        }
+
+        if ((int)$preUser['coins'] < $coinCost) {
+            return [
+                'success' => false,
+                'error_code' => 'INSUFFICIENT_COINS',
+                'message' => 'Insufficient Scholar Coins for Health Potion.'
+            ];
+        }
+
+        // Calculate scaled max HP before opening transaction
+        $stats = $this->getScaledStats($userId, (int)$preUser['level'], (int)$preUser['selected_character_id']);
+        $maxHp = (int)$stats['max_hp'];
+
+        // Preliminary check for full HP
+        $curHp = $preUser['adventure_current_hp'];
+        if ($curHp === null || !(bool)$preUser['adventure_hp_persisted']) {
+            $curHp = $maxHp;
+        } else {
+            $curHp = (int)$curHp;
+        }
+
+        $lastRegenTime = $preUser['health_regen_last_at'] ? strtotime($preUser['health_regen_last_at']) : time();
+        $elapsedSeconds = max(0, time() - $lastRegenTime);
+        $completedMinutes = (int)floor($elapsedSeconds / self::SECONDS_PER_INTERVAL);
+        if ($completedMinutes > 0 && $curHp < $maxHp) {
+            $curHp = min($maxHp, $curHp + ($completedMinutes * self::REGEN_HP_PER_MINUTE));
+        }
+
+        if ($curHp >= $maxHp) {
+            return [
+                'success' => false,
+                'error_code' => 'ALREADY_FULL_HEALTH',
+                'message' => 'Your Adventure Health is already at maximum!',
+                'current_hp' => $maxHp,
+                'max_hp' => $maxHp
+            ];
+        }
+
+        // 2. Perform atomic mutations within transaction
         $this->db->beginTransaction();
         try {
-            // 1. Sync and lock user health and coins
+            // Lock user row
             $uStmt = $this->db->prepare("
-                SELECT id, coins, level, selected_character_id, adventure_current_hp,
-                       adventure_hp_persisted, health_regen_last_at
+                SELECT id, coins, adventure_current_hp, adventure_hp_persisted, health_regen_last_at
                 FROM users
                 WHERE id = ?
                 FOR UPDATE
@@ -257,14 +315,13 @@ class AdventureHealthService {
             $user = $uStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) $this->db->rollBack();
                 return ['success' => false, 'message' => 'User not found.'];
             }
 
-            // 2. Validate coins
             $userCoins = (int)$user['coins'];
             if ($userCoins < $coinCost) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) $this->db->rollBack();
                 return [
                     'success' => false,
                     'error_code' => 'INSUFFICIENT_COINS',
@@ -272,28 +329,22 @@ class AdventureHealthService {
                 ];
             }
 
-            // 3. Calculate current scaled Max HP
-            $stats = $this->getScaledStats($userId, (int)$user['level'], (int)$user['selected_character_id']);
-            $maxHp = $stats['max_hp'];
-
-            // 4. Calculate existing HP after pending passive regeneration
             $currentHp = $user['adventure_current_hp'];
             if ($currentHp === null || !(bool)$user['adventure_hp_persisted']) {
-                $currentHp = (int)round($maxHp * 0.45);
+                $currentHp = $maxHp;
             } else {
                 $currentHp = (int)$currentHp;
             }
 
             $lastRegenTime = $user['health_regen_last_at'] ? strtotime($user['health_regen_last_at']) : time();
             $elapsedSeconds = max(0, time() - $lastRegenTime);
-            $completedHours = (int)floor($elapsedSeconds / self::SECONDS_PER_HOUR);
-            if ($completedHours > 0 && $currentHp < $maxHp) {
-                $currentHp = min($maxHp, $currentHp + ($completedHours * self::REGEN_HP_PER_HOUR));
+            $completedMinutes = (int)floor($elapsedSeconds / self::SECONDS_PER_INTERVAL);
+            if ($completedMinutes > 0 && $currentHp < $maxHp) {
+                $currentHp = min($maxHp, $currentHp + ($completedMinutes * self::REGEN_HP_PER_MINUTE));
             }
 
-            // 5. Full Health check
             if ($currentHp >= $maxHp) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) $this->db->rollBack();
                 return [
                     'success' => false,
                     'error_code' => 'ALREADY_FULL_HEALTH',
@@ -303,13 +354,13 @@ class AdventureHealthService {
                 ];
             }
 
-            // 6. Apply Healing clamped to Max HP
+            // Apply Healing clamped to Max HP
             $actualHealed = min($healAmount, $maxHp - $currentHp);
             $newHp = min($maxHp, $currentHp + $healAmount);
 
-            // Deduct coins
-            $newCoins = $userCoins - $coinCost;
-            $this->db->prepare("UPDATE users SET coins = ? WHERE id = ?")->execute([$newCoins, $userId]);
+            // Deduct coins & points
+            $newCoins = max(0, $userCoins - $coinCost);
+            $this->db->prepare("UPDATE users SET coins = ?, points = ? WHERE id = ?")->execute([$newCoins, $newCoins, $userId]);
 
             // Save new Adventure HP & update timestamp if full
             $newLastRegen = ($newHp >= $maxHp) ? date('Y-m-d H:i:s') : $user['health_regen_last_at'];
@@ -326,7 +377,7 @@ class AdventureHealthService {
             ");
             $up->execute([$newHp, $newLastRegen, $userId]);
 
-            // 7. Log Coin Transaction
+            // Log Coin Transaction
             $txStmt = $this->db->prepare("
                 INSERT INTO coin_transactions 
                 (user_id, amount, type, source, reference_id, description, balance_after)

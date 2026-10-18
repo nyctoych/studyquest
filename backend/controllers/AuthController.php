@@ -100,7 +100,7 @@ class AuthController {
         $user = $this->userModel->findByEmail($identifier) 
              ?? $this->userModel->findByUsername($identifier);
 
-        if (!$user || !$this->userModel->verifyPassword($password, $user['password'])) {
+        if (!$user || empty($user['password']) || !$this->userModel->verifyPassword($password, $user['password'])) {
             http_response_code(401);
             echo json_encode(['success' => false, 'message' => 'Invalid credentials']);
             return;
@@ -143,7 +143,12 @@ class AuthController {
             return;
         }
 
-        $user = $this->userModel->findById($_SESSION['user_id']);
+        $userId = (int) $_SESSION['user_id'];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        $user = $this->userModel->findById($userId);
         if (!$user) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'User not found']);
@@ -160,5 +165,46 @@ class AuthController {
         $user['adventure_health'] = $healthState;
 
         echo json_encode(['success' => true, 'user' => $user, 'stats' => $stats, 'health' => $healthState]);
+    }
+
+    /**
+     * POST /auth/password/update
+     * Updates the authenticated user's password from Settings (current password required).
+     */
+    public function updatePassword(): void {
+        header('Content-Type: application/json');
+
+        if (empty($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+            return;
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+        $data   = json_decode(file_get_contents('php://input'), true);
+
+        $currentPassword = $data['currentPassword'] ?? '';
+        $newPassword     = $data['newPassword'] ?? '';
+
+        if (strlen($newPassword) < 6) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'New password must be at least 6 characters.']);
+            return;
+        }
+
+        $user = $this->userModel->findById($userId);
+        $rawUser = $user ? $this->userModel->findByEmail($user['email']) : null;
+        if (!$rawUser || empty($rawUser['password']) || !$this->userModel->verifyPassword($currentPassword, $rawUser['password'])) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Current password is incorrect.']);
+            return;
+        }
+
+        $this->userModel->updatePassword($userId, $newPassword);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Password updated successfully!',
+        ]);
     }
 }

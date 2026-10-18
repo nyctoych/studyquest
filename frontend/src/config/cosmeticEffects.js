@@ -13,7 +13,7 @@
  * 5. Visual cosmetics only - no stat/arithmetic alterations.
  */
 
-import { resolveAsset } from '../services/bossMapping'
+import { resolveAsset } from '../services/bossMapping.js'
 
 export const COSMETIC_EFFECTS = [
   // ════════════════════════════════════════════════════════════════
@@ -43,7 +43,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'mage',
     character_name: 'Necromancer',
     rarity: 'rare',
-    coin_cost: 300,
+    coin_cost: 3000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/elite orb.png',
     gif_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/elite orb.gif',
@@ -58,7 +58,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'mage',
     character_name: 'Necromancer',
     rarity: 'epic',
-    coin_cost: 600,
+    coin_cost: 6000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/epic orb.png',
     gif_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/epic orb.gif',
@@ -73,7 +73,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'mage',
     character_name: 'Necromancer',
     rarity: 'legendary',
-    coin_cost: 1200,
+    coin_cost: 12000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/mythical orb.png',
     gif_path: 'assets/ATTACK EFFECTS/NECROMANCER (MAGE)/mythical orb.gif',
@@ -107,7 +107,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'range',
     character_name: 'Archer',
     rarity: 'rare',
-    coin_cost: 300,
+    coin_cost: 3000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/elite arrow.png',
     gif_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/elite arrow.gif',
@@ -122,7 +122,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'range',
     character_name: 'Archer',
     rarity: 'epic',
-    coin_cost: 600,
+    coin_cost: 6000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/arrow epicc.png',
     gif_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/arrow epicc.gif',
@@ -137,7 +137,7 @@ export const COSMETIC_EFFECTS = [
     character_class: 'range',
     character_name: 'Archer',
     rarity: 'legendary',
-    coin_cost: 1200,
+    coin_cost: 12000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/arrow myth.png',
     gif_path: 'assets/ATTACK EFFECTS/ARCHER (RANGE)/arrow myth.gif',
@@ -170,72 +170,234 @@ export const COSMETIC_EFFECTS = [
     type: 'attack_effect',
     character_class: 'melee',
     character_name: 'Dual-Wielder',
-    rarity: 'epic',
-    coin_cost: 500,
+    rarity: 'rare',
+    coin_cost: 3000,
     is_default: false,
     png_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/elite melee.png',
     gif_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/elite melee.gif',
     description: 'A dual-cyclone blade strike that lacerates the space before the wielder.'
   },
+  {
+    id: 'epic-melee',
+    effect_key: 'epic-melee',
+    name: 'Epic Melee Slash',
+    category_slug: 'attack_effect',
+    type: 'attack_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'epic',
+    coin_cost: 6000,
+    is_default: false,
+    png_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/epic melee.png',
+    gif_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/epic melee.gif',
+    description: 'An epic tempestuous crescent strike cleaving space and shattering defenses.'
+  },
+  {
+    id: 'mythical-melee',
+    effect_key: 'mythical-melee',
+    name: 'Mythical Melee Cleave',
+    category_slug: 'attack_effect',
+    type: 'attack_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'mythical',
+    coin_cost: 12000,
+    is_default: false,
+    png_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/mythical melee.png',
+    gif_path: 'assets/ATTACK EFFECTS/DOUBLE-WIELDER (MELEE)/mythical melee.gif',
+    description: 'A legendary dual-blade vortex unleashing mythical crimson fury.'
+  },
 
   // ════════════════════════════════════════════════════════════════
-  // 4. SPLASH EFFECTS: UNIVERSAL COMBAT IMPACTS
+  // 4. SPLASH EFFECTS: RANGE (ARCHER)
   // ════════════════════════════════════════════════════════════════
   {
-    id: 'default-splash',
-    effect_key: 'default-splash',
-    name: 'Default Blade Splash',
+    id: 'default-arrow-splash',
+    effect_key: 'default-arrow-splash',
+    name: 'Default Arrow Splash',
     category_slug: 'splash_effect',
     type: 'splash_effect',
-    character_class: 'all',
+    character_class: 'range',
+    character_name: 'Archer',
     rarity: 'common',
     coin_cost: 0,
     is_default: true,
-    png_path: 'assets/SPLASH EFFECTS/default splash.png',
-    gif_path: 'assets/SPLASH EFFECTS/default splash.gif',
-    description: 'A clean, resounding cross-cut impact scattering luminous azure sparks.'
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/ARCHER (RANGE)/default arrow SPLASHH.gif',
+    description: 'A sharp, kinetic arrow impact dispersing crisp piercing energy.'
   },
   {
-    id: 'crimson-slash',
-    effect_key: 'crimson-slash',
-    name: 'Crimson Claw Splash',
+    id: 'elite-arrow-splash',
+    effect_key: 'elite-arrow-splash',
+    name: 'Elite Arrow Splash',
     category_slug: 'splash_effect',
     type: 'splash_effect',
-    character_class: 'all',
+    character_class: 'range',
+    character_name: 'Archer',
     rarity: 'rare',
-    coin_cost: 350,
+    coin_cost: 3500,
     is_default: false,
-    png_path: 'assets/SPLASH EFFECTS/crimson slash.png',
-    gif_path: 'assets/SPLASH EFFECTS/crimson slash.gif',
-    description: 'A savage triple-claw impact bursting with sanguine embers and blood light.'
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/ARCHER (RANGE)/elite arrow SPLASHH.gif',
+    description: 'An elite piercing burst scattering concentrated emerald and azure force.'
   },
   {
-    id: 'arcane-burst',
-    effect_key: 'arcane-burst',
-    name: 'Arcane Nova Splash',
+    id: 'epic-arrow-splash',
+    effect_key: 'epic-arrow-splash',
+    name: 'Epic Arrow Splash',
     category_slug: 'splash_effect',
     type: 'splash_effect',
-    character_class: 'all',
+    character_class: 'range',
+    character_name: 'Archer',
     rarity: 'epic',
-    coin_cost: 700,
+    coin_cost: 7000,
     is_default: false,
-    png_path: 'assets/SPLASH EFFECTS/arcane burst.png',
-    gif_path: 'assets/SPLASH EFFECTS/arcane burst.gif',
-    description: 'An explosive eight-pointed arcane star detonating with mystic rings.'
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/ARCHER (RANGE)/epic arrow SPLASHH.gif',
+    description: 'An explosive shockwave detonation that tears into target vitals.'
   },
   {
-    id: 'lightning-strike',
-    effect_key: 'lightning-strike',
-    name: 'Thunderbolt Splash',
+    id: 'mythical-arrow-splash',
+    effect_key: 'mythical-arrow-splash',
+    name: 'Mythical Arrow Splash',
     category_slug: 'splash_effect',
     type: 'splash_effect',
-    character_class: 'all',
-    rarity: 'legendary',
-    coin_cost: 1200,
+    character_class: 'range',
+    character_name: 'Archer',
+    rarity: 'mythical',
+    coin_cost: 12000,
     is_default: false,
-    png_path: 'assets/SPLASH EFFECTS/lightning strike.png',
-    gif_path: 'assets/SPLASH EFFECTS/lightning strike.gif',
-    description: 'A devastating electric thunderbolt slamming the impact point with shockwaves.'
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/ARCHER (RANGE)/mythical arrow SPLASHH.gif',
+    description: 'A supreme celestial arrow detonation burning with mythical solar energy.'
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 5. SPLASH EFFECTS: MELEE (DUAL-WIELDER)
+  // ════════════════════════════════════════════════════════════════
+  {
+    id: 'default-melee-splash',
+    effect_key: 'default-melee-splash',
+    name: 'Default Melee Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'common',
+    coin_cost: 0,
+    is_default: true,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/DOUBLE WIELDER (MELEE)/default melee SPLASH.gif',
+    description: 'A direct blade impact cross-slash slicing through enemy guard.'
+  },
+  {
+    id: 'elite-melee-splash',
+    effect_key: 'elite-melee-splash',
+    name: 'Elite Melee Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'rare',
+    coin_cost: 3500,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/DOUBLE WIELDER (MELEE)/elite melee SPLASH.gif',
+    description: 'A swift double-crescent blade flurry erupting upon point-blank impact.'
+  },
+  {
+    id: 'epic-melee-splash',
+    effect_key: 'epic-melee-splash',
+    name: 'Epic Melee Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'epic',
+    coin_cost: 7000,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/DOUBLE WIELDER (MELEE)/epic melee SPLASHH.gif',
+    description: 'A tempestuous multi-blade detonation that pulverizes surrounding matter.'
+  },
+  {
+    id: 'mythical-melee-splash',
+    effect_key: 'mythical-melee-splash',
+    name: 'Mythical Melee Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'melee',
+    character_name: 'Dual-Wielder',
+    rarity: 'mythical',
+    coin_cost: 12000,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/DOUBLE WIELDER (MELEE)/mythical melee SPLASHH.gif',
+    description: 'A godlike dual-blade cleave fracturing reality with legendary crimson fury.'
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // 6. SPLASH EFFECTS: MAGE (NECROMANCER)
+  // ════════════════════════════════════════════════════════════════
+  {
+    id: 'default-orb-splash',
+    effect_key: 'default-orb-splash',
+    name: 'Default Orb Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'mage',
+    character_name: 'Necromancer',
+    rarity: 'common',
+    coin_cost: 0,
+    is_default: true,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/NECROMANCER (MAGE)/default orb SPLASHH.gif',
+    description: 'A shadowy orb explosion collapsing into an occult violet singularity.'
+  },
+  {
+    id: 'elite-orb-splash',
+    effect_key: 'elite-orb-splash',
+    name: 'Elite Orb Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'mage',
+    character_name: 'Necromancer',
+    rarity: 'rare',
+    coin_cost: 3500,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/NECROMANCER (MAGE)/elite orb SPLASHH.gif',
+    description: 'An intense occult pulse radiating spectral flames across the impact point.'
+  },
+  {
+    id: 'epic-orb-splash',
+    effect_key: 'epic-orb-splash',
+    name: 'Epic Orb Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'mage',
+    character_name: 'Necromancer',
+    rarity: 'epic',
+    coin_cost: 7000,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/NECROMANCER (MAGE)/epic orb SPLASHH.gif',
+    description: 'A devastating void star supernova discharging destructive mystic shocks.'
+  },
+  {
+    id: 'mythical-orb-splash',
+    effect_key: 'mythical-orb-splash',
+    name: 'Mythical Orb Splash',
+    category_slug: 'splash_effect',
+    type: 'splash_effect',
+    character_class: 'mage',
+    character_name: 'Necromancer',
+    rarity: 'mythical',
+    coin_cost: 12000,
+    is_default: false,
+    png_path: '',
+    gif_path: 'assets/SPLASH EFFECTS/NECROMANCER (MAGE)/mythical orb SPLASHH.gif',
+    description: 'An eldritch cosmological rupture exploding with transcendent soul power.'
   }
 ]
 
@@ -248,7 +410,13 @@ export const CHARACTER_DEFAULT_ATTACK_EFFECTS = {
   melee: 'default-melee'
 }
 
-export const DEFAULT_SPLASH_EFFECT_ID = 'default-splash'
+export const CHARACTER_DEFAULT_SPLASH_EFFECTS = {
+  mage: 'default-orb-splash',
+  range: 'default-arrow-splash',
+  melee: 'default-melee-splash'
+}
+
+export const DEFAULT_SPLASH_EFFECT_ID = 'default-orb-splash'
 
 /**
  * Normalize character string to 'mage' | 'range' | 'melee'
@@ -274,10 +442,19 @@ export function getCharacterDefaultAttackEffect(characterClass) {
 }
 
 /**
+ * Returns the character-specific default splash effect object
+ */
+export function getCharacterDefaultSplashEffect(characterClass) {
+  const norm = normalizeCharacterClass(characterClass)
+  const effectId = CHARACTER_DEFAULT_SPLASH_EFFECTS[norm] || 'default-orb-splash'
+  return COSMETIC_EFFECTS.find(e => e.id === effectId) || COSMETIC_EFFECTS.find(e => e.type === 'splash_effect')
+}
+
+/**
  * Returns the default splash effect object
  */
-export function getDefaultSplashEffect() {
-  return COSMETIC_EFFECTS.find(e => e.id === DEFAULT_SPLASH_EFFECT_ID) || COSMETIC_EFFECTS.find(e => e.type === 'splash_effect')
+export function getDefaultSplashEffect(characterClass = 'mage') {
+  return getCharacterDefaultSplashEffect(characterClass)
 }
 
 /**
@@ -318,11 +495,12 @@ export function resolveEquippedAttackEffect(equippedItemOrId, characterClass) {
 }
 
 /**
- * Safely resolves the currently equipped Splash Effect with universal default fallback.
+ * Safely resolves the currently equipped Splash Effect with character default fallback.
  * Never returns null!
  */
-export function resolveEquippedSplashEffect(equippedItemOrId) {
-  const fallback = getDefaultSplashEffect()
+export function resolveEquippedSplashEffect(equippedItemOrId, characterClass = 'mage') {
+  const norm = normalizeCharacterClass(characterClass)
+  const fallback = getCharacterDefaultSplashEffect(norm)
   if (!equippedItemOrId) return fallback
 
   let effectId = ''
@@ -332,8 +510,17 @@ export function resolveEquippedSplashEffect(equippedItemOrId) {
     effectId = String(equippedItemOrId)
   }
 
+  if (effectId === 'default-splash') {
+    return fallback
+  }
+
   const found = COSMETIC_EFFECTS.find(e => e.id === effectId || e.effect_key === effectId)
   if (!found || found.type !== 'splash_effect') {
+    return fallback
+  }
+
+  // If item is character-restricted and doesn't match character, fallback
+  if (found.character_class !== 'all' && found.character_class !== norm) {
     return fallback
   }
 
@@ -343,9 +530,11 @@ export function resolveEquippedSplashEffect(equippedItemOrId) {
 export default {
   COSMETIC_EFFECTS,
   CHARACTER_DEFAULT_ATTACK_EFFECTS,
+  CHARACTER_DEFAULT_SPLASH_EFFECTS,
   DEFAULT_SPLASH_EFFECT_ID,
   normalizeCharacterClass,
   getCharacterDefaultAttackEffect,
+  getCharacterDefaultSplashEffect,
   getDefaultSplashEffect,
   resolveEffectPath,
   resolveEquippedAttackEffect,

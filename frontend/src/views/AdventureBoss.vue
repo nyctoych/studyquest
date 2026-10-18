@@ -38,8 +38,8 @@
           :dialogue-intro="boss?.dialogue_intro || boss?.flavor_text || bossMeta.description"
           :mind-seal-name="boss?.mind_seal_name || bossData?.chapter?.mind_seal_name"
           :fracture-shard-name="boss?.fracture_shard_name || bossData?.chapter?.fracture_shard_name"
-          :max-hp="Number(boss?.max_hp) || (isFinalBoss ? 500 : 300)"
-          :xp-reward="Number(boss?.xp_reward) || (isFinalBoss ? 2500 : 500)"
+          :max-hp="Number(boss?.max_hp) || (isFinalBoss ? 500 : 100)"
+          :xp-reward="Number(boss?.xp_reward) || (isFinalBoss ? 55000 : 6000)"
           :coin-reward="Number(boss?.point_reward) || (isFinalBoss ? 1500 : 300)"
           @retreat="goToMap"
           @start="startBossBattle"
@@ -80,6 +80,7 @@
             @answer="handleAnswer"
             @answered="onQuestionAnswered"
             @next="nextBossQuestion"
+            @dodge-potion="handleDodgePotion"
           />
 
           <!-- Submitting Victory Notice -->
@@ -99,7 +100,7 @@
             :mind-seal-recovered="completionResult?.mind_seal_recovered || boss?.mind_seal_name || bossData?.chapter?.mind_seal_name"
             :fracture-shard-recovered="completionResult?.fracture_shard_recovered || boss?.fracture_shard_name || bossData?.chapter?.fracture_shard_name"
             :is-first-completion="completionResult?.is_first_completion ?? true"
-            :rewards="completionResult?.rewards || { xp: boss?.xp_reward || (isFinalBoss ? 2500 : 500), coins: boss?.point_reward || (isFinalBoss ? 1500 : 300) }"
+            :rewards="completionResult?.rewards || { xp: boss?.xp_reward || (isFinalBoss ? 55000 : 6000), coins: boss?.point_reward || (isFinalBoss ? 1500 : 300) }"
             :next-chapter-unlocked="Boolean(completionResult?.next_chapter_unlocked && completionResult?.next_chapter_id)"
             :next-chapter-order="completionResult?.next_chapter_order || (chapterOrder + 1)"
             :next-chapter-name="completionResult?.next_chapter_name || ''"
@@ -127,7 +128,7 @@
               </div>
               <div class="rec-metric">
                 <span class="rec-label font-pixel">RECOVERY</span>
-                <span class="rec-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+                <span class="rec-val text-gold font-pixel">+1 HP / MIN</span>
               </div>
               <div class="rec-metric">
                 <span class="rec-label font-pixel">NEXT RECOVERY</span>
@@ -168,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useAdventureStore } from '../stores/adventure'
@@ -349,6 +350,12 @@ onMounted(async () => {
   loading.value = false
 })
 
+onUnmounted(() => {
+  if (phase.value === 'battle' && !battleComplete.value) {
+    adventure.abandonActiveBattle()
+  }
+})
+
 const lastDmgType = ref('normal')
 
 function getCharacterBaseHealth() {
@@ -369,8 +376,8 @@ async function startBossBattle() {
   const charBaseHealth = getCharacterBaseHealth()
   const userLvl = Math.max(1, Math.min(50, Number(auth.level || 1)))
   const charScaledMaxHP = Math.round(charBaseHealth * (1 + (userLvl - 1) * 0.10))
-  bossHP.value = boss.value?.max_hp || 300
-  bossMaxHP.value = boss.value?.max_hp || 300
+  bossHP.value = boss.value?.max_hp || 100
+  bossMaxHP.value = boss.value?.max_hp || 100
   playerMaxHP.value = healthStore.maxHp || charScaledMaxHP
   playerHP.value = healthStore.currentHp || charScaledMaxHP
   currentQIdx.value = 0
@@ -399,6 +406,10 @@ async function startBossBattle() {
   phase.value = 'battle'
 
   if (startRes && startRes.success) {
+    if (Array.isArray(startRes.questions) && startRes.questions.length > 0) {
+      questions.value = startRes.questions
+      currentQIdx.value = 0
+    }
     if (startRes.player_current_health !== undefined) playerHP.value = Number(startRes.player_current_health)
     if (startRes.player_max_health !== undefined) playerMaxHP.value = Number(startRes.player_max_health)
     if (startRes.enemy_current_health !== undefined) bossHP.value = Number(startRes.enemy_current_health)
@@ -437,6 +448,29 @@ async function handleAnswer(payload) {
   // Hand off authoritative server result to AdventureBattlefield so it plays the animation BEFORE applying damage!
   if (resolve) {
     resolve(serverRes)
+  }
+}
+
+async function handleDodgePotion({ questionId, questionIndex, resolve } = {}) {
+  try {
+    const res = await adventure.useDodgePotion({
+      battle_id: adventure.activeBattleId,
+      question_id: questionId || currentQ.value?.id,
+      question_index: questionIndex ?? currentQIdx.value
+    })
+    if (res?.success) {
+      answers.value.push({
+        question_id: questionId || currentQ.value?.id,
+        chosen: 'SKIPPED',
+        is_skipped: true
+      })
+      toast.success(`Dodge Potion activated! Question skipped. (${adventure.dodgePotionState.daily_charges}/${adventure.dodgePotionState.daily_max} remaining)`)
+    } else {
+      toast.error(res?.message || 'Failed to use Dodge Potion')
+    }
+    if (resolve) resolve(res)
+  } catch (err) {
+    if (resolve) resolve({ success: false, message: 'Dodge Potion request failed' })
   }
 }
 
@@ -524,15 +558,10 @@ async function nextBossQuestion() {
   const isFinal = currentQIdx.value >= questions.value.length - 1
 
   if (isFinal) {
-    const correctCount = answers.value.filter(a => {
-      const q = questions.value.find(item => item.id === a.question_id)
-      return q && (q.correct_answer || q.correct) === a.chosen
-    }).length
-    const totalQ = questions.value.length || 1
-    const score = Math.round((correctCount / totalQ) * 100)
-
-    // Knowledge Battle: Victory based on demonstration of diagnostic reasoning
-    const isWin = score >= 60
+    // Out of questions: higher HP% wins (mirrors the server's question-50 rule)
+    const playerPct = playerHP.value / (playerMaxHP.value || 1)
+    const bossPct = bossHP.value / (bossMaxHP.value || 1)
+    const isWin = playerHP.value > 0 && playerPct >= bossPct
 
     battleComplete.value = true
     if (isWin) {
@@ -586,11 +615,36 @@ async function goToMap() {
 </script>
 
 <style scoped>
+/* Full-bleed layout overrides to eliminate boxed margins */
+:global(.app-page-wrapper:has(.adv-boss-screen)),
+:global(.app-page-wrapper.has-hud:has(.adv-boss-screen)) {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+}
+
+:global(html:has(.adv-boss-screen)),
+:global(body:has(.adv-boss-screen)),
+:global(#app:has(.adv-boss-screen)) {
+  background: #050608 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .adv-boss-screen {
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   position: relative;
-  padding-top: 0;
-  background: var(--gothic-void, #050608);
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
+  padding-bottom: 0;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  background: #050608;
   user-select: none;
 }
 
@@ -598,28 +652,35 @@ async function goToMap() {
 .defeat-boss-recovery-box {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  background: rgba(18, 5, 10, 0.95);
-  border: 1px solid rgba(225, 29, 72, 0.5);
+  gap: 0.65rem;
+  background: rgba(14, 6, 10, 0.85);
+  border: 1px solid rgba(225, 29, 72, 0.45);
   border-radius: 6px;
-  padding: 0.65rem;
-  margin: 1rem 0;
+  padding: 0.75rem 0.9rem;
+  margin: 0.5rem auto 1.5rem;
   width: 100%;
-  max-width: 480px;
+  max-width: 460px;
+  box-sizing: border-box;
 }
 .rec-metric {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  justify-content: center;
+  padding: 0.45rem 0.35rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  gap: 0.25rem;
 }
 .rec-label {
-  font-size: 0.48rem;
+  font-size: 0.46rem;
   color: #9ca3af;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 .rec-val {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 .text-red { color: #f87171; }
 .text-gold { color: #fbbf24; }
@@ -627,8 +688,16 @@ async function goToMap() {
 .text-crimson { color: #f43f5e; }
 
 .boss-bg {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
   z-index: 0;
   background:
     radial-gradient(ellipse at 50% 30%, var(--boss-glow, rgba(139, 26, 26, 0.2)) 0%, transparent 60%),
@@ -636,8 +705,8 @@ async function goToMap() {
   pointer-events: none;
 }
 .adv-boss-screen.is-in-battle {
-  padding-top: 0;
-  margin-top: -0.75rem;
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
+  margin-top: 0;
 }
 
 .boss-content {
@@ -650,7 +719,7 @@ async function goToMap() {
 }
 
 .adv-boss.is-in-battle {
-  padding-top: 0;
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
   min-height: auto;
   box-sizing: border-box;
 }
@@ -1315,31 +1384,51 @@ async function goToMap() {
 /* Defeat */
 .boss-defeat {
   text-align: center;
-  padding: 2.5rem 1.5rem;
+  padding: 2.25rem 2rem 2.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  max-width: 580px;
+  width: 100%;
+  margin: 2rem auto;
   gap: 0.75rem;
-  background: #0f1017;
-  border: 2px solid var(--color-crimson-bright, #b91c1c);
-  outline: 2px solid #050608;
+  background: radial-gradient(ellipse at 50% 15%, rgba(45, 14, 22, 0.96) 0%, rgba(14, 8, 14, 0.98) 70%, #0a060a 100%);
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 30px rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 .defeat-icon { font-size: 3rem; }
 .defeat-title {
   font-family: var(--font-pixel, monospace);
-  font-size: 1.1rem;
-  color: var(--color-crimson-bright, #b91c1c);
+  font-size: 1.35rem;
+  color: #ef4444;
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+  text-shadow: 0 0 16px rgba(239, 68, 68, 0.75), 0 2px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.08em;
 }
 .defeat-sub {
   font-family: var(--font-body, serif);
-  font-size: 0.85rem;
-  color: var(--color-bone-dark, #8c8273);
-  max-width: 420px;
+  font-size: 0.92rem;
+  color: #c4b5a5;
+  max-width: 440px;
+  line-height: 1.55;
 }
 .defeat-actions {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
   margin-top: 0.5rem;
+}
+.defeat-actions .btn[disabled] {
+  opacity: 0.6;
+  filter: grayscale(0.6);
+  cursor: not-allowed;
 }
 
 @media (max-width: 580px) {

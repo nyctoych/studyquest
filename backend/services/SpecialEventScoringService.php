@@ -18,8 +18,23 @@ class SpecialEventScoringService {
      * Compute authoritative scores and deep breakdown analytics for a Special Event attempt.
      */
     public function evaluateAttempt(int $attemptId, int $eventId): array {
-        // Fetch all authoritative questions for this event
-        $questions = $this->questionModel->getByEventId($eventId);
+        require_once __DIR__ . '/../models/SpecialEventAttempt.php';
+        $attemptModel = new SpecialEventAttempt();
+        $attempt = $attemptModel->find($attemptId);
+        $sessionNumber = (int) ($attempt['session_number'] ?? 1);
+
+        // Fetch questions for this specific session attempt
+        $allQuestions = $this->questionModel->getByEventId($eventId);
+        if (!empty($attempt['question_order']) && is_array($attempt['question_order'])) {
+            $orderMap = array_flip($attempt['question_order']);
+            $questions = array_filter($allQuestions, fn($q) => isset($orderMap[$q['id']]));
+        } else {
+            $questions = array_filter($allQuestions, fn($q) => ((int)($q['session_number'] ?? 1)) === $sessionNumber);
+        }
+        if (empty($questions)) {
+            $questions = $allQuestions;
+        }
+
         $totalQuestions = count($questions);
 
         // Fetch user's submitted answers
@@ -31,6 +46,7 @@ class SpecialEventScoringService {
         $totalResponseTime = 0;
 
         $responseTimes = [];
+        $subjectStats = [];
         $domainStats = [];
         $partStats = [];
         $difficultyStats = [];
@@ -41,6 +57,7 @@ class SpecialEventScoringService {
 
         foreach ($questions as $q) {
             $qId = (int) $q['id'];
+            $subjName = $q['subject_name'] ?? 'Psychopathology';
             $domId = (int) $q['domain_id'];
             $domName = $q['domain_name'] ?: "Domain {$domId}";
             $partId = (int) $q['study_part_id'];
@@ -50,6 +67,9 @@ class SpecialEventScoringService {
             $correctChoice = strtoupper($q['correct_choice']);
 
             // Init breakdowns
+            if (!isset($subjectStats[$subjName])) {
+                $subjectStats[$subjName] = ['subject_name' => $subjName, 'total' => 0, 'correct' => 0];
+            }
             if (!isset($domainStats[$domId])) {
                 $domainStats[$domId] = ['domain_id' => $domId, 'name' => $domName, 'total' => 0, 'correct' => 0];
             }
@@ -63,6 +83,7 @@ class SpecialEventScoringService {
                 $typeStats[$qType] = ['type' => $qType, 'total' => 0, 'correct' => 0];
             }
 
+            $subjectStats[$subjName]['total']++;
             $domainStats[$domId]['total']++;
             $partStats[$partId]['total']++;
             $difficultyStats[$diff]['total']++;
@@ -128,6 +149,11 @@ class SpecialEventScoringService {
         $slowestResponse = !empty($responseTimes) ? max($responseTimes) : 0;
 
         // Format percentages
+        foreach ($subjectStats as &$sub) {
+            $sub['percentage'] = $sub['total'] > 0 ? round(($sub['correct'] / $sub['total']) * 100, 1) : 0;
+        }
+        unset($sub);
+
         foreach ($domainStats as &$ds) {
             $ds['percentage'] = $ds['total'] > 0 ? round(($ds['correct'] / $ds['total']) * 100, 1) : 0;
         }
@@ -208,6 +234,8 @@ class SpecialEventScoringService {
         usort($weakDomains, fn($a, $b) => $a['percentage'] <=> $b['percentage']);
 
         return [
+            'attempt_id' => $attemptId,
+            'session_number' => $sessionNumber,
             'total_questions' => $totalQuestions,
             'score' => $correctCount,
             'correct_count' => $correctCount,
@@ -218,6 +246,7 @@ class SpecialEventScoringService {
             'average_response_time' => $avgResponseTime,
             'fastest_response' => $fastestResponse,
             'slowest_response' => $slowestResponse,
+            'subjects' => array_values($subjectStats),
             'domains' => array_values($domainStats),
             'parts' => array_values($partStats),
             'difficulties' => array_values($difficultyStats),

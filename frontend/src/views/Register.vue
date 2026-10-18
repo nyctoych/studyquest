@@ -111,10 +111,12 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useWelcomeModalStore } from '../stores/welcomeModal'
 
 const router = useRouter()
 const auth   = useAuthStore()
 const toast  = useToastStore()
+const welcomeModal = useWelcomeModalStore()
 
 const form    = ref({ username: '', nickname: '', email: '', password: '', confirm: '' })
 const error   = ref('')
@@ -143,8 +145,9 @@ async function handleRegister() {
   loading.value = false
 
   if (result.success) {
+    welcomeModal.markPendingForNewLogin()
     toast.success('Welcome to StudyQuest! 🎉 Your dark journey begins now!')
-    router.push('/tutorial')
+    router.push('/character-selection')
   } else {
     error.value = result.message
   }

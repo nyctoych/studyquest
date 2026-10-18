@@ -441,9 +441,9 @@ class CurriculumService {
             ");
             $upPart->execute([$userId, $partId, $newStatus, $bestScore, $newAttempts]);
 
-            // Base XP & Coins
-            $baseXp = (int)$part['xp_reward'];
-            $baseCoins = (int)$part['coin_reward'];
+            // Base XP & Coins (Study Hall: 1,250 XP per reviewer)
+            $baseXp = (int)($part['xp_reward'] ?: 1250);
+            $baseCoins = (int)($part['coin_reward'] ?: 25);
 
             if (!$wasAlreadyPassed) {
                 $xpAwarded = $baseXp;
@@ -506,8 +506,15 @@ class CurriculumService {
 
             if ($nowCompleted && !$prevDomainCompleted) {
                 $domainCompleted = true;
+                $otherCompleted = (int)$this->db->query("
+                    SELECT COUNT(*) FROM user_domain_progress 
+                    WHERE user_id = {$userId} AND is_completed = 1 AND domain_id != {$part['domain_id']}
+                ")->fetchColumn();
+                $isLastDomain = ($otherCompleted >= 11);
+
+                $domainXp = $isLastDomain ? 3700 : 3300;
                 $domainRewards = [
-                    'xp' => 500,
+                    'xp' => $domainXp,
                     'coins' => 300,
                     'title' => "Master of {$part['domain_name']}"
                 ];

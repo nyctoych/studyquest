@@ -28,7 +28,9 @@ const folders = [
   'ATTACK EFFECTS',
   'SPLASH EFFECTS',
   'POTIONS',
-  'MUSIC'
+  'MUSIC',
+  'PROFILE-AVATAR',
+  'FINALBOSS BACKSTORY'
 ]
 
 for (const folder of folders) {

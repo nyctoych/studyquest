@@ -108,6 +108,13 @@ export const useTransitionStore = defineStore('transition', () => {
       themeColor: 'gold',
       type: 'library'
     },
+    '/hall-of-fame': {
+      title: 'ENTERING HALL OF FAME',
+      subtitle: 'Celebrating verified board examination passers...',
+      icon: 'crown',
+      themeColor: 'gold',
+      type: 'records'
+    },
     '/leaderboard': {
       title: 'ENTERING HALL OF RECORDS',
       subtitle: 'Chronicles of the realm’s highest scholars...',

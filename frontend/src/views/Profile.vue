@@ -23,6 +23,11 @@
           <div class="avatar-glow-ring">
             <AvatarImg :size="190" />
           </div>
+          <div class="avatar-class-lock-badge" :class="`theme-${(auth.characterClass || 'mage').toLowerCase()}`">
+            <span class="lock-icon">🔒</span>
+            <span class="class-title">{{ characterClassDisplay }}</span>
+          </div>
+          <div class="avatar-lock-hint">PROFILE AVATAR IS FIXED • BOUND TO CHOSEN CLASS</div>
         </div>
 
         <div class="avatar-identity">
@@ -35,10 +40,16 @@
           </div>
         </div>
 
-        <div class="avatar-quick-actions">
+        <div class="avatar-quick-actions flex flex-col gap-2">
           <router-link to="/character" class="btn btn-secondary btn-sm flex items-center gap-1.5">
             <PixelEmoji emoji="shield" size="xs" /> Character Hall (Cosmetics) →
           </router-link>
+          <router-link to="/character-selection" class="btn btn-outline btn-sm flex items-center justify-center gap-1.5">
+            ⚔️ Switch Vessel / Class →
+          </router-link>
+          <button type="button" class="btn btn-ghost btn-sm flex items-center justify-center gap-1.5" @click="replayTutorial">
+            ↺ Replay Onboarding Tutorial
+          </button>
         </div>
 
         <!-- Academic Stats Overview Mini Card -->
@@ -136,20 +147,33 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { profileService } from '../services/profileService'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTutorialStore } from '../stores/tutorial'
 import { formatXP, formatPoints } from '../utils/formatters'
 import AvatarImg from '../components/AvatarImg.vue'
 
 const auth = useAuthStore()
 const toast = useToastStore()
+const tutorialStore = useTutorialStore()
+
+function replayTutorial() {
+  tutorialStore.replayTutorial()
+}
 
 const nicknameVal = ref('')
 const selectedTitle = ref('Scholar Novice')
 const studyBio = ref('')
 const saving = ref(false)
+
+const characterClassDisplay = computed(() => {
+  const cls = (auth.characterClass || 'MAGE').toUpperCase()
+  if (cls === 'MELEE') return 'MELEE • DUAL-WIELDER'
+  if (cls === 'RANGE') return 'RANGE • ARCHER'
+  return 'MAGE • NECROMANCER'
+})
 
 const cosmeticSlots = [
   { slug: 'character_skin', name: 'Skin' },
@@ -283,6 +307,50 @@ onMounted(() => {
 
 .avatar-stage {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatar-class-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  margin-top: 0.75rem;
+  border-radius: 4px;
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.avatar-class-lock-badge.theme-mage {
+  border-color: rgba(168, 85, 247, 0.6);
+  color: #d8b4fe;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}
+
+.avatar-class-lock-badge.theme-melee {
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #93c5fd;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+.avatar-class-lock-badge.theme-range {
+  border-color: rgba(34, 197, 94, 0.6);
+  color: #86efac;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+}
+
+.avatar-lock-hint {
+  display: block;
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.55rem;
+  color: #8a8894;
+  letter-spacing: 0.06em;
+  margin-top: 0.35rem;
 }
 
 .avatar-glow-ring {

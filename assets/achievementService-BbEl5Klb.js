@@ -1,0 +1,1 @@
+import{H as e}from"./index-Dl23V-fx.js";const t={getAll:()=>e.get("/achievements"),claim:i=>e.post("/achievements/claim",{milestone_id:i}),claimAll:()=>e.post("/achievements/claim-all"),getPublicShare:i=>e.get(`/achievements/public/${i}`)};export{t as a};

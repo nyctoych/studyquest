@@ -27,7 +27,7 @@ const props = defineProps({
   },
   totalSeconds: {
     type: Number,
-    default: 8400
+    default: 10800
   }
 })
 

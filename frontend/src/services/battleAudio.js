@@ -24,6 +24,108 @@ function getAudioContext() {
   return audioCtx
 }
 
+let lastClickSoundTime = 0
+let isGlobalListenerAttached = false
+
+function isInteractiveElement(target) {
+  if (!target || !(target instanceof Element)) return false
+
+  // Skip text inputs, password fields, textareas, and contenteditable elements to avoid annoying sounds while typing
+  const isTextInput = target.closest(
+    'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]'
+  )
+  if (isTextInput) return false
+
+  // Skip disabled or inert elements
+  const isDisabled = target.closest('[disabled], .disabled, [aria-disabled="true"], [inert]')
+  if (isDisabled) return false
+
+  // Primary interactive selectors across all StudyQuest views & components
+  const interactiveSelector = [
+    'button',
+    'a[href]',
+    'input[type="button"]',
+    'input[type="submit"]',
+    'input[type="reset"]',
+    'input[type="checkbox"]',
+    'input[type="radio"]',
+    '[role="button"]',
+    '[role="tab"]',
+    '[role="switch"]',
+    '[role="menuitem"]',
+    '[role="checkbox"]',
+    '[role="radio"]',
+    '[role="link"]',
+    '.world-hotspot-building',
+    '.building-hitbox',
+    '.world-side-nav',
+    '.side-nav-card',
+    '.world-spot',
+    '.btn',
+    '.hud-btn',
+    '.action-icon-btn',
+    '.rpg-dropdown-btn',
+    '.menu-item',
+    '.tab-btn',
+    '.filter-btn',
+    '.nav-item',
+    '.drawer-nav-item',
+    '.navbar-stat',
+    '.navbar-avatar',
+    '.card',
+    '.chapter-node',
+    '.node-card',
+    '.study-hall-book-wrapper',
+    '.study-hall-page-row',
+    '.character-card',
+    '.market-card',
+    '.market-item-card',
+    '.achievement-card',
+    '.ranking-row',
+    '.close-btn',
+    '.serious-return-btn',
+    '.serious-music-toggle-btn',
+    '.serious-theme-toggle-btn',
+    '.vol-step-btn',
+    '.vol-center-trigger',
+    '.preset-chip',
+    '.popover-mute-btn',
+    '.sfx-toggle-pill',
+    '[data-clickable]'
+  ].join(',')
+
+  if (target.closest(interactiveSelector)) return true
+
+  // Fallback check: inspect computed style cursor up to 4 parents
+  let cur = target
+  let depth = 0
+  while (cur && cur !== document.body && depth < 4) {
+    try {
+      const style = window.getComputedStyle(cur)
+      if (style && style.cursor === 'pointer') {
+        return true
+      }
+    } catch {
+      break
+    }
+    cur = cur.parentElement
+    depth++
+  }
+
+  return false
+}
+
+function handleGlobalClick(event) {
+  try {
+    const target = event.target
+    if (isInteractiveElement(target)) {
+      baseAudio.playBookOpen()
+    }
+  } catch {
+    // Suppressed
+  }
+}
+
 const baseAudio = {
   setSfxEnabled(val) {
     sfxEnabled = Boolean(val)
@@ -39,23 +141,40 @@ const baseAudio = {
   },
 
   /**
-   * Sound when selecting an answer action / UI click
+   * Sound when selecting an answer action / UI click / Realm & Module interaction
+   * Uses the signature Study Hall click sound effect (320Hz -> 540Hz triangle wave)
    */
   playSelect() {
+    this.playBookOpen()
+  },
+
+  playClick() {
+    this.playBookOpen()
+  },
+
+  playUiClick() {
+    this.playBookOpen()
+  },
+
+  /**
+   * Sound for locked actions or error clicks
+   */
+  playError() {
     try {
       const ctx = getAudioContext()
       if (!ctx) return
+      const now = ctx.currentTime
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-      osc.type = 'square'
-      osc.frequency.setValueAtTime(440, ctx.currentTime)
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08)
-      gain.gain.setValueAtTime(0.06 * masterVolume, ctx.currentTime)
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.08)
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(180, now)
+      osc.frequency.setValueAtTime(130, now + 0.08)
+      gain.gain.setValueAtTime(0.08 * masterVolume, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.18)
       osc.connect(gain)
       gain.connect(ctx.destination)
-      osc.start()
-      osc.stop(ctx.currentTime + 0.08)
+      osc.start(now)
+      osc.stop(now + 0.18)
     } catch {
       // Suppressed
     }
@@ -225,10 +344,14 @@ const baseAudio = {
   },
 
   /**
-   * Sound when opening a grimoire/volume book
+   * Sound when opening a grimoire/volume book (Signature Study Hall click sound)
    */
   playBookOpen() {
     try {
+      const nowMs = Date.now()
+      if (nowMs - lastClickSoundTime < 60) return
+      lastClickSoundTime = nowMs
+
       const ctx = getAudioContext()
       if (!ctx) return
       const now = ctx.currentTime
@@ -344,7 +467,27 @@ const baseAudio = {
     } catch {
       // Suppressed
     }
+  },
+
+  /**
+   * Attaches the global click listener across the entire DOM
+   */
+  initGlobalClickListener() {
+    if (typeof window === 'undefined' || isGlobalListenerAttached) return
+    isGlobalListenerAttached = true
+    window.addEventListener('click', handleGlobalClick, { capture: true, passive: true })
+  },
+
+  destroyGlobalClickListener() {
+    if (typeof window === 'undefined' || !isGlobalListenerAttached) return
+    window.removeEventListener('click', handleGlobalClick, { capture: true, passive: true })
+    isGlobalListenerAttached = false
   }
+}
+
+// Auto-initialize global click listener in browser runtime
+if (typeof window !== 'undefined') {
+  baseAudio.initGlobalClickListener()
 }
 
 /**

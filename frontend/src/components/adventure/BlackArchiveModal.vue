@@ -96,9 +96,9 @@
             <div class="creator-meta">
               <span class="creator-badge">THE ARCHITECT</span>
               <h2 class="creator-name">THE CREATOR</h2>
-              <h4 class="creator-title">Author of Mindrealm & Origin of the Fracture</h4>
+              <h4 class="creator-title">The Alternate Side of the Author & Origin of the Fracture</h4>
               <p class="creator-quote">
-                "He wrote the world. He wrote the hero. He wrote the ending. But he could not write the choice."
+                "She created the world to understand it... but the alternate side demanded perfection and control."
               </p>
             </div>
           </div>

@@ -22,8 +22,59 @@
   --radius-lg:       16px;
   --sidebar-width:   240px;
   --transition:      0.2s ease;
+  --hud-bg:                 rgba(8, 10, 14, 0.96);
+  --hud-border:             rgba(255,255,255,0.08);
+  --hud-name-pill-bg:       rgba(22, 14, 38, 0.9);
+  --hud-name-pill-border:   rgba(168, 85, 247, 0.5);
+  --hud-name-color:         #ffffff;
+  --hud-sub-badge-bg:       rgba(10, 6, 20, 0.95);
+  --hud-sub-badge-border:   rgba(251, 191, 36, 0.4);
+  --hud-sub-badge-color:    #fbbf24;
+  --hud-health-bg:          rgba(24, 10, 16, 0.95);
+  --hud-health-border:      rgba(34, 197, 94, 0.55);
+  --hud-health-val-color:   #86efac;
+  --hud-health-lbl-color:   #4ade80;
+  --choice-card-bg:         rgba(30, 20, 56, 0.75);
+  --choice-card-border:     rgba(139, 92, 246, 0.4);
+  --choice-key-bg:          rgba(139, 92, 246, 0.3);
+  --choice-key-border:      rgba(168, 85, 247, 0.5);
+  --choice-key-color:       #fbbf24;
+  --choice-text-color:      #f1f5f9;
 }
 
+[data-theme="morning"],
+.theme-morning {
+  --hud-bg:                 #FFF4DF;
+  --hud-border:             #B88A42;
+  --hud-name-pill-bg:       #FFF4DF;
+  --hud-name-pill-border:   #B88A42;
+  --hud-name-color:         #3D2B1F;
+  --hud-sub-badge-bg:       #EAD8B5;
+  --hud-sub-badge-border:   #B88A42;
+  --hud-sub-badge-color:    #3D2B1F;
+  --hud-health-bg:          #FFF4DF;
+  --hud-health-border:      #B88A42;
+  --hud-health-val-color:   #166534;
+  --hud-health-lbl-color:   #166534;
+  --choice-card-bg:         #FFFDF7;
+  --choice-card-border:     #B88A42;
+  --choice-key-bg:          #EAD8B5;
+  --choice-key-border:      #B88A42;
+  --choice-key-color:       #8F642D;
+  --choice-text-color:      #3D2B1F;
+  --color-bg:        #F5E8CC;
+  --color-sidebar:   #FFF4DF;
+  --color-card:      #FFF4DF;
+  --color-card-hover:#EAD8B5;
+  --color-border:    #B88A42;
+  --color-text:      #3D2B1F;
+  --color-muted:     #77634F;
+  --color-quest:     #8F642D;
+  --color-gold:      #B88A42;
+  --color-streak:    #b45309;
+  --color-success:   #166534;
+  --color-danger:    #991b1b;
+}
 /* ─── Base Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 

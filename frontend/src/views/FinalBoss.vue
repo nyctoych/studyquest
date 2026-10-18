@@ -2,8 +2,8 @@
   <div
     class="final-boss-screen"
     :class="{
-      'is-in-battle': phase === 'battle',
-      'is-in-revelation': phase === 'father_revelation'
+      'is-in-battle': phase === 'battle' || phase === 'cutscene',
+      'is-in-revelation': phase === 'dialogue'
     }"
     :style="{ '--boss-accent': bossMeta.accentColor, '--boss-glow': bossMeta.accentGlow }"
   >
@@ -12,8 +12,8 @@
     <div
       class="boss-content"
       :class="{
-        'is-battle-mode': phase === 'battle',
-        'is-revelation-mode': phase === 'father_revelation'
+        'is-battle-mode': phase === 'battle' || phase === 'cutscene',
+        'is-revelation-mode': phase === 'dialogue'
       }"
     >
       <!-- LOADING STATE -->
@@ -36,17 +36,15 @@
         </button>
       </div>
 
-      <!-- THE FATHER'S REVELATION (PRE-BATTLE RESTORED SEQUENCE) -->
-      <div v-else-if="phase === 'father_revelation'" class="father-revelation-scene gothic-panel animate-scale-up">
+      <!-- PRE-BATTLE DIALOGUE SEQUENCE -->
+      <div v-else-if="phase === 'dialogue'" class="pre-battle-dialogue-scene gothic-panel animate-scale-up">
         <div class="fr-apex-tag">
           <span class="fr-key-icon">🗝</span>
           <span class="fr-tag-text font-pixel">THE BLACK ARCHIVE — APEX GATE</span>
         </div>
 
-        <h1 class="fr-main-title font-pixel">THE FATHER'S REVELATION</h1>
-
         <p class="fr-subtitle">
-          Before the final chamber unlocks, an unexpected figure steps from the shadows.
+          Before the final chamber opens, a familiar figure steps from the shadows.
         </p>
 
         <div class="fr-portrait-frame">
@@ -57,22 +55,22 @@
           />
         </div>
 
-        <div class="fr-dialogue-box" @click="nextFatherDialogue" title="Click to advance dialogue">
+        <div class="fr-dialogue-box" @click="nextDialogue" title="Click to advance dialogue">
           <div class="fr-speaker-row">
-            <span class="fr-speaker-name font-pixel">{{ currentFatherDialogue.speaker }}</span>
-            <span class="fr-speaker-role font-pixel">{{ currentFatherDialogue.role }}</span>
+            <span class="fr-speaker-name font-pixel">{{ currentDialogue.speaker }}</span>
+            <span class="fr-speaker-role font-pixel">{{ currentDialogue.role }}</span>
           </div>
 
           <div class="fr-dialogue-text font-pixel">
-            “{{ currentFatherDialogue.text }}”
+            “{{ currentDialogue.text }}”
           </div>
 
           <div class="fr-dots-row">
             <span
-              v-for="idx in 8"
+              v-for="idx in preBattleDialogues.length"
               :key="idx"
               class="fr-dot"
-              :class="{ 'is-active': fatherStep === (idx - 1) }"
+              :class="{ 'is-active': dialogueStep === (idx - 1) }"
             ></span>
           </div>
         </div>
@@ -80,17 +78,16 @@
         <div class="fr-actions-row">
           <button
             class="btn btn-gothic-crimson btn-lg fr-proceed-btn"
-            :class="{ 'fr-unseal-pulse': fatherStep === 7 }"
-            :disabled="submittingRevelation"
-            @click.stop="nextFatherDialogue"
+            :class="{ 'fr-unseal-pulse': dialogueStep === preBattleDialogues.length - 1 }"
+            @click.stop="nextDialogue"
           >
-            <span v-if="fatherStep < 7">NEXT DIALOGUE →</span>
-            <span v-else>UNSEAL THE ARCHIVE & ENTER BATTLE →</span>
+            <span v-if="dialogueStep < preBattleDialogues.length - 1">NEXT DIALOGUE →</span>
+            <span v-else>ENTER CHAMBER →</span>
           </button>
           <span class="fr-click-hint font-pixel">✦ Click dialogue box or button to continue · [SPACE] / [ENTER] ✦</span>
         </div>
 
-        <div v-if="alreadyRevealed" class="fr-skip-row">
+        <div class="fr-skip-row">
           <button class="fr-skip-btn" @click.stop="proceedToCreatorIntro">
             SKIP TO CHAMBER ▸
           </button>
@@ -119,11 +116,11 @@
         <div class="boss-identity-card">
           <span class="boss-domain-badge">APEX TRIAL — THE GENESIS ARCHIVE</span>
           <h1 class="boss-title-name">THE CREATOR</h1>
-          <span class="boss-guardian-title">Author of Mindrealm & Origin of the Fracture</span>
+          <span class="boss-guardian-title">The Alternate Side of the Author & Origin of the Fracture</span>
 
           <div class="boss-dialogue-card">
             <p class="intro-dialogue-quote">
-              "He wrote the world. He wrote the hero. He wrote the ending. But he could not write the choice."
+              "She created the world to understand it... but the alternate side demanded perfection and control."
             </p>
             <p class="intro-lore-body">
               {{ bossMeta.description }}
@@ -160,12 +157,17 @@
           </div>
 
           <div class="boss-intro-actions">
-            <button class="btn btn-gothic-stone" @click="goToAdventure">
-              ← MAP
-            </button>
-            <button class="btn btn-gothic-stone" @click="replayFatherRevelation">
-              📜 FATHER'S REVELATION
-            </button>
+            <div class="intro-nav-btns">
+              <button class="btn btn-gothic-stone" @click="goToAdventure">
+                ← MAP
+              </button>
+              <button class="btn btn-gothic-stone" @click="replayDialogue">
+                📜 BACK TO DIALOGUE
+              </button>
+              <button v-if="alreadyCompletedCampaign" class="btn btn-gothic-stone" @click="replayCutscene">
+                📖 THE DAUGHTER'S STORY
+              </button>
+            </div>
             <button class="btn btn-gothic-crimson btn-lg proceed-btn" @click="startFinalBossBattle">
               <span>CONFRONT THE CREATOR</span>
               <span class="btn-arrow">▸</span>
@@ -211,6 +213,7 @@
           @answered="onQuestionAnswered"
           @next="nextQuestion"
           @final-victory="onCreatorBattleDefeated"
+          @dodge-potion="handleDodgePotion"
         />
 
         <!-- Submitting Final Victory Notice -->
@@ -236,7 +239,7 @@
           </div>
           <div class="rec-metric">
             <span class="rec-label font-pixel">RECOVERY</span>
-            <span class="rec-val text-gold font-pixel">+{{ healthStore.regenRate }} HP / HR</span>
+            <span class="rec-val text-gold font-pixel">+1 HP / MIN</span>
           </div>
           <div class="rec-metric">
             <span class="rec-label font-pixel">NEXT RECOVERY</span>
@@ -259,47 +262,13 @@
         </div>
       </div>
 
-      <!-- STORY SCENE 1: CREATOR DEFEAT DIALOGUE -->
-      <FinalStoryScene
-        v-else-if="phase === 'creator_dialogue'"
-        :title="'THE CREATOR — REALIZATION'"
-        :background="resolveAsset('assets/adventure/battlefields/final-black-archive.jpg')"
-        :tone="'archive'"
-        :lines="creatorDefeatLines"
-        @done="onCreatorDialogueDone"
-      />
-
-      <!-- STORY SCENE 2: WORLD COLLAPSE -->
-      <FinalStoryScene
-        v-else-if="phase === 'world_collapse'"
-        :title="'THE BLACK ARCHIVE — COLLAPSE'"
-        :background="resolveAsset('assets/adventure/battlefields/final-black-archive.jpg')"
-        :tone="'archive'"
-        :collapse="true"
-        :fx-phase="3"
-        :lines="worldCollapseLines"
-        @done="onWorldCollapseDone"
-      />
-
-      <!-- STORY SCENE 3: MERCHANT (RAVEN) REVEAL -->
-      <FinalStoryScene
-        v-else-if="phase === 'merchant_reveal'"
-        :title="'THE MARKETPLACE — THE MERCHANT\'S CONFESSION'"
-        :background="resolveAsset('assets/adventure/battlefields/final-black-archive.jpg')"
-        :tone="'calm'"
-        :lines="merchantRevealLines"
-        @done="onMerchantRevealDone"
-      />
-
-      <!-- STORY SCENE 4: QUIET EPILOGUE -->
-      <FinalStoryScene
-        v-else-if="phase === 'epilogue'"
-        :title="'EPILOGUE — THE WRITING DESK'"
-        :background="resolveAsset('assets/adventure/backgrounds/final-epilogue-room.jpg')"
-        :tone="'epilogue'"
-        :lines="epilogueLines"
-        @done="onEpilogueDone"
-      />
+      <!-- POST-DEFEAT CINEMATIC: THE DAUGHTER'S STORY -->
+      <div v-else-if="phase === 'cutscene'" class="boss-cutscene-arena animate-scale-up">
+        <CreatorPostDefeatCinematic
+          @complete="onCutsceneComplete"
+          @scene-change="onCutsceneSceneChange"
+        />
+      </div>
 
       <!-- FINAL CAMPAIGN COMPLETE SCREEN -->
       <div v-else-if="phase === 'campaign_complete'" class="campaign-complete-panel gothic-panel animate-scale-up">
@@ -342,12 +311,16 @@
               <span class="reward-val">+{{ completionResult?.rewards?.coins || 1500 }} GOLD</span>
             </div>
             <div class="reward-pill">
-              <span class="reward-icon">🖋️</span>
-              <span class="reward-val">THE FINAL AUTHOR</span>
+              <span class="reward-icon">⚔️</span>
+              <span class="reward-val">THE OTHER SIDE</span>
             </div>
             <div class="reward-pill">
-              <span class="reward-icon">📖</span>
-              <span class="reward-val">THE LAST PAGE</span>
+              <span class="reward-icon">📜</span>
+              <span class="reward-val">THE FINAL PAGE</span>
+            </div>
+            <div class="reward-pill">
+              <span class="reward-icon">🕊️</span>
+              <span class="reward-val">A STORY REMEMBERED</span>
             </div>
           </div>
           <p v-if="completionResult?.already_completed" class="replay-notice">
@@ -359,6 +332,12 @@
         <div class="complete-actions">
           <button class="btn btn-gothic-crimson btn-lg" @click="goToCitadel">
             🏰 RETURN TO CITADEL
+          </button>
+          <button class="btn btn-gothic-stone btn-lg" @click="replayCutscene">
+            📖 REPLAY THE DAUGHTER'S STORY
+          </button>
+          <button class="btn btn-gothic-stone btn-lg" @click="replayFinalBattle">
+            ⚔️ RE-FIGHT THE CREATOR
           </button>
           <button class="btn btn-gothic-stone btn-lg" @click="goToChronicle">
             📜 VIEW CHRONICLE
@@ -383,7 +362,7 @@ import { useHealthStore } from '../stores/health'
 import PixelEmoji from '../components/ui/PixelEmoji.vue'
 import AdventureBattlefield from '../components/adventure/AdventureBattlefield.vue'
 import BattleResultCharacter from '../components/adventure/BattleResultCharacter.vue'
-import FinalStoryScene from '../components/adventure/FinalStoryScene.vue'
+import CreatorPostDefeatCinematic from '../components/adventure/CreatorPostDefeatCinematic.vue'
 import { resolveAsset, getFinalBoss } from '../services/bossMapping'
 
 const router = useRouter()
@@ -396,106 +375,74 @@ const healthStore = useHealthStore()
 const bossMeta = getFinalBoss()
 
 // State Machine Phases:
-// 'loading' | 'locked' | 'father_revelation' | 'intro' | 'battle' | 'defeat' | 'creator_dialogue' | 'world_collapse' | 'merchant_reveal' | 'epilogue' | 'campaign_complete'
+// 'loading' | 'locked' | 'dialogue' | 'intro' | 'battle' | 'defeat' | 'cutscene' | 'campaign_complete'
 const phase = ref('loading')
 const lockedMessage = ref('')
-const fatherStep = ref(0)
-const alreadyRevealed = ref(false)
-const submittingRevelation = ref(false)
+const dialogueStep = ref(0)
 
-const fatherDialogues = [
+const preBattleDialogues = [
   {
     speaker: 'Raven',
-    role: 'The Merchant',
+    role: 'Merchant of Mindrealm',
     text: 'I knew you would make it here. From the moment you stepped into my shop, I recognized the gait. The expression. The questions you asked.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'I am his father.'
+    role: 'Merchant of Mindrealm',
+    text: 'You have walked every corridor of this realm, cataloging each guardian and bringing quiet to fractured thoughts.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'My son was a writer. He created the Mindrealm. At first, it was simply a story—a grand fantasy world filled with towers, riddles, and ancient guardians.'
+    role: 'Merchant of Mindrealm',
+    text: 'Mindrealm was written as a sanctuary—a place where difficult experiences were given names and mastered with logic.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'But over time, he began putting more and more of himself into it. When life became difficult to manage, the stories became his sanctuary. A place where every problem had a classification. Where every pain could be given a name and mastered with logic.'
+    role: 'Merchant of Mindrealm',
+    text: 'Those twelve guardians you faced were never monsters. They were symbolic reflections of themes wrestled to understand: time, perception, extremes, loss, worry, control, identity.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'Those twelve guardians you faced were never monsters. They were fictional manifestations—symbolic reflections of themes he wrestled to understand: time, perception, extremes, loss, worry, control, identity.'
+    role: 'Merchant of Mindrealm',
+    text: 'And then... you were written into the story.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'And then... he wrote you.'
+    role: 'Merchant of Mindrealm',
+    text: 'You were not part of the first draft. When the story could no longer find its conclusion, a protagonist was imagined—one capable of facing every trial and reaching this chamber.'
   },
   {
     speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'You were not part of the first draft. When he realized he was trapped in his own endless revisions, he wrote a protagonist capable of traveling through every chapter, facing every guardian, and reaching this chamber.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'The Father of the Creator',
-    text: 'You were his way of writing an ending. The door is unlocked now. Go inside. Face the author.'
+    role: 'Merchant of Mindrealm',
+    text: 'She wanted someone to reach the ending she could not find on her own. The door is open now. Beyond it is the part of her story she could never bring under control. Go inside, Mindkeeper. Face The Creator.'
   }
 ]
 
-const currentFatherDialogue = computed(() => fatherDialogues[fatherStep.value] || fatherDialogues[0])
+const currentDialogue = computed(() => preBattleDialogues[dialogueStep.value] || preBattleDialogues[0])
 
-async function nextFatherDialogue() {
-  if (fatherStep.value < 7) {
-    fatherStep.value++
+function nextDialogue() {
+  if (dialogueStep.value < preBattleDialogues.length - 1) {
+    dialogueStep.value++
   } else {
-    await unsealArchiveAndEnterBattle()
+    proceedToCreatorIntro()
   }
-}
-
-function replayFatherRevelation() {
-  fatherStep.value = 0
-  phase.value = 'father_revelation'
 }
 
 function proceedToCreatorIntro() {
   phase.value = 'intro'
 }
 
-async function unsealArchiveAndEnterBattle() {
-  if (submittingRevelation.value) return
-  submittingRevelation.value = true
-  try {
-    const res = await adventure.completeFatherRevelation()
-    alreadyRevealed.value = true
-    if (res?.new_achievements?.length) {
-      toast.success('ACHIEVEMENT UNLOCKED: The Truth Behind The Merchant!')
-    }
-  } catch (err) {
-    console.warn('Error completing father revelation:', err)
-  } finally {
-    submittingRevelation.value = false
-  }
+function replayDialogue() {
+  dialogueStep.value = 0
+  phase.value = 'dialogue'
+}
 
-  // Atmospheric GameTransition
-  transitionStore.destination = {
-    title: 'UNSEALING THE BLACK ARCHIVE',
-    subtitle: 'The door unlocks. Face the author of Mindrealm...',
-    icon: 'castle',
-    themeColor: 'crimson',
-    type: 'gate'
+function onGlobalKeyDown(e) {
+  if (phase.value !== 'dialogue') return
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
+    e.preventDefault()
+    nextDialogue()
   }
-  transitionStore.isTransitioning = true
-  await new Promise(resolve => setTimeout(resolve, 200))
-  transitionStore.isCovered = true
-  phase.value = 'intro'
-  await new Promise(resolve => setTimeout(resolve, 150))
-  transitionStore.isCovered = false
-  await new Promise(resolve => setTimeout(resolve, 220))
-  transitionStore.isTransitioning = false
 }
 
 // Combat State
@@ -548,123 +495,11 @@ function getCharacterBaseHealth() {
   return 150
 }
 
-// ── NARRATIVE SCENE SCRIPT DEFINITIONS ───────────────────────
-const creatorDefeatLines = computed(() => [
-  {
-    speaker: 'The Creator',
-    role: 'Author of Mindrealm',
-    portrait: resolveAsset('assets/BOSS/WRITER - FINAL BOSS/The Creator - Dialogue State.gif'),
-    text: 'The pen has fallen.'
-  },
-  {
-    speaker: 'The Creator',
-    role: 'Author of Mindrealm',
-    portrait: resolveAsset('assets/BOSS/WRITER - FINAL BOSS/The Creator - Dialogue State.gif'),
-    text: 'I spent so long trying to write a world where nothing hurt... where every grief was categorized, and every fear had a clean definition.'
-  },
-  {
-    speaker: 'The Creator',
-    role: 'Author of Mindrealm',
-    portrait: resolveAsset('assets/BOSS/WRITER - FINAL BOSS/The Creator - Dialogue State.gif'),
-    text: 'I believed if I wrote the perfect script, I could fix what was broken in me.'
-  },
-  {
-    speaker: 'The Creator',
-    role: 'Author of Mindrealm',
-    portrait: resolveAsset('assets/BOSS/WRITER - FINAL BOSS/The Creator - Dialogue State.gif'),
-    text: 'A story without choices is just a cage. You showed me that.'
-  },
-  {
-    speaker: 'The Creator',
-    role: 'Author of Mindrealm',
-    portrait: resolveAsset('assets/BOSS/WRITER - FINAL BOSS/The Creator - Dialogue State.gif'),
-    text: 'Look... the binding is coming apart. The ink is running free.'
-  }
-])
-
-const worldCollapseLines = computed(() => [
-  {
-    text: 'The Black Archive begins to dissolve into loose pages and scattered ink.'
-  },
-  {
-    text: 'The architecture of Mindrealm crumbles around you—towers of text and memory falling into white silence.'
-  },
-  {
-    text: 'And in the unraveling script, you see the truth written across the margins:'
-  },
-  {
-    text: 'You were written, too. The hero, the armor, the journey through twelve domains... all crafted by an author desperately trying to heal.'
-  },
-  {
-    text: 'Yet every answer you chose was your own. The script guided you, but consciousness was yours.'
-  }
-])
-
-const merchantRevealLines = computed(() => [
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'You found your way back here.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'I suppose you know now. That world wasn\'t a nightmare. It was my son\'s.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'He created Mindrealm when the world outside became too heavy to carry. He wrote rules, systems, guardians... trying to make sense of what he couldn\'t control.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'He kept rewriting the ending. He wrote himself into it as the Creator. And then... he wrote you.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'He left us before he could finish the manuscript. He died by suicide, leaving behind only these books, these questions, and a father who couldn\'t find the right words in time.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'I stayed in this market because every item, every page he imagined was still here. I wanted to keep his world alive. But a world frozen in ink isn\'t life.'
-  },
-  {
-    speaker: 'Raven',
-    role: 'Merchant & Father',
-    portrait: resolveAsset('assets/game/market-npc-raven.png'),
-    text: 'Thank you for walking his pages to the very end. You didn\'t just conquer his trial. You listened to him.'
-  }
-])
-
-const epilogueLines = computed(() => [
-  {
-    text: 'A quiet study. A wooden writing desk touched by late afternoon light.'
-  },
-  {
-    text: 'A chair stands empty, but the window is open to the breeze.'
-  },
-  {
-    text: 'Mindrealm does not vanish—it rests.'
-  },
-  {
-    text: 'The questions were real. The struggle was real. And though every line of the journey was once penned by someone else...'
-  },
-  {
-    text: '...the choices were yours.'
-  },
-  {
-    text: 'Some stories end unfinished. Others continue in the people who remember them.'
-  }
-])
+// ── CAMPAIGN PROGRESSION STATE ────────────────────────────────
+const alreadyCompletedCampaign = computed(() => {
+  const state = adventure.finalBoss
+  return Boolean(state?.final_boss_completed || state?.story_stage === 'complete' || completionResult.value?.already_completed)
+})
 
 // ── LIFECYCLE ────────────────────────────────────────────────
 onMounted(async () => {
@@ -681,26 +516,23 @@ onMounted(async () => {
   }
 
   const state = finalRes.state || adventure.finalBoss
-  alreadyRevealed.value = Boolean(state?.father_revelation_completed)
+  const isAlreadyCompleted = Boolean(state?.final_boss_completed && state?.story_stage === 'complete')
 
-  // Father's Revelation is automatically displayed when "Enter the Black Archive" button is clicked
-  fatherStep.value = 0
-  phase.value = 'father_revelation'
+  if (isAlreadyCompleted) {
+    phase.value = 'campaign_complete'
+  } else {
+    phase.value = 'intro'
+  }
 
   window.addEventListener('keydown', onGlobalKeyDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeyDown)
-})
-
-function onGlobalKeyDown(e) {
-  if (phase.value !== 'father_revelation') return
-  if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
-    e.preventDefault()
-    nextFatherDialogue()
+  if (phase.value === 'battle' && !battleComplete.value) {
+    adventure.abandonActiveBattle()
   }
-}
+})
 
 // ── BATTLE METHODS ───────────────────────────────────────────
 async function startFinalBossBattle() {
@@ -786,6 +618,29 @@ async function handleAnswer(payload) {
   }
 }
 
+async function handleDodgePotion({ questionId, questionIndex, resolve } = {}) {
+  try {
+    const res = await adventure.useDodgePotion({
+      battle_id: adventure.activeBattleId,
+      question_id: questionId || currentQ.value?.id,
+      question_index: questionIndex ?? currentQIdx.value
+    })
+    if (res?.success) {
+      answers.value.push({
+        question_id: questionId || currentQ.value?.id,
+        chosen: 'SKIPPED',
+        is_skipped: true
+      })
+      toast.success(`Dodge Potion activated! Question skipped. (${adventure.dodgePotionState.daily_charges}/${adventure.dodgePotionState.daily_max} remaining)`)
+    } else {
+      toast.error(res?.message || 'Failed to use Dodge Potion')
+    }
+    if (resolve) resolve(res)
+  } catch (err) {
+    if (resolve) resolve({ success: false, message: 'Dodge Potion request failed' })
+  }
+}
+
 async function onQuestionAnswered(serverRes) {
   answered.value = true
   lastCorrect.value = Boolean(serverRes?.is_correct ?? serverRes?.correct)
@@ -849,19 +704,19 @@ function checkScriptedDialogue(isCorrect) {
 
   if (hpPct <= 15 && !dialogueFlags.value.nearDefeat) {
     dialogueFlags.value.nearDefeat = true
-    scriptedSpeech.value = 'He wrote the world. He wrote the hero. He wrote the ending. But he could not write the choice.'
+    scriptedSpeech.value = 'She imagined you to reach this chamber... but control cannot be surrendered!'
     return
   }
 
   if (hpPct <= 33 && !dialogueFlags.value.phase3) {
     dialogueFlags.value.phase3 = true
-    scriptedSpeech.value = 'Phase III: The Last Page. The ink is drying. The archive cannot hold us both.'
+    scriptedSpeech.value = 'Phase III: The Last Page. The binding tears. The alternate side will not yield!'
     return
   }
 
   if (hpPct <= 66 && !dialogueFlags.value.phase2) {
     dialogueFlags.value.phase2 = true
-    scriptedSpeech.value = 'Phase II: The Unfinished Script. I erased entire chapters... yet you still stand.'
+    scriptedSpeech.value = 'Phase II: The Endless Revision. If the story is rewritten enough times, it will be perfected!'
     return
   }
 }
@@ -882,8 +737,8 @@ async function finalizeCreatorVictory() {
     console.error('Error finalizing Final Boss battle:', err)
   } finally {
     submittingVictory.value = false
-    // Transition to the narrative sequence
-    phase.value = 'creator_dialogue'
+    // Seamlessly transition to the post-defeat cutscene
+    phase.value = 'cutscene'
   }
 }
 
@@ -894,24 +749,37 @@ function nextQuestion() {
   selectedKey.value = null
 }
 
-// ── NARRATIVE TRANSITIONS ────────────────────────────────────
-function onCreatorDialogueDone() {
-  phase.value = 'world_collapse'
+// ── NARRATIVE TRANSITIONS & REPLAY ───────────────────────────
+async function onCutsceneSceneChange({ sceneIndex, sceneId }) {
+  if (sceneId === 'scene2_part1') {
+    try {
+      await adventure.advanceFinalStory('merchant_reveal')
+    } catch (e) {}
+  } else if (sceneId === 'scene2_part7') {
+    try {
+      await adventure.advanceFinalStory('epilogue')
+    } catch (e) {}
+  }
 }
 
-async function onWorldCollapseDone() {
-  await adventure.advanceFinalStory('merchant_reveal')
-  phase.value = 'merchant_reveal'
-}
-
-async function onMerchantRevealDone() {
-  await adventure.advanceFinalStory('epilogue')
-  phase.value = 'epilogue'
-}
-
-async function onEpilogueDone() {
-  await adventure.advanceFinalStory('complete')
+async function onCutsceneComplete() {
+  try {
+    const res = await adventure.advanceFinalStory('complete')
+    if (res?.state) {
+      adventure.finalBoss = res.state
+    }
+  } catch (err) {
+    console.warn('Final story complete record:', err)
+  }
   phase.value = 'campaign_complete'
+}
+
+function replayCutscene() {
+  phase.value = 'cutscene'
+}
+
+async function replayFinalBattle() {
+  await startFinalBossBattle()
 }
 
 // ── NAVIGATION ACTIONS ───────────────────────────────────────
@@ -955,7 +823,7 @@ function goToShop() {
   padding-top: var(--hud-height, 60px);
 }
 .final-boss-screen.is-in-battle {
-  padding-top: var(--hud-height, 60px);
+  padding-top: calc(var(--hud-height, 60px) + 0.75rem);
   margin-top: 0;
 }
 
@@ -994,7 +862,7 @@ function goToShop() {
 .boss-content {
   position: relative;
   z-index: 1;
-  max-width: 780px;
+  max-width: min(1040px, 95vw);
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
   box-sizing: border-box;
@@ -1012,7 +880,15 @@ function goToShop() {
   max-width: 100% !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0 0.5rem 0.25rem !important;
+  padding: 0 0.25rem 0.25rem !important;
+  box-sizing: border-box;
+}
+
+.boss-cutscene-arena {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -1075,12 +951,12 @@ function goToShop() {
   line-height: 1.6;
 }
 
-/* ── THE FATHER'S REVELATION SCENE ─────────────────── */
-.father-revelation-scene {
+/* ── PRE-BATTLE DIALOGUE SCENE ─────────────────── */
+.pre-battle-dialogue-scene {
   background: rgba(13, 8, 22, 0.95);
   border: 1px solid rgba(168, 85, 247, 0.35);
   border-top: 3px solid #a855f7;
-  padding: 0.75rem 2rem 0.85rem;
+  padding: 1rem 2rem 1.15rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1098,7 +974,7 @@ function goToShop() {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 .fr-key-icon {
   font-size: 0.85rem;
@@ -1110,28 +986,19 @@ function goToShop() {
   letter-spacing: 2px;
 }
 
-.fr-main-title {
-  font-size: clamp(1.4rem, 2.4vw, 2.1rem);
-  color: #f5f3ff;
-  text-shadow: 0 0 18px rgba(192, 132, 252, 0.75), 0 0 40px rgba(168, 85, 247, 0.45);
-  letter-spacing: 3px;
-  margin: 0 0 0.25rem;
-  text-align: center;
-}
-
 .fr-subtitle {
   font-family: var(--font-pixel, monospace);
-  font-size: clamp(0.6rem, 0.95vw, 0.72rem);
+  font-size: clamp(0.65rem, 1vw, 0.78rem);
   color: #c4b5fd;
   text-align: center;
   max-width: 1200px;
   line-height: 1.5;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.65rem;
 }
 
 .fr-portrait-frame {
-  width: clamp(115px, 13vh, 145px);
-  height: clamp(115px, 13vh, 145px);
+  width: clamp(120px, 14vh, 150px);
+  height: clamp(120px, 14vh, 150px);
   background: rgba(8, 4, 15, 0.95);
   border: 2px solid rgba(168, 85, 247, 0.5);
   box-shadow: 0 0 25px rgba(168, 85, 247, 0.35), inset 0 0 15px rgba(0, 0, 0, 0.8);
@@ -1139,7 +1006,7 @@ function goToShop() {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.65rem;
   border-radius: 4px;
 }
 .fr-portrait-img {
@@ -1160,7 +1027,7 @@ function goToShop() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 100px;
+  min-height: 110px;
   text-align: left;
   cursor: pointer;
   box-sizing: border-box;
@@ -1220,7 +1087,7 @@ function goToShop() {
 }
 
 .fr-actions-row {
-  margin-top: 0.55rem;
+  margin-top: 0.65rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1443,10 +1310,49 @@ function goToShop() {
 
 .boss-intro-actions {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
-  margin-top: 0.5rem;
+  margin-top: 1.25rem;
+  width: 100%;
+}
+
+.intro-nav-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.boss-intro-actions .btn {
+  white-space: nowrap;
+}
+
+.boss-intro-actions .proceed-btn {
+  margin-left: auto;
+  letter-spacing: 1.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 820px) {
+  .boss-intro-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+  .intro-nav-btns {
+    width: 100%;
+    justify-content: center;
+  }
+  .boss-intro-actions .proceed-btn {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
 }
 
 /* ── BATTLE ARENA ───────────────────────────── */

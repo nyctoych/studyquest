@@ -8,6 +8,7 @@ export const useMatchmakingStore = defineStore('matchmaking', () => {
   const elapsedSeconds = ref(0)
   const preferredCategory = ref(null)
   const preferredDifficulty = ref(null)
+  const coinBet = ref(100)
   const matchedRoom = ref(null)
   const matchStatus = ref('idle') // 'idle' | 'searching' | 'matched'
   let timerInterval = null
@@ -25,9 +26,13 @@ export const useMatchmakingStore = defineStore('matchmaking', () => {
     timerInterval = null
   }
 
-  function joinQueue(categoryId = null, difficulty = null) {
+  function joinQueue(categoryId = null, difficulty = null, bet = 100) {
     const auth = useAuthStore()
     if (!auth.user) return
+
+    const validTiers = [100, 1000, 10000, 20000]
+    const chosenBet = validTiers.includes(Number(bet)) ? Number(bet) : 100
+    coinBet.value = chosenBet
 
     socketService.connect()
     preferredCategory.value = categoryId
@@ -44,9 +49,13 @@ export const useMatchmakingStore = defineStore('matchmaking', () => {
       avatar_style: auth.user.avatar_style,
       avatar_seed: auth.user.avatar_seed,
       avatar_options: auth.user.avatar_options,
+      character_class: auth.characterClass,
+      class_type: auth.characterClass,
+      selected_character_id: auth.user.selected_character_id,
       battle_rating: auth.user.battle_rating || 1200,
       categoryId,
       difficulty,
+      coinBet: chosenBet,
     })
   }
 
@@ -78,6 +87,7 @@ export const useMatchmakingStore = defineStore('matchmaking', () => {
 
   return {
     inQueue,
+    coinBet,
     elapsedSeconds,
     preferredCategory,
     preferredDifficulty,

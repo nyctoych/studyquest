@@ -247,15 +247,28 @@ class QuestionValidationService {
             return $errors;
         }
 
+        $lower = strtolower(trim($text));
+
+        // Catch definition and simple recall stems masquerading as higher-order Bloom levels (Section 19)
+        $isDefinitionStem = (bool) preg_match('/^(what is the definition of|which of the following defines|define |what is the term for|what term describes|what is meant by)/i', $lower);
+        if ($isDefinitionStem && in_array($bloom, ['analyze', 'evaluate', 'create', 'apply'])) {
+            $errors[] = "Bloom level '{$bloom}' cannot be a simple factual definition stem ('{$text}'). Simple definition questions belong to Remember or Understand.";
+        }
+
+        // Higher-order cognitive levels (analyze, evaluate, create) require scenario depth and multi-factor context
+        if (in_array($bloom, ['analyze', 'evaluate', 'create']) && mb_strlen($text) < 50) {
+            $errors[] = "Bloom level '{$bloom}' requires clinical context or diagnostic dilemma (> 50 characters)";
+        }
+
         // Disallow gross cognitive mismatch:
-        // E.g., A simple factual recall question cannot claim to be 'create'
-        if ($bloom === 'create' && $qType === 'recall') {
-            $errors[] = "Bloom level 'create' cannot be paired with a simple factual 'recall' question type";
+        // E.g., A simple factual recall question cannot claim to be 'create' or 'evaluate'
+        if (in_array($bloom, ['create', 'evaluate']) && $qType === 'recall') {
+            $errors[] = "Bloom level '{$bloom}' cannot be paired with a simple factual 'recall' question type";
         }
 
         // E.g., A differential diagnosis question cannot be pure 'remember' (requires analysis/evaluation)
-        if ($bloom === 'remember' && ($qType === 'differential_diagnosis')) {
-            $errors[] = "Bloom level 'remember' is inappropriate for 'differential_diagnosis' which requires higher cognitive processing (analyze or evaluate)";
+        if ($bloom === 'remember' && $qType === 'differential_diagnosis') {
+            $errors[] = "Bloom level 'remember' is inappropriate for 'differential_diagnosis' which requires higher cognitive discrimination (analyze or evaluate)";
         }
 
         return $errors;

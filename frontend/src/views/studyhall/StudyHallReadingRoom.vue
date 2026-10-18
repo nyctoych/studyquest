@@ -31,9 +31,6 @@
           <!-- Grimoire Header Spine Bookmark Banner -->
           <div class="spread-top-arch">
             <div class="volume-herald-block">
-              <button class="btn btn-gothic-stone btn-sm back-shelves-btn" @click="handleBackToShelves">
-                ← ARCHIVE SHELVES
-              </button>
               <span class="herald-vol-tag">VOLUME {{ resolvedChapter.roman }} · CHAPTER {{ resolvedChapter.chapterNumberPadded }}</span>
               <h1 class="herald-title">{{ resolvedChapter.title }}</h1>
               <p class="herald-moniker">{{ resolvedChapter.style?.moniker }}</p>
@@ -126,6 +123,63 @@
         </div>
       </div>
     </main>
+
+    <!-- ── FULLSCREEN PLAIN-WHITE READING VIEW ── -->
+    <div v-if="isFullscreenReading && resolvedChapter" class="reading-room-fullscreen-view" role="dialog" aria-modal="true">
+      <header class="fullscreen-toolbar">
+        <div class="toolbar-left">
+          <span class="toolbar-badge">STUDY HALL VOLUME</span>
+          <span class="toolbar-meta">VOLUME {{ resolvedChapter.roman }} · CHAPTER {{ resolvedChapter.chapterNumberPadded }}</span>
+        </div>
+        <div class="toolbar-center">
+          <h2 class="toolbar-title">{{ resolvedChapter.title }}</h2>
+        </div>
+        <div class="toolbar-right">
+          <!-- Audio Volume Control Widget (Increase/Decrease/Slider/Mute) -->
+          <AudioVolumeControl id="reading-room-volume-widget" />
+
+          <button type="button" class="btn-exit-white-reader" @click="isFullscreenReading = false">
+            🗗 NORMAL VIEW
+          </button>
+        </div>
+      </header>
+
+      <div class="fullscreen-white-scroll">
+        <div class="white-grimoire-sheet">
+          <div class="white-doc-banner">
+            <span class="white-doc-source">SOURCE: {{ resolvedChapter.sourceVersion || 'DSM-5' }}</span>
+            <h1 class="white-doc-heading">{{ resolvedChapter.title }}</h1>
+            <p class="white-doc-sub">{{ resolvedChapter.style?.moniker }}</p>
+            <p class="white-doc-summary">{{ resolvedChapter.description }}</p>
+          </div>
+
+          <div class="white-doctrines-list">
+            <h3 class="white-list-title">PSYCHIATRIC CURRICULAR UNITS (10 SEQUENTIAL DOCTRINES)</h3>
+            <div
+              v-for="page in pagesList"
+              :key="page.id"
+              class="white-page-row"
+              :class="{ 'is-unlocked': !page.isLocked }"
+              @click="!page.isLocked && handleSelectPage(page)"
+            >
+              <div class="white-page-num">
+                PAGE {{ page.pageNumberPadded }}
+              </div>
+              <div class="white-page-info">
+                <h4 class="white-page-title">{{ page.title }}</h4>
+                <span class="white-page-category">{{ page.categoryLabel }}</span>
+                <p class="white-page-desc">{{ page.description }}</p>
+              </div>
+              <div class="white-page-status">
+                <span v-if="page.isCompleted" class="status-badge passed">✓ COMPLETED</span>
+                <span v-else-if="!page.isLocked" class="status-badge available">READ →</span>
+                <span v-else class="status-badge locked">🔒 LOCKED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -133,6 +187,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useGameStore } from '../../stores/game'
 import { useTransitionStore } from '../../stores/transition'
 import { curriculumService } from '../../services/curriculumService'
 import { resolveChapterBook, resolveStudyPart } from '../../services/studyHallResolver'
@@ -140,6 +195,9 @@ import { resolveAsset } from '../../services/bossMapping'
 import { CHARACTER_ANIMATIONS } from '../../config/characterAnimations'
 import { battleAudio } from '../../services/battleAudio'
 import StudyHallPage from '../../components/studyhall/StudyHallPage.vue'
+import AudioVolumeControl from '../../components/ui/AudioVolumeControl.vue'
+
+const isFullscreenReading = ref(false)
 
 const props = defineProps({
   chapterId: {
@@ -159,6 +217,7 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const gameStore = useGameStore()
 const transitionStore = useTransitionStore()
 
 const activeChapterId = computed(() => {
@@ -612,5 +671,297 @@ function handleBackToShelves() {
   .desk-character-presence {
     display: none;
   }
+}
+
+/* ── FULLSCREEN READING VIEW (STUDY HALL READING ROOM) ── */
+.reading-fullscreen-toggle {
+  background: rgba(139, 92, 246, 0.25) !important;
+  border-color: rgba(139, 92, 246, 0.45) !important;
+  color: #ddd6fe !important;
+  font-weight: 700 !important;
+}
+.reading-fullscreen-toggle:hover {
+  background: rgba(139, 92, 246, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.reading-room-fullscreen-view {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  background: #ffffff !important;
+  color: #111827 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fullscreen-toolbar {
+  height: 60px;
+  padding: 0 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.toolbar-meta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.toolbar-center {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+}
+
+.toolbar-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.btn-exit-white-reader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #3b82f6;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-exit-white-reader:hover {
+  background: #2563eb;
+}
+
+.btn-reading-music-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-reading-music-toggle:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-reading-music-toggle.is-muted {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.btn-reading-music-toggle.is-muted:hover {
+  background: #fee2e2;
+}
+
+.fullscreen-white-scroll {
+  flex: 1;
+  overflow-y: auto;
+  background: #f8fafc;
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.white-grimoire-sheet {
+  max-width: 900px;
+  width: 100%;
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.white-doc-banner {
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 1.25rem;
+}
+
+.white-doc-source {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #6d28d9;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.white-doc-heading {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.4rem;
+}
+
+.white-doc-sub {
+  font-size: 0.95rem;
+  color: #475569;
+  font-style: italic;
+  margin: 0 0 0.75rem;
+}
+
+.white-doc-summary {
+  font-size: 0.96rem;
+  line-height: 1.65;
+  color: #334155;
+  margin: 0;
+}
+
+.white-list-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.04em;
+  margin: 0 0 1rem;
+}
+
+.white-doctrines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.white-page-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.white-page-row.is-unlocked {
+  cursor: pointer;
+}
+.white-page-row.is-unlocked:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.white-page-num {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #3b82f6;
+  white-space: nowrap;
+  width: 72px;
+}
+
+.white-page-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.white-page-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.white-page-category {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.white-page-desc {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #475569;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.white-page-status {
+  white-space: nowrap;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.status-badge.passed {
+  background: #dcfce7;
+  color: #15803d;
+}
+.status-badge.available {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.status-badge.locked {
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 </style>

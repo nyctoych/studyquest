@@ -1,5 +1,13 @@
 <template>
-  <header class="game-hud" :class="{ 'hud-transparent': isTransparentRoute, 'hud-in-adventure': isAdventureRoute }">
+  <header
+    class="game-hud"
+    :class="{
+      'hud-transparent': isTransparentRoute,
+      'hud-in-adventure': isAdventureRoute,
+      'is-morning-hud': game.isMorning,
+      'theme-morning': game.isMorning
+    }"
+  >
     <!-- Left: Avatar & Player Info OR Back Button -->
     <div class="hud-left">
       <!-- Back Button when in Sub-page (e.g. Adventure Map, Study, etc.) -->
@@ -30,16 +38,35 @@
           <div class="hud-avatar-equipped-aura" v-if="equippedAura" :class="equippedAura.effect_key"></div>
         </div>
 
-        <!-- Name Pill & Level/Title -->
+        <!-- Name Pill & Level/Title / EXP Progress -->
         <div class="rpg-name-group">
           <div class="rpg-name-pill">
             <span class="rpg-player-name">{{ auth.nickname || auth.user?.username || 'Scholar' }}</span>
           </div>
-          <div class="rpg-sub-badge">
-            <span>Level {{ auth.level }}</span>
+          <div class="rpg-level-xp-row">
+            <div class="rpg-sub-badge">
+              <span>Level {{ auth.level }}</span>
+            </div>
+            <!-- EXP Progress Bar beside the level -->
+            <div
+              class="rpg-xp-pill"
+              :title="`Experience: ${auth.xpInLevel} / ${auth.xpForNextLevel} XP (${auth.xpPercent}%)`"
+            >
+              <div class="rpg-xp-track">
+                <div class="rpg-xp-fill" :style="{ width: `${auth.xpPercent}%` }"></div>
+              </div>
+              <span class="rpg-xp-text">{{ auth.xpInLevel }}/{{ auth.xpForNextLevel }} XP</span>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Center Navigation Header Title (Mystic Market) -->
+    <div v-if="isMarketRoute" class="hud-center-title animate-fade-in">
+      <span class="hud-title-star">✦</span>
+      <span class="hud-title-text font-pixel">Mystic Market</span>
+      <span class="hud-title-star">✦</span>
     </div>
 
     <!-- Center / Right: Real Resources & Status -->
@@ -47,14 +74,26 @@
       <!-- Health (Adventure HP) -->
       <div
         class="rpg-res-pill res-health"
-        :class="['state-' + healthStore.statusState]"
+        :class="['state-' + healthStore.statusState, { 'is-recovering': healthStore.isRecovering }]"
         :title="healthTooltip"
         @click="onHealthPillClick"
       >
         <span class="res-icon health-icon"><PixelEmoji emoji="heart" size="sm" /></span>
         <span class="res-label font-pixel">HP</span>
         <span class="res-val">{{ healthStore.currentHp }} / {{ healthStore.maxHp }}</span>
-        <span v-if="healthStore.isDefeated" class="health-status-badge">RECOVERING</span>
+        
+        <!-- Live Recovery Tag with real-time countdown -->
+        <span v-if="healthStore.isDefeated" class="health-status-badge" :title="`Recovering: +1 HP in ${healthStore.formattedCountdown}`">
+          REC {{ healthStore.formattedCountdown }}
+        </span>
+        <span v-else-if="healthStore.isRecovering" class="health-status-badge regen-tick" :title="`Recovering: +1 HP in ${healthStore.formattedCountdown}`">
+          +1 in {{ healthStore.formattedCountdown }}
+        </span>
+
+        <!-- Live Health Recovery Progress Bar across bottom of pill -->
+        <div v-if="healthStore.isRecovering" class="hud-hp-regen-track" :title="`Progress to next +1 HP: ${healthStore.regenProgressPercent}%`">
+          <div class="hud-hp-regen-fill" :style="{ width: `${healthStore.regenProgressPercent}%` }"></div>
+        </div>
       </div>
 
       <!-- Streak -->
@@ -63,11 +102,14 @@
         <span class="res-val">{{ auth.streak }}d</span>
       </div>
 
-      <!-- Coins / Points -->
-      <div class="rpg-res-pill res-gold" title="Study Coins">
+      <!-- Coins / Mystic Market -->
+      <div
+        class="rpg-res-pill res-gold"
+        title="Scholar Coins (Click to visit Mystic Market)"
+        @click="navigateTo('/market')"
+      >
         <span class="res-icon gold-coin-icon"><PixelEmoji emoji="coin" size="sm" /></span>
-        <span class="res-val">{{ formatCoins(auth.points || auth.coins) }}</span>
-        <button class="res-add-btn" @click="navigateTo('/rewards')" title="Rewards Shop">+</button>
+        <span class="res-val">{{ formatCoins(auth.coins) }}</span>
       </div>
 
       <!-- Battle Rating -->
@@ -78,6 +120,32 @@
 
       <!-- Quick Actions -->
       <div class="hud-quick-actions">
+        <!-- Daily Chest (1,500 EXP + 300 Gold, once per day) -->
+        <button
+          id="hud-daily-chest-btn"
+          type="button"
+          class="rpg-chest-btn"
+          :class="{ 'is-ready': chestCanClaim, 'is-claimed': !chestCanClaim, 'is-morning': game.isMorning, 'is-busy': chestBusy }"
+          :title="chestTooltip"
+          :disabled="chestBusy"
+          @click="claimDailyChest"
+        >
+          <span class="chest-icon" aria-hidden="true">{{ chestCanClaim ? '🎁' : '📦' }}</span>
+          <span class="chest-label">{{ chestCanClaim ? 'CLAIM' : chestCountdown }}</span>
+          <span v-if="chestCanClaim" class="chest-ping" aria-hidden="true"></span>
+        </button>
+
+        <!-- Global Theme Toggle (NIGHT ☾ ↔ MORNING ☀) -->
+        <button
+          class="rpg-theme-toggle-btn"
+          :class="{ 'is-morning': game.isMorning }"
+          @click="game.toggleTheme()"
+          :title="game.isMorning ? 'Switch to Night Mode (☾)' : 'Switch to Morning Mode (☀)'"
+        >
+          <span class="theme-icon">{{ game.isMorning ? '☀' : '☾' }}</span>
+          <span class="theme-label">{{ game.isMorning ? 'DAY' : 'NIGHT' }}</span>
+        </button>
+
         <!-- Settings Link -->
         <button class="action-icon-btn" @click="navigateTo('/settings')" title="Settings">
           <span class="act-icon"><PixelEmoji emoji="gear" size="sm" /></span>
@@ -109,7 +177,7 @@
           <PixelEmoji emoji="shield" size="sm" /> Hero Sanctuary
         </button>
         <button class="menu-item text-left w-full flex items-center gap-2" @click="navigateTo('/special-event')">
-          <PixelEmoji emoji="crown" size="sm" /> Special Event: Daily Trial
+          <PixelEmoji emoji="crown" size="sm" /> Test Your Knowledge
         </button>
         <button class="menu-item text-left w-full flex items-center gap-2" @click="navigateTo('/shop')">
           <PixelEmoji emoji="cart" size="sm" /> Grand Bazaar
@@ -144,7 +212,9 @@ import { useGameStore } from '../stores/game'
 import { useToastStore } from '../stores/toast'
 import { useTransitionStore } from '../stores/transition'
 import { useHealthStore } from '../stores/health'
+import { useAdventureStore } from '../stores/adventure'
 import AvatarImg from './AvatarImg.vue'
+import api from '../services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -153,6 +223,7 @@ const game = useGameStore()
 const toast = useToastStore()
 const transitionStore = useTransitionStore()
 const healthStore = useHealthStore()
+const adventure = useAdventureStore()
 
 const menuOpen = ref(false)
 const windowWidth = ref(window.innerWidth)
@@ -168,6 +239,7 @@ const isMobile = computed(() => windowWidth.value < 768)
 // Show Back button when on sub-pages
 const showBackBtn = computed(() => route.path !== '/world')
 const isAdventureRoute = computed(() => route.path.startsWith('/adventure'))
+const isMarketRoute = computed(() => route.path === '/market' || route.path === '/shop')
 
 const isTransparentRoute = computed(() =>
   route.path.startsWith('/battle/') ||
@@ -192,8 +264,17 @@ function navigateTo(path) {
 }
 
 function goBack() {
-  if (route.path.startsWith('/adventure/') && route.params.id) {
-    transitionStore.triggerTravel('/adventure', router)
+  if (route.path.startsWith('/adventure')) {
+    if (route.path.includes('/final-boss')) {
+      adventure.abandonActiveBattle()
+      transitionStore.triggerTravel('/adventure', router)
+    } else if (route.path.includes('/part/') || route.path.includes('/boss')) {
+      adventure.abandonActiveBattle()
+      const chId = route.params.chapterId || 1
+      transitionStore.triggerTravel(`/adventure/${chId}`, router)
+    } else {
+      transitionStore.triggerTravel('/world', router)
+    }
   } else {
     transitionStore.triggerTravel('/world', router)
   }
@@ -208,9 +289,12 @@ async function handleLogout() {
 
 const healthTooltip = computed(() => {
   if (healthStore.isDefeated) {
-    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\n+${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
+    return `YOU ARE DEFEATED (${healthStore.currentHp} / ${healthStore.maxHp} HP)\nRecovery Rate: +1 HP / Minute\nNext +1 HP in: ${healthStore.formattedCountdown} (Progress: ${healthStore.regenProgressPercent}%)\nRecover at least 1 HP to battle!\nClick to visit Grand Bazaar for Health Potion (+200 HP)`
   }
-  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRegeneration: +${healthStore.regenRate} HP / Hour\nNext Recovery in: ${healthStore.formattedCountdown}\nClick to visit Grand Bazaar for Health Potion`
+  if (healthStore.isRecovering) {
+    return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP\nRecovery Rate: +1 HP / Minute\nNext +1 HP in: ${healthStore.formattedCountdown} (Progress: ${healthStore.regenProgressPercent}%)\nClick to visit Grand Bazaar for Health Potion`
+  }
+  return `Adventure Health: ${healthStore.currentHp} / ${healthStore.maxHp} HP (Full Health)\nClick to visit Grand Bazaar for Health Potion`
 })
 
 function onHealthPillClick() {
@@ -236,6 +320,81 @@ watch(() => auth.user, (u) => {
 watch(() => route.path, () => {
   healthStore.fetchHealth()
 })
+
+// ── Daily Chest ─────────────────────────────────────────────
+const chestCanClaim = ref(false)
+const chestBusy = ref(false)
+const chestSecondsLeft = ref(0)
+let chestTimer = null
+
+const chestCountdown = computed(() => {
+  const s = Math.max(0, chestSecondsLeft.value)
+  const h = String(Math.floor(s / 3600)).padStart(2, '0')
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+  const sec = String(s % 60).padStart(2, '0')
+  return `${h}:${m}:${sec}`
+})
+
+const chestTooltip = computed(() =>
+  chestCanClaim.value
+    ? 'Daily Chest ready! Click to collect +1,500 EXP and +300 Gold'
+    : `Daily Chest collected. Next chest in ${chestCountdown.value}`
+)
+
+function startChestTimer() {
+  if (chestTimer) clearInterval(chestTimer)
+  chestTimer = setInterval(() => {
+    if (chestSecondsLeft.value > 0) {
+      chestSecondsLeft.value -= 1
+      if (chestSecondsLeft.value <= 0) fetchChestStatus()
+    }
+  }, 1000)
+}
+
+async function fetchChestStatus() {
+  if (!auth.isLoggedIn) return
+  try {
+    const res = await api.get('/daily-chest/status')
+    if (res.data?.success) {
+      chestCanClaim.value = !!res.data.can_claim
+      chestSecondsLeft.value = Number(res.data.seconds_until_reset) || 0
+    }
+  } catch (_) {}
+}
+
+async function claimDailyChest() {
+  if (chestBusy.value) return
+  if (!chestCanClaim.value) {
+    toast.info(`Daily Chest already collected. Next one in ${chestCountdown.value}`)
+    return
+  }
+  chestBusy.value = true
+  try {
+    const res = await api.post('/daily-chest/claim')
+    if (res.data?.success) {
+      chestCanClaim.value = false
+      chestSecondsLeft.value = Number(res.data.seconds_until_reset) || 0
+      if (res.data.user) auth.updateUser(res.data.user)
+      toast.success(res.data.message || 'Daily Chest collected! +1,500 EXP and +300 Gold')
+      if (res.data.leveled_up) toast.success(`Level up! You are now level ${res.data.new_level}`)
+    }
+  } catch (e) {
+    const data = e.response?.data
+    if (data) {
+      chestCanClaim.value = !!data.can_claim
+      chestSecondsLeft.value = Number(data.seconds_until_reset) || chestSecondsLeft.value
+    }
+    toast.error(data?.message || 'Could not open the Daily Chest. Try again.')
+  } finally {
+    chestBusy.value = false
+  }
+}
+
+onMounted(() => {
+  fetchChestStatus()
+  startChestTimer()
+})
+onUnmounted(() => { if (chestTimer) clearInterval(chestTimer) })
 </script>
 
 <style scoped>
@@ -249,17 +408,59 @@ watch(() => route.path, () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 1rem;
-  background: rgba(8, 10, 14, 0.96);
+  background: var(--hud-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--gothic-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-bottom: 1.5px solid var(--hud-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
   user-select: none;
   transition: opacity 0.3s;
 }
 .game-hud.hud-transparent {
   border-bottom-color: transparent;
+}
+
+/* ── CENTER NAVIGATION HEADER TITLE (MYSTIC MARKET) ── */
+.hud-center-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  pointer-events: none;
+  z-index: 10;
+}
+.hud-title-star {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+  animation: starPulse 2.5s infinite ease-in-out;
+}
+.hud-title-text {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-heading, #faf5ff);
+  text-transform: uppercase;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 16px rgba(168, 85, 247, 0.45);
+}
+:global(.theme-morning) .hud-title-text,
+:global(.is-morning) .hud-title-text {
+  color: #3e2415 !important;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+@keyframes starPulse {
+  0%, 100% { opacity: 0.75; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@media (max-width: 900px) {
+  .hud-center-title {
+    display: none;
+  }
 }
 
 /* ── LEFT GROUP ──────────────────────────────────── */
@@ -307,11 +508,12 @@ watch(() => route.path, () => {
   position: relative;
   width: 44px;
   height: 44px;
-  border: 2px solid var(--aged-gold-dim);
-  background: var(--gothic-deep);
+  border: 2px solid var(--hud-border);
+  background: var(--hud-bg);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: border-color 0.15s, background-color 0.15s;
 }
 
 /* Level Badge — pixel corner */
@@ -343,9 +545,9 @@ watch(() => route.path, () => {
 .rpg-name-pill {
   display: flex;
   align-items: center;
-  background: rgba(22, 14, 38, 0.9);
-  border: 1px solid rgba(168, 85, 247, 0.5);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.2);
+  background: var(--hud-name-pill-bg);
+  border: 1px solid var(--hud-name-pill-border);
+  box-shadow: none;
   padding: 0.2rem 0.55rem;
   border-radius: 4px;
 }
@@ -353,23 +555,75 @@ watch(() => route.path, () => {
   font-family: 'Cinzel', serif;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--hud-name-color);
   letter-spacing: 0.04em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  text-shadow: none;
   line-height: 1.15;
 }
+.rpg-level-xp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 .rpg-sub-badge {
-  background: rgba(10, 6, 20, 0.95);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  padding: 0.1rem 0.45rem;
+  background: var(--hud-sub-badge-bg);
+  border: 1px solid var(--hud-sub-badge-border);
+  padding: 0.12rem 0.45rem;
   border-radius: 3px;
-  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  box-sizing: border-box;
 }
 .rpg-sub-badge span {
   font-family: 'Press Start 2P', monospace;
   font-size: 0.48rem;
-  color: #fbbf24;
+  color: var(--hud-sub-badge-color);
   letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+/* EXP Progress Bar Pill beside Level */
+.rpg-xp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--hud-sub-badge-bg);
+  border: 1px solid var(--hud-sub-badge-border);
+  padding: 0.12rem 0.45rem;
+  border-radius: 3px;
+  height: 20px;
+  box-sizing: border-box;
+  cursor: default;
+  transition: all 0.2s ease;
+}
+.rpg-xp-pill:hover {
+  border-color: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.35);
+}
+.rpg-xp-track {
+  width: 52px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.rpg-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #c084fc);
+  border-radius: 1px;
+  transition: width 0.4s ease-out;
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.5);
+}
+.rpg-xp-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.42rem;
+  color: var(--hud-sub-badge-color, #fbbf24);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 /* ── RESOURCES ──────────────────────────────────── */
@@ -392,18 +646,32 @@ watch(() => route.path, () => {
 }
 .rpg-res-pill:hover { border-color: var(--gothic-border-lit); }
 .res-streak { border-color: var(--crimson-deep); }
-.res-gold   { border-color: var(--aged-gold-dim); }
+.res-gold {
+  border-color: var(--aged-gold-dim);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.res-gold:hover {
+  border-color: var(--aged-gold-bright, #e6c845);
+  box-shadow: 0 0 10px rgba(230, 200, 69, 0.4);
+  transform: translateY(-1px);
+}
+.res-gold:active {
+  transform: translateY(0);
+}
 .res-rating { border-color: var(--shadow-teal); }
 
 /* Health Pill */
 .res-health {
-  border-color: rgba(239, 68, 68, 0.45);
-  background: rgba(24, 10, 16, 0.95);
+  border-color: var(--hud-health-border);
+  background: var(--hud-health-bg);
   position: relative;
   cursor: pointer;
   user-select: none;
   padding: 0 0.55rem;
   gap: 0.35rem;
+  transition: border-color 0.15s, background-color 0.15s;
 }
 .res-health:hover {
   border-color: rgba(239, 68, 68, 0.85);
@@ -419,14 +687,15 @@ watch(() => route.path, () => {
 
 /* Health states (Rules 34 & 35) */
 .res-health.state-normal {
-  border-color: rgba(34, 197, 94, 0.55);
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.15);
+  border-color: var(--hud-health-border);
+  background: var(--hud-health-bg);
+  box-shadow: none;
 }
 .res-health.state-normal .res-val {
-  color: #86efac;
+  color: var(--hud-health-val-color);
 }
 .res-health.state-normal .res-label {
-  color: #4ade80;
+  color: var(--hud-health-lbl-color);
 }
 
 .res-health.state-warning {
@@ -473,6 +742,35 @@ watch(() => route.path, () => {
   border-radius: 2px;
   letter-spacing: 0.04em;
   animation: hpPulseRecovering 1.8s infinite ease-in-out;
+  white-space: nowrap;
+}
+
+.health-status-badge.regen-tick {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #6ee7b7;
+}
+
+/* Live Health Recovery Progress Bar across bottom of pill */
+.hud-hp-regen-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  pointer-events: none;
+}
+.hud-hp-regen-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transition: width 0.9s linear;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+.res-health.state-defeated .hud-hp-regen-fill {
+  background: linear-gradient(90deg, #ef4444, #fbbf24);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
 }
 
 @keyframes hpPulseCritical {
@@ -525,6 +823,105 @@ watch(() => route.path, () => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/* ── DAILY CHEST BUTTON ── */
+.rpg-chest-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 34px;
+  padding: 0 0.6rem;
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-lit);
+  cursor: pointer;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #94a3b8);
+  transition: all 0.15s ease;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.rpg-chest-btn .chest-icon { font-size: 14px; line-height: 1; }
+.rpg-chest-btn .chest-label { font-weight: 700; line-height: 1; }
+.rpg-chest-btn.is-ready {
+  color: #fde68a;
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, rgba(120, 72, 8, 0.65), rgba(60, 34, 4, 0.85));
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.55);
+  animation: chestPulse 1.8s ease-in-out infinite;
+}
+.rpg-chest-btn.is-ready .chest-icon { animation: chestWiggle 1.8s ease-in-out infinite; }
+.rpg-chest-btn.is-ready:hover { transform: translateY(-1px); border-color: #fbbf24; }
+.rpg-chest-btn.is-claimed { opacity: 0.8; cursor: default; }
+.rpg-chest-btn.is-busy { opacity: 0.6; cursor: wait; }
+.rpg-chest-btn .chest-ping {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: chestPing 1.2s ease-in-out infinite;
+}
+.rpg-chest-btn.is-morning { background: #fdf6e7; border-color: #d4a017; color: #8c6a3e; }
+.rpg-chest-btn.is-morning.is-ready {
+  background: linear-gradient(180deg, #fff3c4, #fde68a);
+  color: #92400e;
+  border-color: #d97706;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.4);
+}
+@keyframes chestPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.85); }
+}
+@keyframes chestWiggle {
+  0%, 80%, 100% { transform: rotate(0deg); }
+  85% { transform: rotate(-12deg); }
+  90% { transform: rotate(10deg); }
+  95% { transform: rotate(-6deg); }
+}
+@keyframes chestPing {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+.rpg-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 34px;
+  padding: 0 0.55rem;
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-lit);
+  cursor: pointer;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--aged-gold-bright);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.rpg-theme-toggle-btn:hover {
+  background: var(--gothic-raised);
+  border-color: var(--aged-gold);
+  transform: translateY(-1px);
+}
+.rpg-theme-toggle-btn.is-morning {
+  background: #fdf6e7;
+  border-color: #d4a017;
+  color: #b45309;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+}
+.theme-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+.theme-label {
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 .action-icon-btn {
   position: relative;
@@ -667,10 +1064,149 @@ watch(() => route.path, () => {
 /* Responsive */
 @media (max-width: 900px) {
   .rpg-res-pill.res-gems { display: none; }
+  .rpg-xp-text { display: none; }
 }
 @media (max-width: 650px) {
   .game-hud { padding: 0 0.5rem; height: 54px; }
   .rpg-avatar-frame { width: 38px; height: 38px; }
   .rpg-name-group { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME — GAME HUD (MATCHES REFERENCE)
+   ══════════════════════════════════════════════════════════════ */
+.game-hud.is-morning-hud,
+.game-hud.theme-morning {
+  background: #FFF4DF !important;
+  border-bottom: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.15) !important;
+}
+
+.is-morning-hud .rpg-res-pill,
+.theme-morning .rpg-res-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .res-val,
+.theme-morning .res-val {
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .res-health,
+.theme-morning .res-health {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+}
+
+.is-morning-hud .res-health.state-normal,
+.theme-morning .res-health.state-normal {
+  background: #FFF4DF !important;
+  border-color: #B88A42 !important;
+}
+
+.is-morning-hud .res-health .res-val,
+.is-morning-hud .res-health.state-normal .res-val,
+.theme-morning .res-health .res-val {
+  color: #166534 !important;
+}
+
+.is-morning-hud .res-health .res-label,
+.is-morning-hud .res-health.state-normal .res-label,
+.theme-morning .res-health .res-label {
+  color: #166534 !important;
+}
+
+.is-morning-hud .rpg-avatar-frame,
+.theme-morning .rpg-avatar-frame {
+  background: #FFF4DF !important;
+  border-color: #B88A42 !important;
+}
+
+.is-morning-hud .rpg-name-pill,
+.theme-morning .rpg-name-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  box-shadow: none !important;
+}
+
+.is-morning-hud .rpg-player-name,
+.theme-morning .rpg-player-name {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+.is-morning-hud .rpg-sub-badge,
+.theme-morning .rpg-sub-badge,
+.is-morning-hud .rpg-xp-pill,
+.theme-morning .rpg-xp-pill {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+.is-morning-hud .rpg-sub-badge span,
+.theme-morning .rpg-sub-badge span,
+.is-morning-hud .rpg-xp-text,
+.theme-morning .rpg-xp-text {
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .rpg-xp-track,
+.theme-morning .rpg-xp-track {
+  background: #D4C3A3 !important;
+  border-color: #B88A42 !important;
+}
+
+.is-morning-hud .rpg-xp-fill,
+.theme-morning .rpg-xp-fill {
+  background: linear-gradient(90deg, #B88A42, #E5A93C) !important;
+  box-shadow: none !important;
+}
+
+.is-morning-hud .rpg-back-btn,
+.theme-morning .rpg-back-btn,
+.is-morning-hud .action-icon-btn,
+.theme-morning .action-icon-btn,
+.is-morning-hud .rpg-dropdown-btn,
+.theme-morning .rpg-dropdown-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .rpg-back-arrow,
+.theme-morning .rpg-back-arrow,
+.is-morning-hud .dropdown-chevron,
+.theme-morning .dropdown-chevron,
+.is-morning-hud .action-icon-btn .act-icon,
+.theme-morning .action-icon-btn .act-icon {
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .rpg-theme-toggle-btn,
+.theme-morning .rpg-theme-toggle-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+.is-morning-hud .hud-mini-menu,
+.theme-morning .hud-mini-menu {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 12px 32px rgba(143, 100, 45, 0.22) !important;
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .menu-item,
+.theme-morning .menu-item {
+  color: #3D2B1F !important;
+}
+
+.is-morning-hud .menu-item:hover,
+.theme-morning .menu-item:hover {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
 }
 </style>

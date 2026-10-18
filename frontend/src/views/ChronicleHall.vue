@@ -25,7 +25,7 @@
         <div v-for="post in posts" :key="post.id" class="post-card glass-card">
           <!-- Avatar + name -->
           <div class="post-author">
-            <AvatarImg :style-name="post.avatar_style || 'adventurer'" :seed="post.avatar_seed || post.nickname" :size="36" class="post-avatar" />
+            <AvatarImg :character="post.character_class || post.class_type" :player="post" :style-name="post.avatar_style || 'adventurer'" :seed="post.avatar_seed || post.nickname" :size="36" class="post-avatar" />
             <div class="post-author-info">
               <span class="post-nickname">{{ post.nickname }}</span>
               <span class="post-level">Lv.{{ post.level }}</span>

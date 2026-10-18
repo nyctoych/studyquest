@@ -31,7 +31,7 @@
     </div>
 
     <!-- Question Footer: Next Inquiry Action Button -->
-    <div v-if="answered" class="panel-action-footer">
+    <div v-if="answered && showNextButton" class="panel-action-footer">
       <button
         type="button"
         class="btn btn-next-inquiry"
@@ -78,6 +78,10 @@ defineProps({
   isLastQuestion: {
     type: Boolean,
     default: false
+  },
+  showNextButton: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -279,5 +283,133 @@ function formatDifficulty(diff) {
   .question-stem-text {
     font-size: 0.88rem;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES
+   ══════════════════════════════════════════════════════════════ */
+:global(.theme-morning) .battle-question-panel,
+:global([data-theme="morning"]) .battle-question-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.22) !important;
+}
+
+:global(.theme-morning) .panel-prompt-bar,
+:global([data-theme="morning"]) .panel-prompt-bar {
+  border-bottom: 1px solid rgba(184, 151, 88, 0.35);
+}
+
+:global(.theme-morning) .prompt-title,
+:global([data-theme="morning"]) .prompt-title {
+  color: #78350f;
+  font-weight: bold;
+}
+
+:global(.theme-morning) .prompt-badge,
+:global([data-theme="morning"]) .prompt-badge {
+  background: rgba(180, 83, 9, 0.14) !important;
+  border: 1px solid #B88A42 !important;
+  color: #78350f !important;
+  font-weight: 700 !important;
+}
+
+:global(.theme-morning) .prompt-badge.diff-moderate,
+:global([data-theme="morning"]) .prompt-badge.diff-moderate {
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+  background: rgba(2, 132, 199, 0.14) !important;
+}
+
+:global(.theme-morning) .prompt-badge.diff-difficult,
+:global([data-theme="morning"]) .prompt-badge.diff-difficult {
+  border-color: #b45309 !important;
+  color: #92400e !important;
+  background: rgba(180, 83, 9, 0.16) !important;
+}
+
+:global(.theme-morning) .prompt-badge.diff-very_difficult,
+:global([data-theme="morning"]) .prompt-badge.diff-very_difficult {
+  border-color: #be185d !important;
+  color: #9d174d !important;
+  background: rgba(190, 24, 93, 0.14) !important;
+}
+
+:global(.theme-morning) .prompt-badge.diff-board_style_case,
+:global([data-theme="morning"]) .prompt-badge.diff-board_style_case {
+  border-color: #7e22ce !important;
+  color: #6b21a8 !important;
+  background: rgba(126, 34, 206, 0.14) !important;
+}
+
+:global(.theme-morning) .question-stem-text,
+:global([data-theme="morning"]) .question-stem-text {
+  color: #2b2216 !important;
+  text-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+:global(.theme-morning) .question-body-scroll::-webkit-scrollbar-thumb,
+:global([data-theme="morning"]) .question-body-scroll::-webkit-scrollbar-thumb {
+  background: rgba(184, 151, 88, 0.45);
+}
+
+:global(.theme-morning) .clinical-rationale-box,
+:global([data-theme="morning"]) .clinical-rationale-box {
+  background: #fdfaf3 !important;
+  border: 1px solid #d8caa8 !important;
+  color: #1a140d !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.correct-rationale,
+:global([data-theme="morning"]) .clinical-rationale-box.correct-rationale {
+  background: #dcfce7 !important;
+  border-left-color: #166534 !important;
+  color: #064e3b !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.correct-rationale .rationale-tag,
+:global([data-theme="morning"]) .clinical-rationale-box.correct-rationale .rationale-tag {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.correct-rationale .rationale-text,
+:global([data-theme="morning"]) .clinical-rationale-box.correct-rationale .rationale-text {
+  color: #064e3b !important;
+  font-weight: 600 !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.wrong-rationale,
+:global([data-theme="morning"]) .clinical-rationale-box.wrong-rationale {
+  background: #fee2e2 !important;
+  border-left-color: #dc2626 !important;
+  color: #7f1d1d !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.wrong-rationale .rationale-tag,
+:global([data-theme="morning"]) .clinical-rationale-box.wrong-rationale .rationale-tag {
+  color: #b91c1c !important;
+  font-weight: 700 !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box.wrong-rationale .rationale-text,
+:global([data-theme="morning"]) .clinical-rationale-box.wrong-rationale .rationale-text {
+  color: #7f1d1d !important;
+  font-weight: 600 !important;
+}
+
+:global(.theme-morning) .clinical-rationale-box .rationale-text,
+:global([data-theme="morning"]) .clinical-rationale-box .rationale-text {
+  color: #1a140d !important;
+  font-weight: 500 !important;
+}
+
+:global(.theme-morning) .btn-next-inquiry,
+:global([data-theme="morning"]) .btn-next-inquiry {
+  background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+  color: #ffffff;
+  border: 1px solid #78350f;
+  box-shadow: 0 0 14px rgba(180, 83, 9, 0.4);
 }
 </style>

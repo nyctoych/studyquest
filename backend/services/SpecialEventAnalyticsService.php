@@ -22,14 +22,19 @@ class SpecialEventAnalyticsService {
         $results = [];
 
         foreach ($attempts as $a) {
+            $sessNum = (int) ($a['session_number'] ?? 1);
+            $sessTitle = ($sessNum === 2) ? 'Session 2 (Day 2)' : 'Session 1 (Day 1)';
+
             $results[] = [
                 'id' => (int) $a['id'],
                 'special_event_id' => (int) $a['special_event_id'],
-                'event_title' => $a['event_title'],
+                'event_title' => $a['event_title'] ?? 'Test Your Knowledge',
                 'event_date' => $a['event_date'],
+                'session_number' => $sessNum,
+                'session_title' => $sessTitle,
                 'score' => (int) $a['score'],
-                'correct_count' => (int) $a['correct_count'],
-                'incorrect_count' => (int) $a['incorrect_count'],
+                'correct_count' => (int) ($a['correct_count'] ?? $a['score']),
+                'incorrect_count' => (int) ($a['incorrect_count'] ?? 0),
                 'percentage' => (float) $a['percentage'],
                 'total_time' => (int) $a['total_time'],
                 'status' => $a['status'],
@@ -43,7 +48,7 @@ class SpecialEventAnalyticsService {
     }
 
     /**
-     * Complete post-examination review of all 140 questions with explanations and Study Hall links.
+     * Complete post-examination review of questions with explanations and Study Hall links.
      */
     public function getAttemptReview(int $attemptId, int $userId): ?array {
         $attempt = $this->attemptModel->find($attemptId);
@@ -57,7 +62,13 @@ class SpecialEventAnalyticsService {
         }
 
         $eventId = (int) $attempt['special_event_id'];
-        $questions = $this->questionModel->getByEventId($eventId);
+        $sessionNumber = (int) ($attempt['session_number'] ?? 1);
+
+        $questions = $this->questionModel->getByEventAndSession($eventId, $sessionNumber);
+        if (empty($questions)) {
+            $questions = $this->questionModel->getByEventId($eventId);
+        }
+
         $answers = $this->answerModel->getByAttemptId($attemptId);
 
         // If attempt has custom question ordering, sort accordingly
@@ -89,6 +100,8 @@ class SpecialEventAnalyticsService {
             $reviewList[] = [
                 'index' => $idx + 1,
                 'id' => $qId,
+                'session_number' => (int) ($q['session_number'] ?? $sessionNumber),
+                'subject_name' => $q['subject_name'] ?? 'Psychology',
                 'domain_id' => (int) $q['domain_id'],
                 'domain_name' => $q['domain_name'],
                 'study_part_id' => (int) $q['study_part_id'],
@@ -184,23 +197,38 @@ class SpecialEventAnalyticsService {
             }
         }
 
-        // If categorization is empty, fall back gracefully
-        if (empty($strongest) && empty($developing) && empty($needsReview)) {
-            $strongest = ['All areas assessed'];
-        }
+        // Rank Bloom levels ascending by accuracy to identify explicit Primary Review Focus
+        $rankedSummary = array_values($bloomSummary);
+        usort($rankedSummary, function ($a, $b) {
+            if (abs($a['accuracy'] - $b['accuracy']) > 0.01) {
+                return $a['accuracy'] <=> $b['accuracy'];
+            }
+            return $b['average_response_time'] <=> $a['average_response_time'];
+        });
+        $primaryWeakness = $rankedSummary[0] ?? null;
+        $secondaryWeakness = $rankedSummary[1] ?? null;
 
-        // Generate neutral academic assessment summary statement (Sections 51 & 54)
+        // Fetch event adaptive metadata if targeted
+        $eventStmt = $this->db->prepare("SELECT target_bloom, secondary_bloom, is_adaptive FROM special_events WHERE id = ?");
+        $eventStmt->execute([$eventId]);
+        $eventMeta = $eventStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $targetedBloom = $eventMeta['target_bloom'] ?? null;
+
+        // Generate educational, learning-oriented academic interpretation (Sections 29 & 52)
         $summaryParts = [];
+        if ($primaryWeakness && $primaryWeakness['accuracy'] < 75.0) {
+            $summaryParts[] = "Today's primary review focus is " . $primaryWeakness['display_name'] . " (" . $primaryWeakness['accuracy'] . "% accuracy). Reviewing corresponding Study Hall clinical cases will help reinforce this diagnostic process.";
+        }
         if (!empty($strongest)) {
-            $summaryParts[] = "Your strongest demonstrated performance in today's assessment was in " . implode(' and ', $strongest) . " questions.";
+            $summaryParts[] = "Stronger performance was demonstrated in " . implode(' and ', $strongest) . ".";
         }
         if (!empty($developing)) {
-            $summaryParts[] = "Your performance in " . implode(' and ', $developing) . " was developing.";
+            $summaryParts[] = "Performance in " . implode(' and ', $developing) . " is actively developing.";
         }
-        if (!empty($needsReview)) {
-            $summaryParts[] = "Questions requiring " . implode(' and ', $needsReview) . " produced more errors, indicating that reviewing the related Study Hall topics may help strengthen higher-order clinical reasoning.";
-        } else {
-            $summaryParts[] = "All cognitive domains demonstrated solid proficiency on this assessment.";
+        if ($targetedBloom && isset($bloomSummary[$targetedBloom])) {
+            $tName = $displayNames[$targetedBloom] ?? ucfirst($targetedBloom);
+            $tAcc = $bloomSummary[$targetedBloom]['accuracy'];
+            $summaryParts[] = "Adaptive Insight: Today's exam placed increased emphasis on {$tName} items based on past review needs, achieving {$tAcc}% on these focused questions.";
         }
         $academicInterpretation = implode(' ', $summaryParts);
 
@@ -304,11 +332,18 @@ class SpecialEventAnalyticsService {
             'event_id' => $eventId,
             'bloom_summary' => array_values($bloomSummary),
             'cognitive_profile' => [
+                'primary_review_focus' => $primaryWeakness ? $primaryWeakness['display_name'] : null,
+                'secondary_review_focus' => $secondaryWeakness ? $secondaryWeakness['display_name'] : null,
                 'strongest_areas' => $strongest,
                 'developing_areas' => $developing,
                 'review_needed_areas' => $needsReview,
                 'interpretation' => $academicInterpretation,
                 'patterns' => $cognitivePatterns
+            ],
+            'adaptive_info' => [
+                'is_adaptive' => !empty($eventMeta['is_adaptive']),
+                'targeted_bloom' => $targetedBloom ? ($displayNames[$targetedBloom] ?? ucfirst($targetedBloom)) : null,
+                'secondary_bloom' => !empty($eventMeta['secondary_bloom']) ? ($displayNames[$eventMeta['secondary_bloom']] ?? ucfirst($eventMeta['secondary_bloom'])) : null
             ],
             'study_hall_recommendations' => array_slice($recommendations, 0, 8),
             'error_analysis' => [
@@ -323,5 +358,128 @@ class SpecialEventAnalyticsService {
         require_once __DIR__ . '/../models/SpecialEventBloomResult.php';
         $bloomModel = new SpecialEventBloomResult();
         return $bloomModel->getUserBloomHistory($userId);
+    }
+
+    /**
+     * Aggregated performance analytics for /special-event dashboard.
+     */
+    public function getUserAnalytics(int $userId): array {
+        // 1. Overall attempt statistics
+        $stmt = $this->db->prepare("
+            SELECT 
+                COUNT(*) as total_attempts,
+                SUM(CASE WHEN session_number = 1 THEN 1 ELSE 0 END) as session_1_count,
+                SUM(CASE WHEN session_number = 2 THEN 1 ELSE 0 END) as session_2_count,
+                MAX(score) as best_score,
+                AVG(percentage) as avg_percentage,
+                SUM(correct_count) as total_correct,
+                SUM(incorrect_count) as total_incorrect
+            FROM special_event_attempts
+            WHERE user_id = ? AND status IN ('completed', 'timed_out')
+        ");
+        $stmt->execute([$userId]);
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // 2. Total questions answered
+        $ansStmt = $this->db->prepare("
+            SELECT COUNT(a.id) 
+            FROM special_event_answers a
+            JOIN special_event_attempts att ON a.attempt_id = att.id
+            WHERE att.user_id = ?
+        ");
+        $ansStmt->execute([$userId]);
+        $totalAnswered = (int) $ansStmt->fetchColumn();
+
+        // 3. Subject-level performance
+        $subjStmt = $this->db->prepare("
+            SELECT 
+                COALESCE(q.subject_name, 'General Psychology') as subject_name,
+                COUNT(a.id) as total_questions,
+                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+                SUM(CASE WHEN a.is_correct = 0 THEN 1 ELSE 0 END) as incorrect_count,
+                ROUND(SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) / COUNT(a.id) * 100, 1) as accuracy
+            FROM special_event_answers a
+            JOIN special_event_attempts att ON a.attempt_id = att.id
+            JOIN special_event_questions q ON a.question_id = q.id
+            WHERE att.user_id = ? AND att.status IN ('completed', 'timed_out')
+            GROUP BY COALESCE(q.subject_name, 'General Psychology')
+            ORDER BY accuracy DESC
+        ");
+        $subjStmt->execute([$userId]);
+        $subjects = $subjStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 4. Bloom-level performance
+        $bloomStmt = $this->db->prepare("
+            SELECT 
+                LOWER(COALESCE(a.bloom_level, q.bloom_level, 'apply')) as bloom_level,
+                COUNT(a.id) as total_questions,
+                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+                ROUND(SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) / COUNT(a.id) * 100, 1) as accuracy
+            FROM special_event_answers a
+            JOIN special_event_attempts att ON a.attempt_id = att.id
+            JOIN special_event_questions q ON a.question_id = q.id
+            WHERE att.user_id = ? AND att.status IN ('completed', 'timed_out')
+            GROUP BY LOWER(COALESCE(a.bloom_level, q.bloom_level, 'apply'))
+            ORDER BY accuracy DESC
+        ");
+        $bloomStmt->execute([$userId]);
+        $bloomData = $bloomStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 5. Recent attempts score trend
+        $trendStmt = $this->db->prepare("
+            SELECT att.id, se.event_date, att.session_number, att.score, att.percentage, att.completed_at
+            FROM special_event_attempts att
+            JOIN special_events se ON att.special_event_id = se.id
+            WHERE att.user_id = ? AND att.status IN ('completed', 'timed_out')
+            ORDER BY att.completed_at ASC
+            LIMIT 15
+        ");
+        $trendStmt->execute([$userId]);
+        $trend = $trendStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 6. Study Hall recommendations
+        $recStmt = $this->db->prepare("
+            SELECT 
+                q.domain_id,
+                COALESCE(d.name, 'General Review') as domain_title,
+                q.study_part_id,
+                COALESCE(p.title, 'Lesson Review') as part_title,
+                COALESCE(p.part_number, 1) as part_number,
+                COUNT(a.id) as missed_count
+            FROM special_event_answers a
+            JOIN special_event_attempts att ON a.attempt_id = att.id
+            JOIN special_event_questions q ON a.question_id = q.id
+            LEFT JOIN psychiatric_domains d ON q.domain_id = d.id
+            LEFT JOIN study_parts p ON q.study_part_id = p.id
+            WHERE att.user_id = ? AND a.is_correct = 0
+            GROUP BY q.domain_id, q.study_part_id
+            ORDER BY missed_count DESC
+            LIMIT 6
+        ");
+        $recStmt->execute([$userId]);
+        $recs = $recStmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($recs as &$r) {
+            $r['study_hall_link'] = "/study/{$r['domain_id']}/part/{$r['part_number']}";
+        }
+        unset($r);
+
+        return [
+            'summary' => [
+                'total_completed_attempts' => (int) ($stats['total_attempts'] ?? 0),
+                'session_1_completed' => (int) ($stats['session_1_count'] ?? 0),
+                'session_2_completed' => (int) ($stats['session_2_count'] ?? 0),
+                'total_questions_answered' => $totalAnswered,
+                'overall_average_accuracy' => round((float) ($stats['avg_percentage'] ?? 0), 1),
+                'best_score' => (int) ($stats['best_score'] ?? 0),
+                'strongest_subject' => !empty($subjects) ? $subjects[0]['subject_name'] : null,
+                'weakest_subject' => !empty($subjects) ? end($subjects)['subject_name'] : null,
+                'strongest_bloom' => !empty($bloomData) ? ucfirst($bloomData[0]['bloom_level']) : null,
+                'weakest_bloom' => !empty($bloomData) ? ucfirst(end($bloomData)['bloom_level']) : null
+            ],
+            'subjects' => $subjects,
+            'bloom_breakdown' => $bloomData,
+            'score_trend' => $trend,
+            'recommendations' => $recs
+        ];
     }
 }

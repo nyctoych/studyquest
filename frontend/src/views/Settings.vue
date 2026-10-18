@@ -125,6 +125,8 @@
             </button>
           </form>
         </div>
+
+
       </div>
 
       <!-- Right Column: System Info & Danger Zone -->
@@ -151,6 +153,16 @@
           </div>
         </div>
 
+        <div class="glass-card tutorial-card">
+          <h3 class="side-title text-gold font-pixel">🧭 Onboarding &amp; Tutorial</h3>
+          <p class="section-desc" style="margin-bottom: 0.75rem;">
+            Revisit the Battlefield basics, attribute allocations, and complete 11-module interactive tour of Mindrealm anytime.
+          </p>
+          <button type="button" class="btn btn-gothic-gold w-full font-pixel" @click="replayTutorial">
+            ↺ REPLAY ONBOARDING TUTORIAL
+          </button>
+        </div>
+
         <div class="glass-card danger-card">
           <h3 class="side-title text-danger">⚠️ Danger Zone</h3>
           <p class="danger-desc">
@@ -171,12 +183,18 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useGameStore } from '../stores/game'
+import { useTutorialStore } from '../stores/tutorial'
 import { battleAudio } from '../services/battleAudio'
 
 const router = useRouter()
-const auth = useAuthStore()
-const toast = useToastStore()
+const auth   = useAuthStore()
+const toast  = useToastStore()
 const gameStore = useGameStore()
+const tutorialStore = useTutorialStore()
+
+function replayTutorial() {
+  tutorialStore.replayTutorial()
+}
 
 const settings = ref({
   sfxEnabled: gameStore.audioEnabled,
@@ -228,18 +246,20 @@ async function updatePassword() {
     toast.add('New passwords do not match!', 'error')
     return
   }
+  if (passForm.value.newPassword.length < 6) {
+    toast.add('Password must be at least 6 runes long!', 'error')
+    return
+  }
 
   updatingPass.value = true
-  try {
-    // Mock or API call
-    setTimeout(() => {
-      toast.add('🔒 Password updated successfully!', 'success')
-      passForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
-      updatingPass.value = false
-    }, 600)
-  } catch (err) {
-    toast.add('Failed to update password', 'error')
-    updatingPass.value = false
+  const res = await auth.updatePassword(passForm.value.currentPassword, passForm.value.newPassword)
+  updatingPass.value = false
+
+  if (res?.success) {
+    toast.success('🔒 Password updated successfully!')
+    passForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+  } else {
+    toast.error(res?.message || 'Failed to update password')
   }
 }
 
@@ -528,4 +548,5 @@ input:checked + .slider:before {
 .w-full {
   width: 100%;
 }
+
 </style>

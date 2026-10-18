@@ -6,13 +6,19 @@
   >
     <div class="banner-inner">
       <!-- Left: Rank Badge & Avatar -->
-      <div class="player-summary-group">
+      <div
+        class="player-summary-group cursor-pointer"
+        @click="$emit('inspect', userRankData, userRankNumber)"
+        title="Inspect your Mindkeeper record"
+      >
         <div class="user-rank-crest">
           <span class="rank-prefix">YOUR RANK</span>
           <span class="rank-val">#{{ userRankNumber }}</span>
         </div>
 
         <AvatarImg
+          :character="userRankData.character_class || auth.characterClass"
+          :player="userRankData"
           :style-name="userRankData.avatar_style || auth.avatarStyle || 'adventurer'"
           :seed="userRankData.avatar_seed || auth.avatarSeed || 'default'"
           :options="userRankData.avatar_options || auth.avatarOpts || {}"
@@ -105,7 +111,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['jump-to-user'])
+defineEmits(['jump-to-user', 'inspect'])
 
 const auth = useAuthStore()
 

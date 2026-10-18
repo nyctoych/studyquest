@@ -25,6 +25,20 @@ class AdventureProgressService {
         CurriculumMigration::run();
     }
 
+    public static function getAdventureStageXp(int $chapterOrder): int {
+        $c = max(1, min(12, $chapterOrder));
+        return 2000 + ($c - 1) * 1000;
+    }
+
+    public static function getAdventureBossXp(int $chapterOrder): int {
+        $c = max(1, min(12, $chapterOrder));
+        return 6000 + ($c - 1) * 3000;
+    }
+
+    public function getChapterDetails(int $userId, int $chapterId): array {
+        return $this->getChapterProgress($userId, $chapterId);
+    }
+
     /**
      * Initializes default progress for a user.
      * Chapter 1 is AVAILABLE with Part 1 AVAILABLE.
@@ -345,6 +359,7 @@ class AdventureProgressService {
 
             // Requirement 19: Boss questions must come from the CURRENT chapter/domain.
             // The boss should test multiple concepts from the chapter.
+            $boss['xp_reward'] = self::getAdventureBossXp((int)$chapter['display_order']);
             $boss['questions'] = $this->getBossQuestionsForDomain($chapterId, 10);
         }
 
@@ -480,8 +495,13 @@ class AdventureProgressService {
 
         // Grade answers
         $totalQ = count($answers);
+        $skippedQ = 0;
         $correct = 0;
         foreach ($answers as $answer) {
+            if (!empty($answer['is_skipped']) || ($answer['chosen'] ?? '') === 'SKIPPED') {
+                $skippedQ++;
+                continue;
+            }
             $qStmt = $this->db->prepare("
                 SELECT correct_answer FROM learning_questions WHERE id = ?
                 UNION
@@ -495,7 +515,8 @@ class AdventureProgressService {
             }
         }
 
-        $score       = $totalQ > 0 ? round(($correct / $totalQ) * 100) : 0;
+        $answeredQ   = max(0, $totalQ - $skippedQ);
+        $score       = $answeredQ > 0 ? round(($correct / $answeredQ) * 100) : 100;
         $isPassed    = ($score >= (int)$part['passing_score']) || ($totalQ <= 3 && $correct >= 2) || ($score >= 60);
         $xpEarned    = $isPassed ? (int)$part['xp_reward'] : (int)($part['xp_reward'] * 0.25);
         $coinsEarned = $isPassed ? (int)$part['coin_reward'] : (int)($part['coin_reward'] * 0.1);
@@ -588,12 +609,14 @@ class AdventureProgressService {
 
         $user = $this->userModel->findById($userId);
 
-        // Maintain persistent Adventure HP for the next battle (45% of current scaled max health)
+        // Maintain persistent Adventure HP for the next battle
         require_once __DIR__ . '/../models/Character.php';
         $charModel = new Character();
-        $userChar = $charModel->getUserSelectedCharacter($userId) ?: $charModel->findByKey('mage');
-        $scaledStats = Character::calculateScaledStats($userChar ?: ['health' => 150], (int)$user['level']);
-        $nextAdventureStartHp = (int)round($scaledStats['max_health'] * 0.45);
+        $scaledStats = $charModel->getScaledCharacterStats((int)($userChar['id'] ?? 1), (int)$user['level'], $userId);
+        $maxHp = (int)$scaledStats['max_health'];
+        $nextAdventureStartHp = isset($user['adventure_current_hp']) && $user['adventure_current_hp'] !== null
+            ? min($maxHp, (int)$user['adventure_current_hp'])
+            : $maxHp;
         $this->db->prepare("UPDATE users SET adventure_current_hp = ?, adventure_hp_persisted = 1 WHERE id = ?")->execute([$nextAdventureStartHp, $userId]);
 
         return [
@@ -809,12 +832,12 @@ class AdventureProgressService {
                     'black_archive_unlocked'  => ($nextChapter === false || $currentOrder === 12),
                     'final_boss_unlocked'     => ($currentOrder === 12),
                     'user'                    => $user,
-                    'adventure_start_hp'      => (int)round((Character::calculateScaledStats((new Character())->getUserSelectedCharacter($userId) ?: ['health' => 150], (int)($user['level'] ?? 1)))['max_health'] * 0.45),
+                    'adventure_start_hp'      => (int)(((new Character())->getScaledStatsForUser($userId, null, (int)($user['level'] ?? 1)))['max_health']),
                 ];
             }
 
             // ── FIRST COMPLETION ──────────────────────────────────────
-            $xpReward   = (int)($boss['xp_reward'] ?: 500);
+            $xpReward   = self::getAdventureBossXp($currentOrder);
             $coinReward = (int)($boss['point_reward'] ?: 300);
 
             // 1. Mark Chapter as COMPLETED
@@ -921,7 +944,9 @@ class AdventureProgressService {
             }
 
             // Commit transaction
-            $this->db->commit();
+            if ($this->db->inTransaction()) {
+                $this->db->commit();
+            }
 
             $freshUser = $this->userModel->findById($userId);
 
@@ -954,11 +979,13 @@ class AdventureProgressService {
                 'black_archive_unlocked'  => ($allChaptersCompleted || $currentOrder === 12),
                 'final_boss_unlocked'     => ($currentOrder === 12),
                 'user'                    => $freshUser,
-                'adventure_start_hp'      => (int)round((Character::calculateScaledStats((new Character())->getUserSelectedCharacter($userId) ?: ['health' => 150], (int)($freshUser['level'] ?? 1)))['max_health'] * 0.45),
+                'adventure_start_hp'      => (int)(((new Character())->getScaledStatsForUser($userId, null, (int)($freshUser['level'] ?? 1)))['max_health']),
             ];
 
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log("completeBoss error: " . $e->getMessage());
             return [
                 'success' => false,
@@ -1070,7 +1097,7 @@ class AdventureProgressService {
 
     public const FINAL_BOSS_KEY      = 'final_creator';
     public const FINAL_BOSS_MAX_HP   = 1500;
-    public const FINAL_BOSS_XP       = 2500;
+    public const FINAL_BOSS_XP       = 55000;
     public const FINAL_BOSS_COINS    = 1500;
     public const FINAL_STORY_STAGES  = ['locked', 'father_revelation', 'chamber_unlocked', 'unlocked', 'world_collapse', 'merchant_reveal', 'epilogue', 'complete'];
 
@@ -1203,7 +1230,9 @@ class AdventureProgressService {
             }
             $this->db->commit();
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('getFinalBossBattle error: ' . $e->getMessage());
         }
 
@@ -1271,26 +1300,22 @@ class AdventureProgressService {
 
                 $this->addChronicle(
                     $userId, 'boss_victory',
-                    'The Creator Defeated',
-                    'The author of Mindrealm lost control of his own story. Mindrealm\'s true nature was revealed.',
+                    'The Creator\'s Other Side',
+                    'The alternate side that demanded control and endless rewriting was defeated. Mindrealm\'s true nature was revealed.',
                     ['event' => 'creator_defeated', 'xp' => self::FINAL_BOSS_XP, 'coins' => self::FINAL_BOSS_COINS]
-                );
-                $this->addChronicle(
-                    $userId, 'adventure_victory',
-                    'Mindrealm\'s True Nature Revealed',
-                    'Everything was written. The choices were not.',
-                    ['event' => 'true_nature_revealed']
                 );
 
                 $ach = $this->unlockStoryAchievement(
-                    $userId, 'THE FINAL AUTHOR', 'Defeat The Creator in the Black Archive.', '🖋️', 500, 500
+                    $userId, 'THE OTHER SIDE', 'Defeat The Creator, confronting the alternate side within Mindrealm.', '⚔️', 500, 500
                 );
                 if ($ach) $newAchievements[] = $ach;
             }
 
             $this->db->commit();
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('completeFinalBoss error: ' . $e->getMessage());
             return ['success' => false, 'status_code' => 500, 'message' => 'Failed to record Final Boss completion.'];
         }
@@ -1335,8 +1360,14 @@ class AdventureProgressService {
                 $this->addChronicle(
                     $userId, 'adventure_victory',
                     'The Father\'s Revelation',
-                    'Raven, the Merchant of Mindrealm, revealed himself as the father of the Creator and explained the truth behind the twelve Guardians and the player\'s creation.',
+                    'Raven, the Merchant of Mindrealm, revealed himself as the father of the daughter who created Mindrealm. He explained how her alternate side became The Creator and why the player was written into the story.',
                     ['event' => 'father_revelation_completed']
+                );
+                $this->addChronicle(
+                    $userId, 'adventure_victory',
+                    'The Daughter Who Wrote Mindrealm',
+                    'Mindrealm began as a daughter\'s fictional world to organize difficult experiences, but her internal conflict took form as The Creator.',
+                    ['event' => 'daughter_wrote_mindrealm']
                 );
 
                 $ach = $this->unlockStoryAchievement(
@@ -1349,7 +1380,9 @@ class AdventureProgressService {
 
             $this->db->commit();
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('completeFatherRevelation error: ' . $e->getMessage());
             return ['success' => false, 'status_code' => 500, 'message' => 'Failed to record Father\'s Revelation.'];
         }
@@ -1398,28 +1431,40 @@ class AdventureProgressService {
                 if ($stage === 'merchant_reveal' && $this->setFlagOnce($userId, 'merchant_identity_revealed', '1')) {
                     $this->addChronicle(
                         $userId, 'adventure_victory',
-                        'The Merchant\'s Identity Revealed',
-                        'The Merchant was the Creator\'s father, and Mindrealm had been his son\'s world.',
-                        ['event' => 'merchant_revealed']
+                        'The Father\'s Thanks',
+                        'Raven thanked the Mindkeeper for facing the part of his daughter\'s world that she had struggled against.',
+                        ['event' => 'father_thanks']
                     );
+                    $this->addChronicle(
+                        $userId, 'adventure_victory',
+                        'The Unfinished Story',
+                        'Her story did not end the way she hoped. But an unfinished story can still leave meaning behind.',
+                        ['event' => 'unfinished_story']
+                    );
+                    $ach = $this->unlockStoryAchievement(
+                        $userId, 'THE FINAL PAGE', 'Complete the Final Boss sequence.', '📜', 500, 500
+                    );
+                    if ($ach) $newAchievements[] = $ach;
                 }
 
                 if ($stage === 'complete' && $this->setFlagOnce($userId, 'adventure_complete', '1')) {
                     $this->addChronicle(
                         $userId, 'adventure_victory',
-                        'The Mindrealm Adventure Completed',
+                        'The Final Page',
                         'Some stories end unfinished. Others continue in the people who remember them.',
                         ['event' => 'adventure_complete']
                     );
                     $ach = $this->unlockStoryAchievement(
-                        $userId, 'THE LAST PAGE', 'Complete the Mindrealm Adventure.', '📜', 500, 500
+                        $userId, 'A STORY REMEMBERED', 'Complete the revised Adventure ending.', '🕊️', 500, 500
                     );
                     if ($ach) $newAchievements[] = $ach;
                 }
             }
             $this->db->commit();
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('advanceFinalStory error: ' . $e->getMessage());
             return ['success' => false, 'status_code' => 500, 'message' => 'Failed to save story progress.'];
         }

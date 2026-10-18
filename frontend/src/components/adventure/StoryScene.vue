@@ -1,5 +1,5 @@
 <template>
-  <div class="story-scene-container gothic-panel animate-scale-up">
+  <div class="story-scene-container gothic-panel animate-scale-up" :class="{ 'is-morning': isMorning, 'theme-morning': isMorning }">
     <!-- Chapter & Act Banner Header -->
     <div class="story-scene-header">
       <div class="scene-act-tag">
@@ -81,7 +81,11 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useGameStore } from '../../stores/game'
 import DialogueBox from './DialogueBox.vue'
+
+const gameStore = useGameStore()
+const isMorning = computed(() => gameStore.isMorning)
 
 const props = defineProps({
   actTitle: { type: String, default: '' },
@@ -340,5 +344,133 @@ const phaseLabel = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+</style>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   STORY SCENE — MORNING / LIGHT MODE STYLES (UNSCOPED GLOBAL)
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="morning"] .story-scene-container,
+.theme-morning .story-scene-container {
+  background: #FFFDF7 !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.18) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .story-scene-container .act-title,
+.theme-morning .story-scene-container .act-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-phase-badge.phase-discovery,
+.theme-morning .story-scene-container .scene-phase-badge.phase-discovery {
+  background: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border: 1px solid #3B82F6 !important;
+}
+[data-theme="morning"] .story-scene-container .scene-phase-badge.phase-investigation,
+.theme-morning .story-scene-container .scene-phase-badge.phase-investigation {
+  background: #FEF3C7 !important;
+  color: #B45309 !important;
+  border: 1px solid #D97706 !important;
+}
+[data-theme="morning"] .story-scene-container .scene-phase-badge.phase-escalation,
+.theme-morning .story-scene-container .scene-phase-badge.phase-escalation {
+  background: #FEE2E2 !important;
+  color: #B91C1C !important;
+  border: 1px solid #EF4444 !important;
+}
+[data-theme="morning"] .story-scene-container .scene-phase-badge.phase-revelation,
+.theme-morning .story-scene-container .scene-phase-badge.phase-revelation {
+  background: #F3E8FF !important;
+  color: #6B21A8 !important;
+  border: 1px solid #A855F7 !important;
+}
+[data-theme="morning"] .story-scene-container .scene-phase-badge.phase-trial,
+.theme-morning .story-scene-container .scene-phase-badge.phase-trial {
+  background: #FEF9C3 !important;
+  color: #854D0E !important;
+  border: 1px solid #CA8A04 !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-chapter-context,
+.theme-morning .story-scene-container .scene-chapter-context {
+  color: #77634F !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-part-title,
+.theme-morning .story-scene-container .scene-part-title {
+  color: #2D1E12 !important;
+}
+
+[data-theme="morning"] .story-scene-container .part-number-highlight,
+.theme-morning .story-scene-container .part-number-highlight {
+  color: #B45309 !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-enemy-strip,
+.theme-morning .story-scene-container .scene-enemy-strip {
+  background: #FFF5F5 !important;
+  border: 1.5px solid #FCA5A5 !important;
+}
+[data-theme="morning"] .story-scene-container .enemy-label,
+.theme-morning .story-scene-container .enemy-label {
+  color: #DC2626 !important;
+}
+[data-theme="morning"] .story-scene-container .enemy-name,
+.theme-morning .story-scene-container .enemy-name {
+  color: #991B1B !important;
+}
+[data-theme="morning"] .story-scene-container .enemy-sub,
+.theme-morning .story-scene-container .enemy-sub {
+  color: #7F1D1D !important;
+}
+[data-theme="morning"] .story-scene-container .enemy-hp-badge,
+.theme-morning .story-scene-container .enemy-hp-badge {
+  background: #FEE2E2 !important;
+  border: 1px solid #F87171 !important;
+  color: #B91C1C !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-intro-text,
+.theme-morning .story-scene-container .scene-intro-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-clue-card,
+.theme-morning .story-scene-container .scene-clue-card {
+  background: #F0F7FF !important;
+  border: 1.5px solid #93C5FD !important;
+}
+[data-theme="morning"] .story-scene-container .clue-title,
+.theme-morning .story-scene-container .clue-title {
+  color: #1E40AF !important;
+}
+[data-theme="morning"] .story-scene-container .clue-text,
+.theme-morning .story-scene-container .clue-text {
+  color: #1E3A8A !important;
+}
+
+[data-theme="morning"] .story-scene-container .scene-boss-foreshadowing,
+.theme-morning .story-scene-container .scene-boss-foreshadowing {
+  background: #FFFBEB !important;
+  border-left: 3px solid #D97706 !important;
+  color: #92400E !important;
+}
+
+[data-theme="morning"] .story-scene-container .btn-gothic-stone,
+.theme-morning .story-scene-container .btn-gothic-stone {
+  background: #EAD8B5 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+[data-theme="morning"] .story-scene-container .btn-gothic-stone:hover,
+.theme-morning .story-scene-container .btn-gothic-stone:hover {
+  background: #DFCDA5 !important;
+  color: #1F140A !important;
 }
 </style>

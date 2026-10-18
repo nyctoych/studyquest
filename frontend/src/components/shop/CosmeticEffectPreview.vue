@@ -6,15 +6,15 @@
 <template>
   <div class="effect-preview" :class="[item.category_slug, item.effect_key, item.rarity]">
 
-    <!-- ══ ATTACK EFFECT & SPLASH EFFECT (PNG STATIC -> GIF HOVER) ══ -->
+    <!-- ══ ATTACK EFFECT & SPLASH EFFECT (PNG STATIC -> GIF HOVER, OR DIRECT GIF FOR SPLASH) ══ -->
     <div
       v-if="isEffectType"
       class="cosmetic-effect-asset-preview"
       :class="{
         'is-hovered': shouldPlayGif,
-        'is-splash': item.category_slug === 'splash_effect',
+        'is-splash': isSplashEffect,
         'is-potion': item.category_slug === 'potion' || item.category_slug === 'potions' || item.type === 'potion',
-        'is-attack': item.category_slug === 'attack_effect' || (!item.category_slug && item.type !== 'potion') || item.type === 'attack_effect'
+        'is-attack': item.category_slug === 'attack_effect' || (!item.category_slug && item.type !== 'potion' && !isSplashEffect) || item.type === 'attack_effect'
       }"
       @mouseenter="onHover(true)"
       @mouseleave="onHover(false)"
@@ -22,9 +22,16 @@
       @touchstart.passive="toggleMobilePreview"
     >
       <div class="effect-img-container">
-        <!-- Static PNG default (Centered when not hovering, or if GIF is missing) -->
+        <!-- Direct GIF display for splash effects (no PNG, no hover required) -->
         <img
-          v-if="hasPng && (!shouldPlayGif || !hasGif)"
+          v-if="isSplashEffect && hasGif"
+          :src="gifSrc"
+          :alt="`${item.name} animation`"
+          class="effect-asset-img effect-gif pixel-art is-direct-splash"
+        />
+        <!-- Static PNG default (for attack effects/potions centered when not hovering, or if GIF is missing) -->
+        <img
+          v-else-if="hasPng && (!shouldPlayGif || !hasGif)"
           :src="pngSrc"
           :alt="item.name"
           class="effect-asset-img effect-png pixel-art"
@@ -43,8 +50,8 @@
         </div>
       </div>
 
-      <!-- Point / Hover Prompt -->
-      <div v-if="hasGif" class="effect-hover-indicator font-pixel">
+      <!-- Point / Hover Prompt (hidden for splash effects) -->
+      <div v-if="hasGif && !isSplashEffect" class="effect-hover-indicator font-pixel">
         <span class="indicator-icon">{{ shouldPlayGif ? '⚡' : '🔮' }}</span>
         <span class="indicator-text">{{ shouldPlayGif ? 'ANIMATING' : 'HOVER TO PREVIEW' }}</span>
       </div>
@@ -157,9 +164,16 @@ const shouldPlayGif = computed(() => {
   return Boolean(props.autoplay || props.isHovered || localHovered.value || isClicked.value)
 })
 
+const isSplashEffect = computed(() => {
+  const cat = props.item?.category_slug
+  const type = props.item?.type
+  return cat === 'splash_effect' || type === 'splash_effect' || String(props.item?.effect_key || '').includes('splash')
+})
+
 const isEffectType = computed(() => {
   const cat = props.item?.category_slug
-  return cat === 'attack_effect' || cat === 'splash_effect' || Boolean(props.item?.png_path)
+  const type = props.item?.type
+  return cat === 'attack_effect' || cat === 'splash_effect' || type === 'attack_effect' || type === 'splash_effect' || isSplashEffect.value || Boolean(props.item?.png_path) || Boolean(props.item?.gif_path)
 })
 
 // Match catalog metadata if missing on raw DB item
@@ -270,7 +284,6 @@ function rayStyle(i) {
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 6px;
@@ -281,7 +294,7 @@ function rayStyle(i) {
 .effect-img-container {
   position: relative;
   width: 100%;
-  height: 105px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,11 +310,12 @@ function rayStyle(i) {
 
 /* Static PNG preview (centerized horizontally & vertically when not hovering) */
 .effect-asset-img.effect-png {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: 82px;
+  max-height: 82px;
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center;
   margin: auto;
   display: block;
   transform: none !important;
@@ -309,18 +323,19 @@ function rayStyle(i) {
 
 /* Animated GIF preview on hover */
 .effect-asset-img.effect-gif {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 92%;
+  max-height: 92%;
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center;
   margin: auto;
   display: block;
 }
 
-/* Attack effect GIF scaled on hover (reduced into half again -> scale(1.25)) */
+/* Attack effect GIF scaled smoothly on hover without displacement */
 .cosmetic-effect-asset-preview.is-attack .effect-asset-img.effect-gif {
-  transform: scale(1.25) !important;
+  transform: scale(1.05);
   transform-origin: center center;
   filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.75));
 }
@@ -331,7 +346,7 @@ function rayStyle(i) {
 
 .cosmetic-effect-asset-preview.is-splash:hover .effect-asset-img,
 .cosmetic-effect-asset-preview.is-splash.is-hovered .effect-asset-img {
-  transform: scale(1.18);
+  transform: scale(1.12);
   filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.7));
 }
 
@@ -341,7 +356,7 @@ function rayStyle(i) {
 
 .cosmetic-effect-asset-preview.is-potion:hover .effect-asset-img,
 .cosmetic-effect-asset-preview.is-potion.is-hovered .effect-asset-img {
-  transform: scale(1.15) !important;
+  transform: scale(1.12) !important;
   filter: drop-shadow(0 0 18px rgba(248, 113, 113, 0.8));
 }
 
@@ -358,24 +373,31 @@ function rayStyle(i) {
 }
 
 .effect-hover-indicator {
-  margin-top: 4px;
-  font-size: 0.6rem;
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+  font-size: 0.52rem;
   letter-spacing: 0.08em;
   color: #94a3b8;
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 7px;
   border-radius: 4px;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
   transition: all 0.2s ease;
 }
 
 .cosmetic-effect-asset-preview.is-hovered .effect-hover-indicator {
   color: #fbbf24;
   border-color: rgba(251, 191, 36, 0.4);
-  background: rgba(251, 191, 36, 0.12);
+  background: rgba(251, 191, 36, 0.15);
   box-shadow: 0 0 8px rgba(251, 191, 36, 0.25);
 }
 

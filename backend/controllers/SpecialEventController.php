@@ -17,6 +17,9 @@ class SpecialEventController {
      */
     public function today(): void {
         $userId = AuthMiddleware::isLoggedIn() ? AuthMiddleware::userId() : null;
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
         try {
             $data = $this->service->getTodayEvent($userId);
             echo json_encode(array_merge(['success' => true], $data));
@@ -31,11 +34,60 @@ class SpecialEventController {
      */
     public function start(int $eventId): void {
         $userId = AuthMiddleware::userId();
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $sessionNumber = (int) ($body['session_number'] ?? 1);
         try {
-            $result = $this->service->startAttempt($userId, $eventId);
+            $result = $this->service->startAttempt($userId, $eventId, $sessionNumber);
             echo json_encode($result);
         } catch (Throwable $e) {
             http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /special-event/{id}/overview
+     */
+    public function overview(int $eventId): void {
+        $userId = AuthMiddleware::userId();
+        try {
+            $data = $this->service->getExamOverview($userId, $eventId);
+            if (!$data) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Exam overview not found.']);
+                return;
+            }
+            echo json_encode(array_merge(['success' => true], $data));
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /special-event/analytics
+     */
+    public function analytics(): void {
+        $userId = AuthMiddleware::userId();
+        try {
+            $data = $this->analyticsService->getUserAnalytics($userId);
+            echo json_encode(array_merge(['success' => true], $data));
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /special-event/audit
+     */
+    public function auditCoverage(): void {
+        try {
+            require_once __DIR__ . '/../services/StudyHallSourceIndexService.php';
+            $audit = StudyHallSourceIndexService::generateCoverageAudit();
+            echo json_encode(array_merge(['success' => true], $audit));
+        } catch (Throwable $e) {
+            http_response_code(500);
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
     }
@@ -112,6 +164,38 @@ class SpecialEventController {
         $userId = AuthMiddleware::userId();
         try {
             $result = $this->service->finishAttempt($userId, $attemptId);
+            echo json_encode($result);
+        } catch (Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /special-event/attempts/{attemptId}/disqualify
+     */
+    public function disqualify(int $attemptId): void {
+        $userId = AuthMiddleware::userId();
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $reason = !empty($body['reason']) ? trim((string)$body['reason']) : 'Cheating';
+        try {
+            $result = $this->service->disqualifyAttempt($userId, $attemptId, $reason);
+            echo json_encode($result);
+        } catch (Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * POST /special-event/attempts/{attemptId}/tab-switch
+     */
+    public function tabSwitch(int $attemptId): void {
+        $userId = AuthMiddleware::userId();
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $count = (int)($body['count'] ?? 1);
+        try {
+            $result = $this->service->recordTabSwitch($userId, $attemptId, $count);
             echo json_encode($result);
         } catch (Throwable $e) {
             http_response_code(400);

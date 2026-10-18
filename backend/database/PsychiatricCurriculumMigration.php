@@ -395,7 +395,7 @@ class PsychiatricCurriculumMigration {
             1 => [
                 'name' => 'The Synaptic Weaver',
                 'description' => 'A neurodevelopmental aberration manipulating atypical neural pathways and developmental milestones.',
-                'max_hp' => 300,
+                'max_hp' => 100,
                 'xp_reward' => 500,
                 'point_reward' => 300,
                 'portrait_asset' => 'assets/bosses/brain/happy.png',
@@ -405,7 +405,7 @@ class PsychiatricCurriculumMigration {
             2 => [
                 'name' => 'The Hallucinatory Eidolon',
                 'description' => 'An ethereal archon of disorganized cognition, persistent persecutory delusions, and negative symptom blunting.',
-                'max_hp' => 350,
+                'max_hp' => 140,
                 'xp_reward' => 550,
                 'point_reward' => 350,
                 'portrait_asset' => 'assets/bosses/skull/happy.png',
@@ -415,7 +415,7 @@ class PsychiatricCurriculumMigration {
             3 => [
                 'name' => 'The Cyclical Leviathan',
                 'description' => 'A colossal bipolar entity oscillating between unbridled manic grandiosity and crushing depressive inertia.',
-                'max_hp' => 400,
+                'max_hp' => 180,
                 'xp_reward' => 600,
                 'point_reward' => 400,
                 'portrait_asset' => 'assets/bosses/purplebrain/happy.png',
@@ -425,7 +425,7 @@ class PsychiatricCurriculumMigration {
             4 => [
                 'name' => 'The Abyssal Shade',
                 'description' => 'A dark spectral manifestation of persistent anhedonia, vegetative dysregulation, and melancholia.',
-                'max_hp' => 450,
+                'max_hp' => 230,
                 'xp_reward' => 650,
                 'point_reward' => 450,
                 'portrait_asset' => 'assets/bosses/clock/happy.png',
@@ -435,7 +435,7 @@ class PsychiatricCurriculumMigration {
             5 => [
                 'name' => 'The Hyperarousal Phantom',
                 'description' => 'A terrifying entity of autonomic adrenaline surges, catastrophic panic cognitions, and agoraphobic fear.',
-                'max_hp' => 500,
+                'max_hp' => 290,
                 'xp_reward' => 700,
                 'point_reward' => 500,
                 'portrait_asset' => 'assets/bosses/shadows/happy.png',
@@ -445,7 +445,7 @@ class PsychiatricCurriculumMigration {
             6 => [
                 'name' => 'The Perpetual Ritualist',
                 'description' => 'A clockwork specter trapped in compulsive neutralization, intrusive contamination, and dysmorphic agony.',
-                'max_hp' => 550,
+                'max_hp' => 350,
                 'xp_reward' => 750,
                 'point_reward' => 550,
                 'portrait_asset' => 'assets/bosses/mask/happy.png',
@@ -455,7 +455,7 @@ class PsychiatricCurriculumMigration {
             7 => [
                 'name' => 'The Intrusive Revenant',
                 'description' => 'A traumatic memory-phantom reliving intrusive nightmares, dissociative flashbacks, and hypervigilance.',
-                'max_hp' => 600,
+                'max_hp' => 420,
                 'xp_reward' => 800,
                 'point_reward' => 600,
                 'portrait_asset' => 'assets/bosses/brain/happy.png',
@@ -465,7 +465,7 @@ class PsychiatricCurriculumMigration {
             8 => [
                 'name' => 'The Somatosensory Golem',
                 'description' => 'A stony behemoth translating psychological distress into functional neurological deficits and somatic terror.',
-                'max_hp' => 650,
+                'max_hp' => 500,
                 'xp_reward' => 850,
                 'point_reward' => 650,
                 'portrait_asset' => 'assets/bosses/heart/happy.png',
@@ -475,7 +475,7 @@ class PsychiatricCurriculumMigration {
             9 => [
                 'name' => 'The Dysmorphic Siren',
                 'description' => 'A deceptive chimera enforcing visceral starvation, compensatory purging cycles, and severe body distortion.',
-                'max_hp' => 700,
+                'max_hp' => 590,
                 'xp_reward' => 900,
                 'point_reward' => 700,
                 'portrait_asset' => 'assets/bosses/book/happy.png',
@@ -485,7 +485,7 @@ class PsychiatricCurriculumMigration {
             10 => [
                 'name' => 'The Somnambulist Fiend',
                 'description' => 'An oneiric demon of hypocretin collapse, cataplexy, sleep paralysis, and non-REM terror arousals.',
-                'max_hp' => 750,
+                'max_hp' => 690,
                 'xp_reward' => 950,
                 'point_reward' => 750,
                 'portrait_asset' => 'assets/bosses/wing/happy.png',
@@ -495,7 +495,7 @@ class PsychiatricCurriculumMigration {
             11 => [
                 'name' => 'The Dopaminergic Wyrm',
                 'description' => 'A voracious serpent embodying neural tolerance, withdrawal delirium, and compulsive behavioral gambling.',
-                'max_hp' => 850,
+                'max_hp' => 800,
                 'xp_reward' => 1100,
                 'point_reward' => 850,
                 'portrait_asset' => 'assets/bosses/eye/happy.png',
@@ -505,7 +505,7 @@ class PsychiatricCurriculumMigration {
             12 => [
                 'name' => 'The Sovereign of the Fragmented Mind',
                 'description' => 'The supreme apex arbiter synthesizing progressive cognitive decline, Cluster A-C personality pathology, and paraphilias.',
-                'max_hp' => 1000,
+                'max_hp' => 950,
                 'xp_reward' => 1500,
                 'point_reward' => 1000,
                 'portrait_asset' => 'assets/bosses/hat/happy.png',

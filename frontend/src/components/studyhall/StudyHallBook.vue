@@ -274,13 +274,14 @@ function handleClick() {
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  color: var(--book-accent, #fbbf24);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--book-accent, #fde68a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 0.35rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .book-vol-tag {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 /* Sigil */
@@ -321,7 +322,7 @@ function handleClick() {
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.25;
-  color: #f8fafc;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 0.25rem;
@@ -329,18 +330,20 @@ function handleClick() {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 .book-moniker-sub {
   font-size: 0.62rem;
   font-style: italic;
-  color: var(--book-accent, #fbbf24);
-  opacity: 0.8;
+  color: var(--book-accent, #fde68a);
+  opacity: 1;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 
 /* Footer */

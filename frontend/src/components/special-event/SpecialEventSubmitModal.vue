@@ -44,7 +44,7 @@
 
         <div v-else class="success-callout flex items-center gap-2">
           <PixelEmoji emoji="sparkles" size="sm" />
-          <span>All 140 questions have been addressed. Excellent discipline.</span>
+          <span>All {{ totalQuestions }} questions have been addressed. Excellent discipline.</span>
         </div>
       </div>
 

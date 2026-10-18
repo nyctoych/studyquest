@@ -68,12 +68,13 @@
         :ranking-type="currentType"
         :is-in-visible-list="isCurrentUserInList"
         @jump-to-user="jumpToUserPosition"
+        @inspect="openDossier"
       />
 
-      <!-- 6. Champion Dossier Inspection Modal -->
-      <ChampionDossierModal
+      <!-- 6. Mindkeeper Record Profile Inspection Modal -->
+      <MindkeeperProfileModal
         v-if="selectedPlayer"
-        :player="selectedPlayer"
+        :user-id="selectedPlayer.id"
         :rank="selectedRank"
         @close="closeDossier"
       />
@@ -90,7 +91,7 @@ import RankingModeSelector from '../components/leaderboard/RankingModeSelector.v
 import ChampionPodium from '../components/leaderboard/ChampionPodium.vue'
 import RankingRoster from '../components/leaderboard/RankingRoster.vue'
 import CurrentPlayerBanner from '../components/leaderboard/CurrentPlayerBanner.vue'
-import ChampionDossierModal from '../components/leaderboard/ChampionDossierModal.vue'
+import MindkeeperProfileModal from '../components/leaderboard/MindkeeperProfileModal.vue'
 
 const auth = useAuthStore()
 

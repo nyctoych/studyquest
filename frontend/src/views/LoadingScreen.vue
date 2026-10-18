@@ -1,5 +1,5 @@
 <template>
-  <div class="gothic-loading" :class="{ 'fade-out': fadingOut }">
+  <div class="gothic-loading" :class="{ 'fade-out': fadingOut, 'is-morning-loading': gameStore.isMorning }">
     <!-- Atmospheric dark background -->
     <div class="gl-bg-layer"></div>
 
@@ -52,8 +52,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useGameStore } from '../stores/game'
 
 const emit = defineEmits(['done'])
+const gameStore = useGameStore()
 
 const progress = ref(0)
 const fadingOut = ref(false)
@@ -330,5 +332,49 @@ function easeOut(t) { return 1 - Math.pow(1 - t, 2) }
   font-size: var(--px-xs);
   color: var(--text-muted);
   letter-spacing: 0.1em;
+}
+
+/* Morning Mode Overrides */
+.is-morning-loading.gothic-loading {
+  background: #F5E8CC !important;
+}
+.is-morning-loading .gl-bg-layer {
+  background: radial-gradient(ellipse at 50% 30%, #FFF4DF 0%, #EAD8B5 70%, #DECA9E 100%) !important;
+}
+.is-morning-loading .gl-title {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+.is-morning-loading .gl-subtitle {
+  color: #77634F !important;
+}
+.is-morning-loading .gl-psi-frame {
+  background: #FFF4DF !important;
+  border-color: #B88A42 !important;
+  color: #8F642D !important;
+  box-shadow: 0 0 16px rgba(184, 138, 66, 0.3) !important;
+}
+.is-morning-loading .gl-sep-rune {
+  color: #B88A42 !important;
+}
+.is-morning-loading .gl-msg {
+  color: #3D2B1F !important;
+}
+.is-morning-loading .gl-msg-glyph {
+  color: #8F642D !important;
+}
+.is-morning-loading .gl-bar-wrap {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+}
+.is-morning-loading .gl-bar-fill {
+  background: #8F642D !important;
+}
+.is-morning-loading .gl-bar-fill::after {
+  background: linear-gradient(90deg, #8F642D, #B88A42) !important;
+  box-shadow: 0 0 6px #B88A42 !important;
+}
+.is-morning-loading .gl-pct {
+  color: #77634F !important;
 }
 </style>

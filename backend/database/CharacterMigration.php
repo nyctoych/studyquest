@@ -3,11 +3,14 @@ require_once __DIR__ . '/../config/database.php';
 
 class CharacterMigration {
     public static function run(): void {
+        $db = Database::getInstance();
+        if ($db->inTransaction()) {
+            return;
+        }
+
         static $alreadyRun = false;
         if ($alreadyRun) return;
         $alreadyRun = true;
-
-        $db = Database::getInstance();
 
         try {
             // 1. Create characters table
@@ -52,6 +55,17 @@ class CharacterMigration {
                 $db->exec("ALTER TABLE users ADD CONSTRAINT fk_user_character FOREIGN KEY (selected_character_id) REFERENCES characters(id) ON DELETE SET NULL");
             }
 
+            // 2b. Add profile_avatar_path to characters if not present
+            $charColCheck = $db->query("
+                SELECT COLUMN_NAME 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'characters'
+            ");
+            $existingCharCols = $charColCheck->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('profile_avatar_path', $existingCharCols)) {
+                $db->exec("ALTER TABLE characters ADD COLUMN profile_avatar_path VARCHAR(255) NULL AFTER idle_asset_path");
+            }
+
             // 3. Seed or synchronize the three official character records
             $characters = [
                 [
@@ -66,6 +80,7 @@ class CharacterMigration {
                     'opening_gif_path' => '/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer OPENING.gif',
                     'attack_asset_path' => '/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer Attack.gif',
                     'idle_asset_path' => '/assets/CHARACTERS/NECROMANCER (MAGE)/Necromancer IDLE STATE.gif',
+                    'profile_avatar_path' => '/assets/PROFILE-AVATAR/NecroProfile.png',
                     'short_intro' => 'A dark scholar of the subconscious who commands necrotic insight and cognitive runes.',
                     'lore' => 'Hailing from the Catacombs of Memory, the Psychomancer walks the shadowed boundary of human consciousness. While others fear the Fracture that shattered the Mindrealm, the Mage recognizes an unraveling of repressed truths and dormant cognitive potential. With each incantation of dialectic reason, they command spectral essence to reconstruct synaptic connections and expose the illusions that haunt the psyche.',
                     'motivation' => 'To pierce the obsidian veil of the Black Archive, reconstruct the shattered Psyche, and prove that true understanding transcends mortal dread.',
@@ -83,9 +98,10 @@ class CharacterMigration {
                     'damage' => 10,
                     'crit_damage' => 20,
                     'sprite_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-                    'opening_gif_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-                    'attack_asset_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-                    'idle_asset_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
+                    'opening_gif_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee OPENING.gif',
+                    'attack_asset_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee Attack.gif',
+                    'idle_asset_path' => '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee IDLE.gif',
+                    'profile_avatar_path' => '/assets/PROFILE-AVATAR/MeleeProfile.png',
                     'short_intro' => 'A vanguard of pure discipline who cleaves mental distortion with twin obsidian blades.',
                     'lore' => 'When the Fracture ripped open the emotional core of the Mindrealm, raw neurosis and cognitive dissonance assumed monstrous physical forms. The Dual-Wielder was once a Guardian of the Cognitive Citadel who refused surrender to existential despair. Bearing twin blades tempered in sensory grounding and behavioral conditioning, they cleave through the paralyzing fog of irrational fears and perceptual distortions.',
                     'motivation' => 'To shatter the idols of cognitive distortion with unrelenting force, guarding vulnerable seekers and restoring equilibrium through indomitable willpower.',
@@ -106,6 +122,7 @@ class CharacterMigration {
                     'opening_gif_path' => '/assets/CHARACTERS/ARCHER (RANGE)/Archerr OPENING.gif',
                     'attack_asset_path' => '/assets/CHARACTERS/ARCHER (RANGE)/Archerr ATTACKING.gif',
                     'idle_asset_path' => '/assets/CHARACTERS/ARCHER (RANGE)/Archerr IDLE.gif',
+                    'profile_avatar_path' => '/assets/PROFILE-AVATAR/ArcherProfile.png',
                     'short_intro' => 'A keen observer attuned to synaptic signals, piercing fallacies from afar with unerring focus.',
                     'lore' => 'From the silent canopy of the Lucid Woodlands, the Ranger observes the subtlest tremors across the neural web. Possessing an acute sensory threshold and unmatched metacognitive precision, their arrows are woven from pure focused attention. While the Fracture corrupts from within, the Marksman identifies the exact focal point of mental distortions, striking with surgical, lethal clarity before illusions can take root.',
                     'motivation' => 'To spot the subtle lies whispered by the Fracture, strike down cognitive biases from afar, and illuminate the forgotten pathways of the Mindrealm.',
@@ -119,11 +136,11 @@ class CharacterMigration {
             $upsertStmt = $db->prepare("
                 INSERT INTO characters (
                     key_name, name, class_type, title, health, damage, crit_damage,
-                    sprite_path, opening_gif_path, attack_asset_path, idle_asset_path,
+                    sprite_path, opening_gif_path, attack_asset_path, idle_asset_path, profile_avatar_path,
                     short_intro, lore, motivation, opening_message, description, status, sort_order
                 ) VALUES (
                     :key_name, :name, :class_type, :title, :health, :damage, :crit_damage,
-                    :sprite_path, :opening_gif_path, :attack_asset_path, :idle_asset_path,
+                    :sprite_path, :opening_gif_path, :attack_asset_path, :idle_asset_path, :profile_avatar_path,
                     :short_intro, :lore, :motivation, :opening_message, :description, :status, :sort_order
                 ) ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
@@ -136,6 +153,7 @@ class CharacterMigration {
                     opening_gif_path = VALUES(opening_gif_path),
                     attack_asset_path = VALUES(attack_asset_path),
                     idle_asset_path = VALUES(idle_asset_path),
+                    profile_avatar_path = VALUES(profile_avatar_path),
                     short_intro = VALUES(short_intro),
                     lore = VALUES(lore),
                     motivation = VALUES(motivation),

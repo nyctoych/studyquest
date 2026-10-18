@@ -3,22 +3,27 @@
     <div class="admin-container animate-fade-in">
       <!-- Nav Header -->
       <div class="admin-nav-bar">
-        <button class="rpg-nav-back-btn" @click="goToGate">
-          <span>◀ Return to Trial Gate</span>
-        </button>
+        <div class="nav-left-spacer" aria-hidden="true"></div>
+
         <div class="nav-title flex items-center gap-2">
           <PixelEmoji emoji="gear" size="sm" />
-          <span>CHAMBER ADMINISTRATION & AI INSPECTION</span>
+          <span>TEST YOUR KNOWLEDGE // ADMINISTRATION & ENGINE</span>
         </div>
+
+        <button class="rpg-nav-back-btn" @click="goToGate">
+          <span>Today's Exam Gate</span>
+        </button>
+
+        <div class="nav-right-spacer" aria-hidden="true"></div>
       </div>
 
       <!-- Control Panel -->
       <div class="admin-control-card gothic-panel">
         <div class="control-row-top">
           <div>
-            <h2 class="section-title">DAILY TRIAL GENERATION ENGINE</h2>
+            <h2 class="section-title">TEST YOUR KNOWLEDGE GENERATION ENGINE</h2>
             <p class="section-desc">
-              Manage daily 140-question examination events generated from Study Hall via Groq API.
+              Manage daily 450-question two-session mock Psychometrician Board Examination events grounded strictly in Study Hall reviewers.
             </p>
           </div>
 
@@ -38,7 +43,7 @@
               @click="triggerGeneration"
             >
               <PixelEmoji emoji="lightning" size="xs" />
-              <span>{{ generating ? 'Generating 140 Items...' : 'Generate Daily Event' }}</span>
+              <span>{{ generating ? 'Generating 450 Items...' : 'Generate 450-Item Mock Exam' }}</span>
             </button>
           </div>
         </div>
@@ -70,6 +75,11 @@
             <h2 class="inspector-title">{{ selectedEvent.title }}</h2>
           </div>
           <div class="inspector-actions">
+            <div v-if="selectedEvent.is_adaptive || selectedEvent.target_bloom" class="adaptive-target-pill flex items-center gap-1.5">
+              <PixelEmoji emoji="crystal" size="xs" />
+              <span>ADAPTIVE TARGET: {{ (selectedEvent.target_bloom || 'Standard').toUpperCase() }}</span>
+              <span v-if="selectedEvent.secondary_bloom" class="sec-target">/ {{ selectedEvent.secondary_bloom.toUpperCase() }}</span>
+            </div>
             <div class="status-indicator-badge" :class="selectedEvent.status">
               STATUS: {{ selectedEvent.status.toUpperCase() }}
             </div>
@@ -271,7 +281,7 @@ async function triggerGeneration() {
   try {
     const res = await specialEventService.adminGenerate(targetDate.value, forceRegenerate.value)
     if (res.success) {
-      toast.success(res.message || '140 questions generated and verified!')
+      toast.success(res.message || 'Mock board exam items generated and verified!')
       await loadEvents()
       if (res.event_id) {
         selectEvent(res.event_id)
@@ -322,7 +332,7 @@ async function replaceQuestion(id) {
       toast.error(res.message || 'Replacement failed.')
     }
   } catch (err) {
-    toast.error('Error replacing question.')
+    toast.error(err.response?.data?.message || 'Error replacing question.')
   } finally {
     replacingId.value = null
   }
@@ -373,8 +383,28 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
+  min-height: 42px;
   gap: 1rem;
+}
+
+.nav-left-spacer {
+  width: 195px;
+  flex-shrink: 0;
+}
+
+.nav-right-spacer {
+  width: 105px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .admin-nav-bar {
+    flex-wrap: wrap;
+    padding-top: 44px;
+  }
+  .nav-left-spacer, .nav-right-spacer {
+    display: none;
+  }
 }
 
 .rpg-nav-back-btn {
@@ -551,6 +581,20 @@ onMounted(() => {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
   border: 1px solid #f59e0b;
+}
+
+.adaptive-target-pill {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  border: 1px solid #a855f7;
+}
+.adaptive-target-pill .sec-target {
+  color: #fca5a5;
+  font-size: 0.5rem;
 }
 
 .btn-publish-event {

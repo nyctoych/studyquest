@@ -267,7 +267,7 @@ class AdventureStoryMigration {
             $checkStory->execute([$partId]);
             $storyExists = $checkStory->fetch();
 
-            $enemyHp = 100 + ($p['part_number'] * 15);
+            $enemyHp = self::calculateEnemyHp((int)($p['chapter_id'] ?? 1), (int)$p['part_number']);
 
             if ($storyExists) {
                 $updStory = $this->db->prepare("UPDATE adventure_part_story SET
@@ -289,7 +289,7 @@ class AdventureStoryMigration {
                     $p['speaker'],
                     $p['dialogue'],
                     $p['academic'],
-                    $p['after'],
+                    $p['after'] ?? null,
                     $p['enemy'],
                     $p['flavor'],
                     $enemyHp,
@@ -308,7 +308,7 @@ class AdventureStoryMigration {
                     $p['speaker'],
                     $p['dialogue'],
                     $p['academic'],
-                    $p['after'],
+                    $p['after'] ?? null,
                     $p['enemy'],
                     $p['flavor'],
                     $enemyHp
@@ -317,6 +317,25 @@ class AdventureStoryMigration {
             $synced++;
         }
         echo "✓ Seeded $synced adventure parts into `adventure_part_story`.\n";
+    }
+
+    public static function calculateEnemyHp(int $chapterId, int $partNumber): int {
+        $configs = [
+            1  => ['base' => 30,  'step' => 5],   // Part 1: 30 HP, Part 10: 75 HP (easy for beginners dealing 10-15 dmg)
+            2  => ['base' => 50,  'step' => 6],   // Part 1: 50 HP, Part 10: 104 HP
+            3  => ['base' => 75,  'step' => 7],   // Part 1: 75 HP, Part 10: 138 HP
+            4  => ['base' => 105, 'step' => 8],   // Part 1: 105 HP, Part 10: 177 HP
+            5  => ['base' => 140, 'step' => 9],   // Part 1: 140 HP, Part 10: 221 HP
+            6  => ['base' => 180, 'step' => 10],  // Part 1: 180 HP, Part 10: 270 HP
+            7  => ['base' => 225, 'step' => 12],  // Part 1: 225 HP, Part 10: 333 HP
+            8  => ['base' => 275, 'step' => 14],  // Part 1: 275 HP, Part 10: 401 HP
+            9  => ['base' => 330, 'step' => 16],  // Part 1: 330 HP, Part 10: 474 HP
+            10 => ['base' => 390, 'step' => 18],  // Part 1: 390 HP, Part 10: 552 HP
+            11 => ['base' => 455, 'step' => 20],  // Part 1: 455 HP, Part 10: 635 HP
+            12 => ['base' => 525, 'step' => 25],  // Part 1: 525 HP, Part 10: 750 HP
+        ];
+        $cfg = $configs[$chapterId] ?? ['base' => 30 + max(0, $chapterId - 1) * 45, 'step' => 5 + max(0, $chapterId - 1) * 2];
+        return $cfg['base'] + (($partNumber - 1) * $cfg['step']);
     }
 }
 

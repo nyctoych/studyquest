@@ -51,7 +51,7 @@
       <div class="confirm-warning-notice">
         <span class="notice-icon">⚠️</span>
         <p class="notice-text">
-          This choice forges your combat identity for the trials ahead. Are you ready to enter the Mindrealm?
+          This choice forges your combat identity for the trials ahead. <strong>After confirming, you cannot change your character anymore.</strong> Are you ready to enter the Mindrealm?
         </p>
       </div>
 
@@ -293,6 +293,13 @@ defineEmits(['confirm', 'cancel'])
   color: #fed7aa;
   line-height: 1.4;
   margin: 0;
+}
+
+.notice-text strong {
+  color: #fbbf24;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Actions */

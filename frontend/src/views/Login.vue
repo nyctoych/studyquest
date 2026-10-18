@@ -89,10 +89,12 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useWelcomeModalStore } from '../stores/welcomeModal'
 
 const router = useRouter()
 const auth   = useAuthStore()
 const toast  = useToastStore()
+const welcomeModal = useWelcomeModalStore()
 
 const form    = ref({ identifier: '', password: '' })
 const error   = ref('')
@@ -106,6 +108,7 @@ async function handleLogin() {
   loading.value = false
 
   if (result.success) {
+    welcomeModal.markPendingForNewLogin()
     toast.success('Welcome back, ' + auth.nickname + '! ⚔️')
     router.push(auth.isNewPlayer ? '/tutorial' : '/world')
   } else {

@@ -33,7 +33,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[1],
     themeColor: '#e6c845',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 65%, rgba(6, 7, 10, 0.55) 100%)',
-    bossGlow: { top: '28%', left: '82.5%', color: 'rgba(239, 68, 68, 0.35)' },
+    bossGlow: { top: '34%', left: '82.1%', color: 'rgba(239, 68, 68, 0.35)' },
     torches: [
       { id: 't1', top: '78.9%', left: '10.2%', type: 'fire-gold' },
       { id: 't2', top: '60.3%', left: '42.3%', type: 'fire-gold' },
@@ -42,17 +42,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '38.2%', left: '84.1%', type: 'fire-crimson-brazier' }
     ],
     nodePositions: {
-      1:  { top: '85%', left: '13%' },
-      2:  { top: '78%', left: '20%' },
-      3:  { top: '72%', left: '28%' },
-      4:  { top: '65%', left: '35%' },
-      5:  { top: '60%', left: '42%' },
-      6:  { top: '66%', left: '50%' },
-      7:  { top: '60%', left: '58%' },
-      8:  { top: '52%', left: '66%' },
-      9:  { top: '45%', left: '73%' },
-      10: { top: '38%', left: '78%' },
-      boss: { top: '21%', left: 'calc(82.5% - 52px)' }
+      1:  { top: '88%', left: '14.5%' },
+      2:  { top: '84%', left: '22%' },
+      3:  { top: '80%', left: '29%' },
+      4:  { top: '78%', left: '37%' },
+      5:  { top: '70%', left: '43%' },
+      6:  { top: '65%', left: '51%' },
+      7:  { top: '59%', left: '58%' },
+      8:  { top: '53%', left: '65.5%' },
+      9:  { top: '47%', left: '72%' },
+      10: { top: '40%', left: '76%' },
+      boss: { top: '28%', left: 'calc(82.1% - 52px)' }
     }
   },
 
@@ -64,7 +64,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[2],
     themeColor: '#f97316',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 60%, rgba(10, 7, 14, 0.6) 100%)',
-    bossGlow: { top: '26%', left: '84%', color: 'rgba(249, 115, 22, 0.35)' },
+    bossGlow: { top: '50%', left: '64%', color: 'rgba(249, 115, 22, 0.35)' },
     torches: [
       { id: 't1', top: '54.5%', left: '39.9%', type: 'fire-gold' },
       { id: 't2', top: '57.2%', left: '53.5%', type: 'fire-gold' },
@@ -73,17 +73,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '49.6%', left: '70.0%', type: 'fire-gold' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '12%' },
-      2:  { top: '76%', left: '19%' },
-      3:  { top: '68%', left: '27%' },
-      4:  { top: '61%', left: '34%' },
-      5:  { top: '56%', left: '42%' },
-      6:  { top: '62%', left: '50%' },
-      7:  { top: '56%', left: '59%' },
-      8:  { top: '48%', left: '68%' },
-      9:  { top: '40%', left: '76%' },
-      10: { top: '33%', left: '82%' },
-      boss: { top: '20%', left: 'calc(84% - 52px)' }
+      1:  { top: '85%', left: '12%' },
+      2:  { top: '81%', left: '19%' },
+      3:  { top: '75%', left: '24%' },
+      4:  { top: '80%', left: '30%' },
+      5:  { top: '72%', left: '33%' },
+      6:  { top: '77%', left: '39%' },
+      7:  { top: '69%', left: '44%' },
+      8:  { top: '62%', left: '49%' },
+      9:  { top: '65%', left: '58%' },
+      10: { top: '57%', left: '71%' },
+      boss: { top: '44%', left: 'calc(64% - 52px)' }
     }
   },
 
@@ -95,7 +95,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[3],
     themeColor: '#dc2626',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 62%, rgba(14, 6, 8, 0.65) 100%)',
-    bossGlow: { top: '25%', left: '84%', color: 'rgba(220, 38, 38, 0.4)' },
+    bossGlow: { top: '38%', left: '75.6%', color: 'rgba(220, 38, 38, 0.4)' },
     torches: [
       { id: 't1', top: '59.6%', left: '93.7%', type: 'fire-gold' },
       { id: 't2', top: '56.0%', left: '13.3%', type: 'fire-gold' },
@@ -104,17 +104,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '31.7%', left: '83.0%', type: 'fire-gold' }
     ],
     nodePositions: {
-      1:  { top: '83%', left: '13%' },
-      2:  { top: '75%', left: '21%' },
-      3:  { top: '68%', left: '29%' },
-      4:  { top: '62%', left: '36%' },
-      5:  { top: '57%', left: '44%' },
-      6:  { top: '62%', left: '52%' },
-      7:  { top: '55%', left: '61%' },
-      8:  { top: '47%', left: '70%' },
-      9:  { top: '39%', left: '78%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '20%', left: 'calc(84% - 52px)' }
+      1:  { top: '84%', left: '11%' },
+      2:  { top: '84%', left: '17.5%' },
+      3:  { top: '83%', left: '24.8%' },
+      4:  { top: '82%', left: '32%' },
+      5:  { top: '74%', left: '47%' },
+      6:  { top: '68%', left: '55%' },
+      7:  { top: '61%', left: '65%' },
+      8:  { top: '51%', left: '69.5%' },
+      9:  { top: '41%', left: '65%' },
+      10: { top: '34%', left: '71%' },
+      boss: { top: '33%', left: 'calc(75.6% - 52px)' }
     }
   },
 
@@ -126,7 +126,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[4],
     themeColor: '#b91c1c',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 60%, rgba(18, 5, 8, 0.7) 100%)',
-    bossGlow: { top: '24%', left: '83%', color: 'rgba(185, 28, 28, 0.45)' },
+    bossGlow: { top: '43%', left: '81.5%', color: 'rgba(185, 28, 28, 0.45)' },
     torches: [
       { id: 't1', top: '58.5%', left: '39.0%', type: 'fire-gold' },
       { id: 't2', top: '44.5%', left: '65.2%', type: 'fire-violet-rift' },
@@ -135,17 +135,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '35.5%', left: '82.7%', type: 'fire-crimson-brazier' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '13%' },
-      2:  { top: '76%', left: '21%' },
-      3:  { top: '69%', left: '29%' },
-      4:  { top: '62%', left: '37%' },
-      5:  { top: '56%', left: '45%' },
-      6:  { top: '61%', left: '53%' },
-      7:  { top: '54%', left: '61%' },
-      8:  { top: '46%', left: '70%' },
-      9:  { top: '39%', left: '77%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '19%', left: 'calc(83% - 52px)' }
+      1:  { top: '87%', left: '15%' },
+      2:  { top: '85%', left: '23.5%' },
+      3:  { top: '81%', left: '29.5%' },
+      4:  { top: '74%', left: '35.8%' },
+      5:  { top: '73%', left: '54%' },
+      6:  { top: '69%', left: '58.5%' },
+      7:  { top: '63%', left: '65.5%' },
+      8:  { top: '48%', left: '66%' },
+      9:  { top: '48%', left: '75%' },
+      10: { top: '62%', left: '78%' },
+      boss: { top: '35%', left: 'calc(81.5% - 52px)' }
     }
   },
 
@@ -157,7 +157,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[5],
     themeColor: '#38bdf8',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 60%, rgba(5, 10, 16, 0.75) 100%)',
-    bossGlow: { top: '24%', left: '84%', color: 'rgba(56, 189, 248, 0.35)' },
+    bossGlow: { top: '31%', left: '83.5%', color: 'rgba(56, 189, 248, 0.35)' },
     torches: [
       { id: 't1', top: '47.5%', left: '29.5%', type: 'fire-gold' },
       { id: 't2', top: '55.7%', left: '44.1%', type: 'fire-gold' },
@@ -167,17 +167,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't6', top: '34.0%', left: '78.8%', type: 'fire-gold' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '14%' },
-      2:  { top: '77%', left: '22%' },
-      3:  { top: '70%', left: '30%' },
-      4:  { top: '63%', left: '37%' },
-      5:  { top: '57%', left: '45%' },
-      6:  { top: '62%', left: '54%' },
-      7:  { top: '54%', left: '62%' },
-      8:  { top: '47%', left: '70%' },
-      9:  { top: '39%', left: '78%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '19%', left: 'calc(84% - 52px)' }
+      1:  { top: '86%', left: '15.5%' },
+      2:  { top: '82%', left: '8.5%' },
+      3:  { top: '72%', left: '9.5%' },
+      4:  { top: '70%', left: '19.2%' },
+      5:  { top: '84%', left: '27%' },
+      6:  { top: '75%', left: '33%' },
+      7:  { top: '68%', left: '39.2%' },
+      8:  { top: '59%', left: '48.2%' },
+      9:  { top: '51%', left: '58.6%' },
+      10: { top: '43%', left: '68.5%' },
+      boss: { top: '25%', left: 'calc(83.5% - 52px)' }
     }
   },
 
@@ -189,7 +189,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[6],
     themeColor: '#a855f7',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 58%, rgba(12, 4, 18, 0.75) 100%)',
-    bossGlow: { top: '25%', left: '83%', color: 'rgba(168, 85, 247, 0.45)' },
+    bossGlow: { top: '25%', left: '80.4%', color: 'rgba(168, 85, 247, 0.45)' },
     torches: [
       { id: 't1', top: '65.8%', left: '56.0%', type: 'fire-crimson-brazier' },
       { id: 't2', top: '45.3%', left: '43.5%', type: 'fire-crimson-brazier' },
@@ -197,17 +197,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't4', top: '17.3%', left: '82.3%', type: 'fire-crimson-brazier' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '13%' },
-      2:  { top: '76%', left: '21%' },
-      3:  { top: '69%', left: '29%' },
-      4:  { top: '62%', left: '37%' },
-      5:  { top: '56%', left: '45%' },
-      6:  { top: '61%', left: '53%' },
-      7:  { top: '54%', left: '61%' },
-      8:  { top: '46%', left: '70%' },
-      9:  { top: '39%', left: '78%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '20%', left: 'calc(83% - 52px)' }
+      1:  { top: '86%', left: '12.2%' },
+      2:  { top: '80%', left: '23.3%' },
+      3:  { top: '77%', left: '31.5%' },
+      4:  { top: '72%', left: '37.3%' },
+      5:  { top: '68%', left: '47.8%' },
+      6:  { top: '49%', left: '55.3%' },
+      7:  { top: '42%', left: '59.8%' },
+      8:  { top: '35%', left: '67.2%' },
+      9:  { top: '30%', left: '72.8%' },
+      10: { top: '32%', left: '77%' },
+      boss: { top: '18%', left: 'calc(80.4% - 52px)' }
     }
   },
 
@@ -219,7 +219,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[7],
     themeColor: '#c084fc',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 60%, rgba(14, 8, 20, 0.7) 100%)',
-    bossGlow: { top: '26%', left: '83%', color: 'rgba(192, 132, 252, 0.4)' },
+    bossGlow: { top: '60.6%', left: '89.4%', color: 'rgba(192, 132, 252, 0.4)' },
     torches: [
       { id: 't1', top: '85.6%', left: '21.7%', type: 'fire-violet-rift' },
       { id: 't2', top: '77.2%', left: '31.0%', type: 'fire-violet-rift' },
@@ -228,17 +228,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '56.3%', left: '53.8%', type: 'fire-violet-rift' }
     ],
     nodePositions: {
-      1:  { top: '85%', left: '12%' },
-      2:  { top: '77%', left: '20%' },
-      3:  { top: '70%', left: '28%' },
-      4:  { top: '63%', left: '36%' },
-      5:  { top: '57%', left: '44%' },
-      6:  { top: '62%', left: '52%' },
-      7:  { top: '55%', left: '60%' },
-      8:  { top: '47%', left: '69%' },
-      9:  { top: '39%', left: '77%' },
-      10: { top: '33%', left: '82%' },
-      boss: { top: '20%', left: 'calc(83% - 52px)' }
+      1:  { top: '88%', left: '14.3%' },
+      2:  { top: '82%', left: '21.6%' },
+      3:  { top: '76%', left: '29.6%' },
+      4:  { top: '69%', left: '38%' },
+      5:  { top: '62%', left: '45.6%' },
+      6:  { top: '70%', left: '51.6%' },
+      7:  { top: '53%', left: '52.2%' },
+      8:  { top: '76%', left: '58.4%' },
+      9:  { top: '71%', left: '69%' },
+      10: { top: '60%', left: '80.9%' },
+      boss: { top: '51%', left: 'calc(89.4% - 52px)' }
     }
   },
 
@@ -250,7 +250,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[8],
     themeColor: '#38bdf8',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 62%, rgba(5, 12, 18, 0.7) 100%)',
-    bossGlow: { top: '25%', left: '85%', color: 'rgba(56, 189, 248, 0.45)' },
+    bossGlow: { top: '37.7%', left: '83%', color: 'rgba(56, 189, 248, 0.45)' },
     torches: [
       { id: 't1', top: '28.5%', left: '78.2%', type: 'fire-gold' },
       { id: 't2', top: '38.9%', left: '90.2%', type: 'fire-gold' },
@@ -259,17 +259,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '48.5%', left: '56.5%', type: 'fire-gold' }
     ],
     nodePositions: {
-      1:  { top: '83%', left: '13%' },
-      2:  { top: '75%', left: '21%' },
-      3:  { top: '68%', left: '29%' },
-      4:  { top: '61%', left: '37%' },
-      5:  { top: '56%', left: '45%' },
-      6:  { top: '61%', left: '53%' },
-      7:  { top: '54%', left: '61%' },
-      8:  { top: '46%', left: '70%' },
-      9:  { top: '39%', left: '78%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '20%', left: 'calc(85% - 52px)' }
+      1:  { top: '88%', left: '20.4%' },
+      2:  { top: '87%', left: '26.9%' },
+      3:  { top: '83%', left: '34.1%' },
+      4:  { top: '77%', left: '40.3%' },
+      5:  { top: '71%', left: '46.6%' },
+      6:  { top: '64%', left: '53.3%' },
+      7:  { top: '58%', left: '59.8%' },
+      8:  { top: '50%', left: '66.5%' },
+      9:  { top: '45%', left: '71.3%' },
+      10: { top: '39%', left: '77.5%' },
+      boss: { top: '28%', left: 'calc(83% - 52px)' }
     }
   },
 
@@ -281,7 +281,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[9],
     themeColor: '#ec4899',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 58%, rgba(14, 5, 20, 0.7) 100%)',
-    bossGlow: { top: '24%', left: '84%', color: 'rgba(236, 72, 153, 0.45)' },
+    bossGlow: { top: '20.3%', left: '84.9%', color: 'rgba(236, 72, 153, 0.45)' },
     torches: [
       { id: 't1', top: '11.9%', left: '66.3%', type: 'fire-cyan-crystal' },
       { id: 't2', top: '56.7%', left: '76.0%', type: 'fire-cyan-crystal' },
@@ -290,17 +290,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '38.3%', left: '82.1%', type: 'fire-cyan-crystal' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '14%' },
-      2:  { top: '76%', left: '22%' },
-      3:  { top: '69%', left: '30%' },
-      4:  { top: '62%', left: '37%' },
-      5:  { top: '56%', left: '45%' },
-      6:  { top: '61%', left: '53%' },
-      7:  { top: '54%', left: '62%' },
-      8:  { top: '46%', left: '71%' },
-      9:  { top: '38%', left: '78%' },
-      10: { top: '31%', left: '83%' },
-      boss: { top: '19%', left: 'calc(84% - 52px)' }
+      1:  { top: '87%', left: '8.7%' },
+      2:  { top: '81%', left: '17.6%' },
+      3:  { top: '72%', left: '25.8%' },
+      4:  { top: '57%', left: '40%' },
+      5:  { top: '48%', left: '47.6%' },
+      6:  { top: '38%', left: '56.3%' },
+      7:  { top: '30%', left: '61%' },
+      8:  { top: '24%', left: '67.1%' },
+      9:  { top: '19%', left: '73.2%' },
+      10: { top: '17%', left: '80.8%' },
+      boss: { top: '12%', left: 'calc(84.9% - 52px)' }
     }
   },
 
@@ -312,7 +312,7 @@ export const CHAPTER_ENVIRONMENTS = {
     bgUrl: chapterBackgrounds[10],
     themeColor: '#ef4444',
     ambientVignette: 'radial-gradient(ellipse at center, transparent 55%, rgba(20, 4, 8, 0.8) 100%)',
-    bossGlow: { top: '25%', left: '83%', color: 'rgba(239, 68, 68, 0.5)' },
+    bossGlow: { top: '23%', left: '81.2%', color: 'rgba(239, 68, 68, 0.5)' },
     torches: [
       { id: 't1', top: '48.9%', left: '17.0%', type: 'fire-crimson-brazier' },
       { id: 't2', top: '45.3%', left: '43.5%', type: 'fire-crimson-brazier' },
@@ -321,17 +321,17 @@ export const CHAPTER_ENVIRONMENTS = {
       { id: 't5', top: '62.9%', left: '86.0%', type: 'fire-crimson-brazier' }
     ],
     nodePositions: {
-      1:  { top: '84%', left: '13%' },
-      2:  { top: '76%', left: '21%' },
-      3:  { top: '69%', left: '29%' },
-      4:  { top: '62%', left: '37%' },
-      5:  { top: '56%', left: '45%' },
-      6:  { top: '61%', left: '53%' },
-      7:  { top: '54%', left: '61%' },
-      8:  { top: '46%', left: '70%' },
-      9:  { top: '39%', left: '78%' },
-      10: { top: '32%', left: '83%' },
-      boss: { top: '19%', left: 'calc(83% - 52px)' }
+      1:  { top: '87%', left: '11%' },
+      2:  { top: '81%', left: '19.6%' },
+      3:  { top: '75%', left: '26.4%' },
+      4:  { top: '68%', left: '34.8%' },
+      5:  { top: '63%', left: '43%' },
+      6:  { top: '55%', left: '52%' },
+      7:  { top: '48%', left: '57%' },
+      8:  { top: '38%', left: '63.6%' },
+      9:  { top: '33%', left: '68.7%' },
+      10: { top: '28%', left: '75.4%' },
+      boss: { top: '14%', left: 'calc(81.2% - 52px)' }
     }
   },
 

@@ -5,8 +5,44 @@
 
     <!-- Main App (shown after loading) -->
     <template v-else>
-      <!-- Game HUD overlay (authenticated gameplay routes only) -->
+      <!-- Game HUD overlay (authenticated gameplay routes only, hidden in serious mode) -->
       <GameHUD v-if="showHUD" />
+
+      <!-- Serious Mode Return Button (Replaces navigation header in serious mode) -->
+      <button
+        v-if="isSeriousModeActive && authStore.isLoggedIn && route.path !== '/studyhall/shelves' && !route.path.startsWith('/special-event/exam')"
+        type="button"
+        class="serious-return-btn animate-fade-in"
+        :class="{ 'is-morning': gameStore.isMorning }"
+        @click="handleSeriousReturn"
+        :title="returnButtonLabel === 'Back' ? 'Back' : 'Return to Realm'"
+        id="serious-mode-return-btn"
+      >
+        <span class="serious-return-arrow">◀</span>
+        <span class="serious-return-label">{{ returnButtonLabel }}</span>
+      </button>
+
+      <!-- Serious Mode Top Actions (Theme Toggle & Music Mute Toggle) -->
+      <div
+        v-if="isSeriousModeActive && authStore.isLoggedIn && route.path !== '/studyhall/shelves' && !route.path.startsWith('/special-event/exam')"
+        class="serious-nav-actions animate-fade-in"
+      >
+        <!-- Serious Mode Audio Volume Control (Increase/Decrease/Slider/Mute) -->
+        <AudioVolumeControl id="serious-mode-volume-widget" />
+
+        <!-- Serious Mode Theme Toggle -->
+        <button
+          type="button"
+          class="serious-theme-toggle-btn"
+          :class="{ 'is-morning': gameStore.isMorning }"
+          @click="gameStore.toggleTheme()"
+          :title="gameStore.isMorning ? 'Switch to Night Mode (☾)' : 'Switch to Morning Mode (☀)'"
+          id="serious-mode-theme-toggle-btn"
+        >
+          <span class="serious-theme-icon">{{ gameStore.isMorning ? '☀' : '☾' }}</span>
+          <span class="serious-theme-label">{{ gameStore.isMorning ? 'DAY' : 'NIGHT' }}</span>
+        </button>
+      </div>
 
       <!-- Page content wrapper -->
       <main
@@ -27,46 +63,178 @@
     <!-- Global Toast Notifications -->
     <ToastContainer />
 
+    <!-- Milestone Attribute Allocation Modal -->
+    <AttributeAllocationModal />
+
     <!-- Game World Module Travel Transition Overlay -->
     <GameTransition />
+
+    <!-- Post-Login Immersive Experience Welcome Modal -->
+    <ImmersiveWelcomeModal />
+
+    <!-- Serious Mode Welcome Notification Modal -->
+    <SeriousModeModal />
+
+    <!-- Global Tutorial Onboarding Spotlight Overlay -->
+    <TutorialSpotlightOverlay />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import LoadingScreen from './views/LoadingScreen.vue'
 import GameHUD from './components/GameHUD.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import GameTransition from './components/transitions/GameTransition.vue'
+import AttributeAllocationModal from './components/character/AttributeAllocationModal.vue'
+import ImmersiveWelcomeModal from './components/modals/ImmersiveWelcomeModal.vue'
+import SeriousModeModal from './components/modals/SeriousModeModal.vue'
+import TutorialSpotlightOverlay from './components/tutorial/TutorialSpotlightOverlay.vue'
+import AudioVolumeControl from './components/ui/AudioVolumeControl.vue'
 import { useAuthStore } from './stores/auth'
 import { useGameStore } from './stores/game'
+import { useAttributeAllocationStore } from './stores/attributeAllocation'
+import { useWelcomeModalStore } from './stores/welcomeModal'
+import { useSeriousModeStore } from './stores/seriousMode'
+import { useTransitionStore } from './stores/transition'
+import { useTutorialStore } from './stores/tutorial'
 import { bgmService } from './services/bgmService'
+import { studyHallTtsService } from './services/studyHallTtsService'
+import { battleAudio } from './services/battleAudio'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const gameStore = useGameStore()
+const attributeAllocationStore = useAttributeAllocationStore()
+const welcomeModalStore = useWelcomeModalStore()
+const seriousModeStore = useSeriousModeStore()
+const transitionStore = useTransitionStore()
+const tutorialStore = useTutorialStore()
+
+// Watch routes to manage Serious Mode lifecycle and clean up background speech
+watch(
+  () => route.path,
+  (newPath, oldPath) => {
+    seriousModeStore.handleRouteChange(newPath, oldPath)
+    if (oldPath && oldPath !== newPath && studyHallTtsService.isPlaying.value) {
+      studyHallTtsService.stop()
+    }
+  },
+  { immediate: true }
+)
+
+// Watch for pending post-login immersive experience welcome modal
+
+// Watch for pending post-login immersive experience welcome modal
+watch(
+  () => [authStore.isLoggedIn, route.path],
+  ([loggedIn, path]) => {
+    // Only open if logged in and navigating into the game realm (not on guest/login/register pages)
+    if (loggedIn && !['/', '/login', '/register'].includes(path)) {
+      welcomeModalStore.checkAndOpen()
+    }
+  },
+  { immediate: true }
+)
+
+// Watch for pending attribute milestones on level up or navigation
+watch(
+  () => [authStore.level, route.path, authStore.isLoggedIn],
+  async ([lvl, path, loggedIn]) => {
+    if (loggedIn) {
+      if (!attributeAllocationStore.scaledStats) {
+        await attributeAllocationStore.fetchAllocations(authStore.user?.selected_character_id)
+      }
+      attributeAllocationStore.checkAndOpenIfPending(path)
+    }
+  },
+  { immediate: true }
+)
 
 // Loading screen shown once per browser session
 const showLoading = ref(!sessionStorage.getItem('sq_loaded'))
 
-// Routes where HUD should NOT appear
-const NO_HUD_ROUTES = ['/', '/login', '/register', '/tutorial']
+// Serious Mode state & navigation
+const isSeriousModeActive = computed(() => {
+  return seriousModeStore.isSeriousMode || seriousModeStore.isSeriousRoute(route.path)
+})
+
+const isSeriousSubRoute = computed(() => {
+  const p = route.path
+  return (
+    p.startsWith('/studyhall/chapter') ||
+    p.startsWith('/studyhall/reading') ||
+    p.startsWith('/studyhall/shelves') ||
+    p.startsWith('/quests/part') ||
+    p.startsWith('/quests/') ||
+    p.startsWith('/special-event/history') ||
+    p.startsWith('/special-event/admin') ||
+    p.startsWith('/special-event/results')
+  )
+})
+
+const returnButtonLabel = computed(() => {
+  return isSeriousSubRoute.value ? 'Back' : 'RETURN TO REALM'
+})
+
+function handleSeriousReturn() {
+  // If at top-level module (Study Hall entrance, Vault, Special Event), always return directly to the Realm (/world)
+  if (!isSeriousSubRoute.value) {
+    transitionStore.triggerTravel('/world', router)
+    return
+  }
+
+  // If inside a specific part, return to its chapter
+  if (route.params.chapterId && route.path.includes('/part/')) {
+    transitionStore.triggerTravel(`/studyhall/chapter/${route.params.chapterId}`, router)
+    return
+  }
+
+  // If inside a chapter or legacy quest, return to the chapter shelves
+  if (
+    route.path.startsWith('/studyhall/chapter') || 
+    route.path.startsWith('/studyhall/reading') ||
+    route.path.startsWith('/quests/part') ||
+    route.path.startsWith('/quests/')
+  ) {
+    transitionStore.triggerTravel('/studyhall/shelves', router)
+  } else if (route.path === '/studyhall/shelves') {
+    transitionStore.triggerTravel('/studyhall', router)
+  } else if (
+    route.path.startsWith('/special-event/history') ||
+    route.path.startsWith('/special-event/admin') ||
+    route.path.startsWith('/special-event/results')
+  ) {
+    transitionStore.triggerTravel('/special-event', router)
+  } else {
+    transitionStore.triggerTravel('/world', router)
+  }
+}
+
+// Routes where HUD should NOT appear (plus Serious Mode modules: Study Hall, Vault, Daily Trial)
+const NO_HUD_ROUTES = ['/', '/login', '/register', '/tutorial', '/character-selection']
 const showHUD = computed(() =>
   authStore.isLoggedIn &&
   !NO_HUD_ROUTES.includes(route.path) &&
   !route.path.startsWith('/battle/') &&
-  !route.path.startsWith('/special-event/exam')
+  !route.path.startsWith('/special-event/exam') &&
+  !route.path.startsWith('/share/') &&
+  !route.path.startsWith('/quests/part') &&
+  !route.path.startsWith('/studyhall') &&
+  !isSeriousModeActive.value
 )
 
 // Full-screen views that manage their own full-bleed canvas or custom internal layouts
-const FULL_SCREEN_PREFIXES = ['/world', '/dashboard', '/battle', '/special-event/exam', '/studyhall']
+const FULL_SCREEN_PREFIXES = ['/world', '/dashboard', '/battle', '/special-event', '/studyhall', '/achievements', '/share', '/vault', '/quests/part', '/quests/', '/adventure', '/shop', '/market']
 const isFullScreenView = computed(() => {
   const p = route.path
   if (NO_HUD_ROUTES.includes(p)) return true
   if (FULL_SCREEN_PREFIXES.some(prefix => p.startsWith(prefix))) return true
   if (p.includes('final-boss')) return true
-  if (p === '/adventure' || (p.startsWith('/adventure/') && !p.includes('/part/') && !p.includes('/boss'))) return true
+  if (p.startsWith('/adventure')) return true
+  if (p === '/shop' || p === '/market') return true
   return false
 })
 
@@ -98,9 +266,22 @@ watch(() => route.path, (p) => {
   bgmService.updateRoute(p)
 }, { immediate: true })
 
+// Sync game store theme context (light mode gatekeeper) with active route, auth state, and new player status
+watch(
+  [() => route.path, () => authStore.isLoggedIn, () => authStore.isNewPlayer],
+  ([newPath, loggedIn, isNew]) => {
+    gameStore.syncThemeContext(newPath, loggedIn, isNew)
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
+  battleAudio.initGlobalClickListener()
   bgmService.init(gameStore.musicEnabled, route.path)
   await authStore.init()
+  if (authStore.isLoggedIn) {
+    await tutorialStore.fetchStatus()
+  }
 })
 </script>
 
@@ -174,11 +355,49 @@ html, body {
   background: var(--gothic-void);
 }
 
+/* Force dark gothic void background across adventure & battlefield views */
+html:has(.adv-part),
+body:has(.adv-part),
+#app:has(.adv-part),
+html:has(.adv-boss-screen),
+body:has(.adv-boss-screen),
+#app:has(.adv-boss-screen),
+html:has(.rpg-adventure-screen),
+body:has(.rpg-adventure-screen),
+#app:has(.rpg-adventure-screen),
+html:has(.market-view-root),
+body:has(.market-view-root),
+#app:has(.market-view-root),
+html:has(.study-part),
+body:has(.study-part),
+#app:has(.study-part) {
+  background: #050608 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 /* ── APP PAGE WRAPPER (Top margin & responsive spacing for modules) ── */
 .app-page-wrapper {
   width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
+}
+
+.app-page-wrapper.full-screen-view,
+.app-page-wrapper.full-screen-view.has-hud,
+.app-page-wrapper:has(.adv-part),
+.app-page-wrapper:has(.adv-boss-screen),
+.app-page-wrapper:has(.rpg-adventure-screen),
+.app-page-wrapper:has(.market-view-root),
+.app-page-wrapper:has(.study-part) {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
 }
 
 .app-page-wrapper.has-hud:not(.full-screen-view) {
@@ -442,5 +661,253 @@ h4 { font-size: var(--px-base); }
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
+}
+
+/* ── SERIOUS MODE RETURN BUTTON ────────────────────────────── */
+.serious-return-btn {
+  position: fixed;
+  top: 14px;
+  left: 18px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.serious-return-btn:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateX(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.serious-return-btn:active {
+  transform: translateX(0);
+}
+
+.serious-return-arrow {
+  color: #fbbf24;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.serious-return-btn:hover .serious-return-arrow {
+  transform: translateX(-2px);
+}
+
+.serious-return-label {
+  line-height: 1;
+}
+
+.serious-return-btn.is-morning {
+  background: #EAD8B5;
+  border-color: #B88A42;
+  color: #3D2B1F;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2);
+}
+
+.serious-return-btn.is-morning:hover {
+  background: #FFFDF7;
+  border-color: #D97706;
+  color: #2C1E14;
+}
+
+.serious-return-btn.is-morning .serious-return-arrow {
+  color: #B45309;
+}
+
+@media (max-width: 600px) {
+  .serious-return-btn {
+    top: 10px;
+    left: 12px;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+}
+
+/* ── SERIOUS MODE TOP ACTIONS (THEME & MUSIC TOGGLES) ── */
+.serious-nav-actions {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.serious-music-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.serious-music-toggle-btn:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.serious-music-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.serious-music-toggle-btn.is-muted {
+  background: rgba(45, 10, 10, 0.88);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.serious-music-toggle-btn.is-muted:hover {
+  background: rgba(70, 15, 15, 0.96);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.serious-music-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.serious-music-label {
+  line-height: 1;
+}
+
+.serious-music-toggle-btn.is-morning {
+  background: #EAD8B5;
+  border-color: #B88A42;
+  color: #3D2B1F;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2);
+}
+
+.serious-music-toggle-btn.is-morning:hover {
+  background: #FFFDF7;
+  border-color: #735022;
+  color: #1c130d;
+}
+
+.serious-music-toggle-btn.is-morning.is-muted {
+  background: #fed7aa;
+  border-color: #ea580c;
+  color: #7c2d12;
+}
+
+/* ── SERIOUS MODE THEME TOGGLE BUTTON ─────────────────────────── */
+.serious-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.serious-theme-toggle-btn:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.serious-theme-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.serious-theme-icon {
+  color: #fbbf24;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.serious-theme-label {
+  line-height: 1;
+}
+
+.serious-theme-toggle-btn.is-morning {
+  background: #EAD8B5;
+  border-color: #B88A42;
+  color: #3D2B1F;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2);
+}
+
+.serious-theme-toggle-btn.is-morning:hover {
+  background: #FFFDF7;
+  border-color: #735022;
+  color: #1c130d;
+}
+
+.serious-theme-toggle-btn.is-morning .serious-theme-icon {
+  color: #b45309;
+}
+
+@media (max-width: 600px) {
+  .serious-nav-actions {
+    top: 10px;
+    right: 12px;
+    gap: 6px;
+  }
+  .serious-music-toggle-btn,
+  .serious-theme-toggle-btn {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+    gap: 6px;
+  }
 }
 </style>

@@ -2,6 +2,11 @@
  * StudyQuest — Dedicated Game-World Module Environments
  * Prevents background leaking between modules.
  * Each location has an authentic, opaque, dark fantasy / gothic atmosphere.
+ *
+ * MORNING / LIGHT MODE IMPLEMENTATION:
+ * Warm parchment surfaces (#F5E8CC / #FFF4DF), antique-gold borders (#B88A42),
+ * bronze accents (#8F642D), and dark brown text (#3D2B1F).
+ * ABSOLUTE RULE: ZERO FILTERS OR OVERLAYS ON BACKGROUND ARTWORK OR SPRITES.
  */
 
 /* Base container for all module environments */
@@ -27,7 +32,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: 
+  background-image:
     radial-gradient(circle at 10% 20%, rgba(239, 68, 68, 0.05) 0%, transparent 20%),
     radial-gradient(circle at 90% 20%, rgba(239, 68, 68, 0.05) 0%, transparent 20%);
   pointer-events: none;
@@ -76,4 +81,4283 @@
   background: radial-gradient(ellipse at center, transparent 70%, rgba(3, 4, 6, 0.6) 100%);
   pointer-events: none;
   z-index: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GLOBAL LIGHT / MORNING MODE — ACROSS EVERY MODULE
+   UI Surfaces & Controls adopt Warm Parchment & Antique Gold.
+   All underlying artwork and background images remain 100% UNCHANGED.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── A0. GAME HUD NAVIGATION HEADER ───────────────────────── */
+.game-hud.is-morning-hud,
+.game-hud.theme-morning,
+[data-theme="morning"] .game-hud,
+.theme-morning .game-hud {
+  background: #FFF4DF !important;
+  border-bottom: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .rpg-res-pill,
+.theme-morning .rpg-res-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .res-health,
+.theme-morning .res-health,
+[data-theme="morning"] .res-health.state-normal,
+.theme-morning .res-health.state-normal {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="morning"] .res-health .res-val,
+.theme-morning .res-health .res-val,
+[data-theme="morning"] .res-health.state-normal .res-val,
+.theme-morning .res-health.state-normal .res-val,
+[data-theme="morning"] .res-health .res-label,
+.theme-morning .res-health .res-label,
+[data-theme="morning"] .res-health.state-normal .res-label,
+.theme-morning .res-health.state-normal .res-label {
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .rpg-avatar-frame,
+.theme-morning .rpg-avatar-frame {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .rpg-name-pill,
+.theme-morning .rpg-name-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="morning"] .rpg-player-name,
+.theme-morning .rpg-player-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .rpg-sub-badge,
+.theme-morning .rpg-sub-badge {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .rpg-sub-badge span,
+.theme-morning .rpg-sub-badge span {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .rpg-back-btn,
+.theme-morning .rpg-back-btn,
+[data-theme="morning"] .action-icon-btn,
+.theme-morning .action-icon-btn,
+[data-theme="morning"] .rpg-dropdown-btn,
+.theme-morning .rpg-dropdown-btn,
+[data-theme="morning"] .rpg-theme-toggle-btn,
+.theme-morning .rpg-theme-toggle-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ── A. GLOBAL COMMON CARDS, CONTAINERS & SURFACES ────────── */
+[data-theme="morning"] .glass-card,
+.theme-morning .glass-card,
+[data-theme="morning"] .gothic-card,
+.theme-morning .gothic-card,
+[data-theme="morning"] .gothic-modal,
+.theme-morning .gothic-modal,
+[data-theme="morning"] .modal-content,
+.theme-morning .modal-content,
+[data-theme="morning"] .panel-container,
+.theme-morning .panel-container {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+/* Global Headings & Text in Light Mode */
+[data-theme="morning"] h1,
+[data-theme="morning"] h2,
+[data-theme="morning"] h3,
+.theme-morning h1,
+.theme-morning h2,
+.theme-morning h3,
+[data-theme="morning"] .font-gothic,
+.theme-morning .font-gothic {
+  color: #3D2B1F !important;
+}
+
+/* Global Form Controls & Inputs */
+[data-theme="morning"] input,
+.theme-morning input,
+[data-theme="morning"] select,
+.theme-morning select,
+[data-theme="morning"] textarea,
+.theme-morning textarea {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] input::placeholder,
+.theme-morning input::placeholder,
+[data-theme="morning"] textarea::placeholder,
+.theme-morning textarea::placeholder {
+  color: #A89985 !important;
+}
+
+[data-theme="morning"] input:focus,
+.theme-morning input:focus,
+[data-theme="morning"] select:focus,
+.theme-morning select:focus,
+[data-theme="morning"] textarea:focus,
+.theme-morning textarea:focus {
+  outline: 2px solid #8F642D !important;
+  border-color: #8F642D !important;
+}
+
+/* ── B. STUDY HALL MODULE ───────────────────────────────────── */
+[data-theme="morning"] .study-hall-card,
+.theme-morning .study-hall-card,
+[data-theme="morning"] .shelves-control-deck,
+.theme-morning .shelves-control-deck,
+[data-theme="morning"] .shelves-book-card,
+.theme-morning .shelves-book-card,
+[data-theme="morning"] .archive-focus-banner,
+.theme-morning .archive-focus-banner,
+[data-theme="morning"] .open-grimoire-spread,
+.theme-morning .open-grimoire-spread,
+[data-theme="morning"] .grimoire-page-leaf,
+.theme-morning .grimoire-page-leaf {
+  background: #FFF4DF !important;
+  border-color: #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .archive-search-input,
+.theme-morning .archive-search-input {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .filter-btn,
+.theme-morning .filter-btn {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .filter-btn.active,
+.theme-morning .filter-btn.active {
+  background: #8F642D !important;
+  border-color: #8F642D !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .herald-title,
+.theme-morning .herald-title,
+[data-theme="morning"] .focus-title,
+.theme-morning .focus-title {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .focus-sub,
+.theme-morning .focus-sub,
+[data-theme="morning"] .herald-moniker,
+.theme-morning .herald-moniker {
+  color: #77634F !important;
+}
+
+/* ── C. DAILY TRIAL / SPECIAL EVENTS MODULE ────────────────── */
+[data-theme="morning"] .special-event-landing-page .rules-card,
+.theme-morning .special-event-landing-page .rules-card,
+[data-theme="morning"] .special-event-landing-page .reward-card,
+.theme-morning .special-event-landing-page .reward-card,
+[data-theme="morning"] .special-event-landing-page .countdown-banner,
+.theme-morning .special-event-landing-page .countdown-banner,
+[data-theme="morning"] .exam-question-card,
+.theme-morning .exam-question-card,
+[data-theme="morning"] .exam-choice-btn,
+.theme-morning .exam-choice-btn,
+[data-theme="morning"] .results-hero-card,
+.theme-morning .results-hero-card,
+[data-theme="morning"] .subpanel-content,
+.theme-morning .subpanel-content {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .exam-choice-btn:hover:not(:disabled),
+.theme-morning .exam-choice-btn:hover:not(:disabled) {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .exam-choice-btn.is-selected,
+.theme-morning .exam-choice-btn.is-selected {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  box-shadow: 0 0 14px rgba(143, 100, 45, 0.25) !important;
+}
+
+[data-theme="morning"] .subtab-btn,
+.theme-morning .subtab-btn {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .subtab-btn.active,
+.theme-morning .subtab-btn.active {
+  background: #8F642D !important;
+  border-color: #8F642D !important;
+  color: #FFFDF7 !important;
+}
+
+/* ── D. ADVENTURE GATE, CHAPTERS & ADVENTURE MAP ──────────── */
+[data-theme="morning"] .adventure-map-header,
+.theme-morning .adventure-map-header,
+[data-theme="morning"] .chapter-detail-panel,
+.theme-morning .chapter-detail-panel,
+[data-theme="morning"] .part-tile,
+.theme-morning .part-tile,
+[data-theme="morning"] .adventure-boss-card,
+.theme-morning .adventure-boss-card,
+[data-theme="morning"] .difficulty-badge,
+.theme-morning .difficulty-badge {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .part-tile:hover,
+.theme-morning .part-tile:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+}
+
+/* Adventure Map Top Bar Medals (Stars, Mind Seals, Health Recovery) */
+[data-theme="morning"] .total-stars-medal,
+.theme-morning .total-stars-medal {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  border-left: 3px solid #8F642D !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .total-stars-medal .stars-fraction,
+.theme-morning .total-stars-medal .stars-fraction {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .total-stars-medal .stars-label,
+.theme-morning .total-stars-medal .stars-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .mind-seals-codex-medal,
+.theme-morning .mind-seals-codex-medal {
+  border-left-color: #8F642D !important;
+}
+
+[data-theme="morning"] .adv-health-recovery-badge,
+.theme-morning .adv-health-recovery-badge {
+  border-left: 3px solid #16a34a !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .adv-health-recovery-badge .stars-fraction,
+.theme-morning .adv-health-recovery-badge .stars-fraction {
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .adv-health-recovery-badge .health-regen-sub,
+.theme-morning .adv-health-recovery-badge .health-regen-sub {
+  color: #166534 !important;
+  text-shadow: none !important;
+}
+
+/* Chapter Switcher Pill (Center) */
+[data-theme="morning"] .chapter-nav-pill,
+.theme-morning .chapter-nav-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .chapter-nav-pill:hover,
+.theme-morning .chapter-nav-pill:hover {
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-nav-num,
+.theme-morning .ch-nav-num {
+  color: #991b1b !important;
+}
+
+[data-theme="morning"] .ch-nav-story-highlight,
+.theme-morning .ch-nav-story-highlight {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-nav-title,
+.theme-morning .ch-nav-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-nav-act-tag,
+.theme-morning .ch-nav-act-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-status-badge-inline,
+.theme-morning .ch-status-badge-inline {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ch-badge-completed,
+.theme-morning .ch-badge-completed {
+  color: #166534 !important;
+  border-color: #16a34a !important;
+}
+
+[data-theme="morning"] .ch-badge-boss_available,
+.theme-morning .ch-badge-boss_available {
+  color: #991b1b !important;
+  border-color: #dc2626 !important;
+}
+
+[data-theme="morning"] .ch-nav-btn,
+.theme-morning .ch-nav-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-nav-btn:hover:not(:disabled),
+.theme-morning .ch-nav-btn:hover:not(:disabled) {
+  background: #B88A42 !important;
+  color: #FFFDF7 !important;
+}
+
+/* Extra Lore & Chapters Buttons */
+[data-theme="morning"] .story-prologue-btn,
+.theme-morning .story-prologue-btn,
+[data-theme="morning"] .all-chapters-btn,
+.theme-morning .all-chapters-btn {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.12) !important;
+}
+
+[data-theme="morning"] .story-prologue-btn:hover,
+.theme-morning .story-prologue-btn:hover,
+[data-theme="morning"] .all-chapters-btn:hover,
+.theme-morning .all-chapters-btn:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  color: #8F642D !important;
+}
+
+/* Black Archive Top Button */
+[data-theme="morning"] .black-archive-top-btn,
+.theme-morning .black-archive-top-btn {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn.is-completed,
+.theme-morning .black-archive-top-btn.is-completed {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn.is-locked,
+.theme-morning .black-archive-top-btn.is-locked {
+  background: #EAD8B5 !important;
+  border-color: #c4b59d !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn .ba-key-text,
+.theme-morning .black-archive-top-btn .ba-key-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .black-archive-top-btn .ba-status-badge,
+.theme-morning .black-archive-top-btn .ba-status-badge {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #166534 !important;
+}
+
+/* Quest Objective Banner */
+[data-theme="morning"] .quest-objective-banner,
+.theme-morning .quest-objective-banner {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  border-left: 3px solid #8F642D !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .quest-objective-banner:hover,
+.theme-morning .quest-objective-banner:hover {
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-title,
+.theme-morning .quest-objective-banner .objective-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-sub,
+.theme-morning .quest-objective-banner .objective-sub {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .quest-objective-banner .objective-icon-box,
+.theme-morning .quest-objective-banner .objective-icon-box {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+/* Locked Chapter Banner */
+[data-theme="morning"] .locked-chapter-banner .locked-banner-inner,
+.theme-morning .locked-chapter-banner .locked-banner-inner {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #991b1b !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .locked-banner-text,
+.theme-morning .locked-banner-text {
+  color: #991b1b !important;
+  text-shadow: none !important;
+}
+
+/* Stage Pill Tags on Map */
+[data-theme="morning"] .stage-pill-tag,
+.theme-morning .stage-pill-tag {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 6px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .stage-pill-tag.tag-current,
+.theme-morning .stage-pill-tag.tag-current {
+  background: #FFFDF7 !important;
+  border-color: #b45309 !important;
+  color: #b45309 !important;
+  box-shadow: 0 0 10px rgba(180, 83, 9, 0.3) !important;
+}
+
+[data-theme="morning"] .boss-pill-tag,
+.theme-morning .boss-pill-tag {
+  background: #FFF4DF !important;
+  border-color: #991b1b !important;
+  color: #991b1b !important;
+}
+
+/* Stage & Chapter Selector Modals */
+[data-theme="morning"] .rpg-stage-modal,
+.theme-morning .rpg-stage-modal,
+[data-theme="morning"] .stage-modal-card,
+.theme-morning .stage-modal-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .stage-modal-title,
+.theme-morning .stage-modal-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stage-topic-desc,
+.theme-morning .stage-topic-desc {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .chapter-grid-card,
+.theme-morning .chapter-grid-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .chapter-grid-card:hover,
+.theme-morning .chapter-grid-card:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .chapter-grid-card .ch-card-num,
+.theme-morning .chapter-grid-card .ch-card-num {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .chapter-grid-card .ch-card-name,
+.theme-morning .chapter-grid-card .ch-card-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ch-card-act-pill,
+.theme-morning .ch-card-act-pill {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .seal-relic-card,
+.theme-morning .seal-relic-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .seal-relic-card.seal-recovered,
+.theme-morning .seal-relic-card.seal-recovered {
+  background: #FFFDF7 !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .seal-relic-card .seal-name,
+.theme-morning .seal-relic-card .seal-name {
+  color: #3D2B1F !important;
+}
+
+/* ── E. BATTLEFIELD & COMBAT HUD ───────────────────────────── */
+[data-theme="morning"] .stage-minimal-hud .hud-chapter-badge,
+.theme-morning .stage-minimal-hud .hud-chapter-badge,
+[data-theme="morning"] .stage-minimal-hud .hud-encounter-title,
+.theme-morning .stage-minimal-hud .hud-encounter-title,
+[data-theme="morning"] .stage-minimal-hud .hud-env-tag,
+.theme-morning .stage-minimal-hud .hud-env-tag,
+[data-theme="morning"] .stage-minimal-hud .hud-inquiry-tag,
+.theme-morning .stage-minimal-hud .hud-inquiry-tag {
+  background: #FFF4DF !important;
+  color: #3D2B1F !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .battle-question-panel,
+.theme-morning .battle-question-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.22) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .battle-question-panel .panel-prompt-bar,
+.theme-morning .battle-question-panel .panel-prompt-bar {
+  border-bottom: 1px solid rgba(184, 138, 66, 0.35) !important;
+}
+
+[data-theme="morning"] .battle-question-panel .prompt-title,
+.theme-morning .battle-question-panel .prompt-title {
+  color: #8F642D !important;
+}
+
+/* Question Prompt Badges in Morning / Light Mode */
+[data-theme="morning"] .battle-question-panel .prompt-badge,
+.theme-morning .battle-question-panel .prompt-badge {
+  background: rgba(143, 100, 45, 0.15) !important;
+  border-color: #B88A42 !important;
+  color: #78350f !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .battle-question-panel .prompt-badge.diff-moderate,
+.theme-morning .battle-question-panel .prompt-badge.diff-moderate {
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+  background: rgba(2, 132, 199, 0.14) !important;
+}
+
+[data-theme="morning"] .battle-question-panel .prompt-badge.diff-difficult,
+.theme-morning .battle-question-panel .prompt-badge.diff-difficult {
+  border-color: #b45309 !important;
+  color: #92400e !important;
+  background: rgba(180, 83, 9, 0.16) !important;
+}
+
+[data-theme="morning"] .battle-question-panel .prompt-badge.diff-very_difficult,
+.theme-morning .battle-question-panel .prompt-badge.diff-very_difficult {
+  border-color: #be185d !important;
+  color: #9d174d !important;
+  background: rgba(190, 24, 93, 0.14) !important;
+}
+
+[data-theme="morning"] .battle-question-panel .prompt-badge.diff-board_style_case,
+.theme-morning .battle-question-panel .prompt-badge.diff-board_style_case {
+  border-color: #7e22ce !important;
+  color: #6b21a8 !important;
+  background: rgba(126, 34, 206, 0.14) !important;
+}
+
+[data-theme="morning"] .battle-question-panel .question-stem-text,
+.theme-morning .battle-question-panel .question-stem-text {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box,
+.theme-morning .clinical-rationale-box {
+  background: #F5E8CC !important;
+  border-color: #B88A42 !important;
+  color: #1a140d !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box .rationale-text,
+.theme-morning .clinical-rationale-box .rationale-text {
+  color: #1a140d !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.correct-rationale,
+.theme-morning .clinical-rationale-box.correct-rationale {
+  background: #dcfce7 !important;
+  border-left-color: #166534 !important;
+  color: #064e3b !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.correct-rationale .rationale-tag,
+.theme-morning .clinical-rationale-box.correct-rationale .rationale-tag {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.correct-rationale .rationale-text,
+.theme-morning .clinical-rationale-box.correct-rationale .rationale-text {
+  color: #064e3b !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.wrong-rationale,
+.theme-morning .clinical-rationale-box.wrong-rationale {
+  background: #fee2e2 !important;
+  border-left-color: #991b1b !important;
+  color: #7f1d1d !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.wrong-rationale .rationale-tag,
+.theme-morning .clinical-rationale-box.wrong-rationale .rationale-tag {
+  color: #b91c1c !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .clinical-rationale-box.wrong-rationale .rationale-text,
+.theme-morning .clinical-rationale-box.wrong-rationale .rationale-text {
+  color: #7f1d1d !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .battle-choice-panel,
+.theme-morning .battle-choice-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .battle-choice-panel .action-title-bar,
+.theme-morning .battle-choice-panel .action-title-bar {
+  border-bottom: 1px solid rgba(184, 138, 66, 0.35) !important;
+}
+
+[data-theme="morning"] .battle-choice-panel .action-title-text,
+.theme-morning .battle-choice-panel .action-title-text {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .action-choice-btn,
+.theme-morning .action-choice-btn {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .action-choice-btn:hover:not(:disabled),
+.theme-morning .action-choice-btn:hover:not(:disabled) {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="morning"] .action-choice-btn .action-key-badge,
+.theme-morning .action-choice-btn .action-key-badge,
+[data-theme="morning"] .action-key-badge,
+.theme-morning .action-key-badge,
+[data-theme="morning"] .action-choice-btn .choice-key-badge,
+.theme-morning .action-choice-btn .choice-key-badge,
+[data-theme="morning"] .choice-key-badge,
+.theme-morning .choice-key-badge {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .action-choice-btn .action-choice-text,
+.theme-morning .action-choice-btn .action-choice-text,
+[data-theme="morning"] .action-choice-text,
+.theme-morning .action-choice-text,
+[data-theme="morning"] .action-choice-btn .choice-text,
+.theme-morning .action-choice-btn .choice-text,
+[data-theme="morning"] .choice-text,
+.theme-morning .choice-text {
+  color: #3D2B1F !important;
+  font-weight: 500 !important;
+}
+
+/* Staged / selected choice button state */
+[data-theme="morning"] .action-choice-btn.state-selected,
+.theme-morning .action-choice-btn.state-selected,
+[data-theme="morning"] .action-choice-btn.choice-selected,
+.theme-morning .action-choice-btn.choice-selected {
+  background: #fae8b5 !important;
+  border-color: #b45309 !important;
+  box-shadow: 0 0 16px rgba(180, 83, 9, 0.35) !important;
+}
+
+[data-theme="morning"] .action-choice-btn.state-selected .action-choice-text,
+.theme-morning .action-choice-btn.state-selected .action-choice-text,
+[data-theme="morning"] .action-choice-btn.state-selected .choice-text,
+.theme-morning .action-choice-btn.state-selected .choice-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .action-choice-btn.state-correct,
+.theme-morning .action-choice-btn.state-correct {
+  background: #dcfce7 !important;
+  border-color: #16a34a !important;
+  box-shadow: 0 0 16px rgba(22, 163, 74, 0.35) !important;
+}
+
+[data-theme="morning"] .action-choice-btn.state-correct .action-choice-text,
+.theme-morning .action-choice-btn.state-correct .action-choice-text,
+[data-theme="morning"] .action-choice-btn.state-correct .choice-text,
+.theme-morning .action-choice-btn.state-correct .choice-text {
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .action-choice-btn.state-wrong,
+.theme-morning .action-choice-btn.state-wrong {
+  background: #fee2e2 !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.35) !important;
+}
+
+[data-theme="morning"] .action-choice-btn.state-wrong .action-choice-text,
+.theme-morning .action-choice-btn.state-wrong .action-choice-text,
+[data-theme="morning"] .action-choice-btn.state-wrong .choice-text,
+.theme-morning .action-choice-btn.state-wrong .choice-text {
+  color: #991b1b !important;
+}
+
+[data-theme="morning"] .crit-switch-badge,
+.theme-morning .crit-switch-badge {
+  background: #F5E8CC !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .crit-switch-label,
+.theme-morning .crit-switch-label {
+  color: #77634F !important;
+}
+
+/* Battle Confirm Modal */
+[data-theme="morning"] .battle-confirm-modal,
+.theme-morning .battle-confirm-modal {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 20px 50px rgba(143, 100, 45, 0.28) !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-title,
+.theme-morning .battle-confirm-modal .confirm-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-inquiry-box,
+.theme-morning .battle-confirm-modal .confirm-inquiry-box {
+  background: #F5E8CC !important;
+  border-color: rgba(184, 138, 66, 0.4) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-choice-card,
+.theme-morning .battle-confirm-modal .confirm-choice-card {
+  background: #FFFDF7 !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .choice-text,
+.theme-morning .battle-confirm-modal .choice-text {
+  color: #3D2B1F !important;
+}
+
+/* Battle Unit Nameplates */
+[data-theme="morning"] .player-nameplate,
+.theme-morning .player-nameplate,
+[data-theme="morning"] .enemy-nameplate,
+.theme-morning .enemy-nameplate,
+[data-theme="morning"] .boss-nameplate,
+.theme-morning .boss-nameplate {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .player-display-name,
+.theme-morning .player-display-name,
+[data-theme="morning"] .enemy-display-name,
+.theme-morning .enemy-display-name,
+[data-theme="morning"] .boss-display-name,
+.theme-morning .boss-display-name {
+  color: #3D2B1F !important;
+}
+
+/* ── F. ARENA & MULTIPLAYER ─────────────────────────────────── */
+[data-theme="morning"] .match-queue-card,
+.theme-morning .match-queue-card,
+[data-theme="morning"] .opponent-card,
+.theme-morning .opponent-card,
+[data-theme="morning"] .arena-status-panel,
+.theme-morning .arena-status-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ── G. CHARACTER SELECTION & CHARACTER HALL ───────────────── */
+[data-theme="morning"] .char-select-card,
+.theme-morning .char-select-card,
+[data-theme="morning"] .char-stats-card,
+.theme-morning .char-stats-card,
+[data-theme="morning"] .character-detail-panel,
+.theme-morning .character-detail-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+/* ── H. HALL OF RECORDS & PROFILES ─────────────────────────── */
+[data-theme="morning"] .hall-records-card,
+.theme-morning .hall-records-card,
+[data-theme="morning"] .ranking-row-card,
+.theme-morning .ranking-row-card,
+[data-theme="morning"] .podium-card,
+.theme-morning .podium-card,
+[data-theme="morning"] .profile-card,
+.theme-morning .profile-card,
+[data-theme="morning"] .profile-stats-card,
+.theme-morning .profile-stats-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.14) !important;
+}
+
+[data-theme="morning"] .rank-badge,
+.theme-morning .rank-badge {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+  border: 1px solid #B88A42 !important;
+}
+
+/* ── I. MIDNIGHT MARKET / THE MYSTIC MARKET ─────────────────────────────── */
+[data-theme="morning"] .market-nav-bar,
+.theme-morning .market-nav-bar {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .btn-return-world,
+.theme-morning .btn-return-world {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .btn-return-world:hover,
+.theme-morning .btn-return-world:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  color: #1A120B !important;
+}
+
+[data-theme="morning"] .shop-title-text,
+.theme-morning .shop-title-text {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .shop-title-emblem .emblem-star,
+.theme-morning .shop-title-emblem .emblem-star {
+  color: #B88A42 !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .market-hp-pill,
+.theme-morning .market-hp-pill {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #DC2626 !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15) !important;
+}
+
+[data-theme="morning"] .market-hp-pill .hp-amount,
+.theme-morning .market-hp-pill .hp-amount {
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .market-hp-pill .hp-regen-tag,
+.theme-morning .market-hp-pill .hp-regen-tag {
+  color: #047857 !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .market-wallet-pill,
+.theme-morning .market-wallet-pill {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 2px 8px rgba(184, 138, 66, 0.15) !important;
+}
+
+[data-theme="morning"] .market-wallet-pill .wallet-amount,
+.theme-morning .market-wallet-pill .wallet-amount {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .market-wallet-pill .wallet-currency,
+.theme-morning .market-wallet-pill .wallet-currency {
+  color: #77634F !important;
+}
+
+/* Raven Shopkeeper NPC */
+[data-theme="morning"] .npc-nameplate,
+.theme-morning .npc-nameplate {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .nameplate-ornament-left,
+[data-theme="morning"] .nameplate-ornament-right,
+.theme-morning .nameplate-ornament-left,
+.theme-morning .nameplate-ornament-right {
+  color: #B88A42 !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .npc-name,
+.theme-morning .npc-name {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .npc-role,
+.theme-morning .npc-role {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .npc-dialogue-bubble,
+.theme-morning .npc-dialogue-bubble {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .npc-dialogue-bubble .bubble-corner,
+.theme-morning .npc-dialogue-bubble .bubble-corner {
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .dialogue-text,
+.theme-morning .dialogue-text {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .quote-mark,
+.theme-morning .quote-mark {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .dialogue-arrow-gem,
+.theme-morning .dialogue-arrow-gem {
+  color: #B88A42 !important;
+}
+
+/* Showcase Frame & Navigation */
+[data-theme="morning"] .gothic-shop-frame,
+.theme-morning .gothic-shop-frame {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 12px 36px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .frame-edge,
+.theme-morning .frame-edge {
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .category-tabs-strip,
+.theme-morning .category-tabs-strip {
+  border-bottom: 1px solid rgba(184, 138, 66, 0.3) !important;
+}
+
+[data-theme="morning"] .category-tab,
+.theme-morning .category-tab {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .category-tab:hover,
+.theme-morning .category-tab:hover {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .category-tab.active,
+.theme-morning .category-tab.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.3) !important;
+}
+
+/* Search & Filters Deck */
+[data-theme="morning"] .shop-search-input,
+.theme-morning .shop-search-input {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .shop-search-input::placeholder,
+.theme-morning .shop-search-input::placeholder {
+  color: #8C7A6B !important;
+}
+
+[data-theme="morning"] .search-rune,
+.theme-morning .search-rune {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .btn-clear-search,
+.theme-morning .btn-clear-search {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .filter-pill,
+.theme-morning .filter-pill {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .filter-pill:hover,
+.theme-morning .filter-pill:hover {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .filter-pill.active,
+.theme-morning .filter-pill.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 2px 6px rgba(143, 100, 45, 0.25) !important;
+}
+
+/* Section Header (Attack Effects / Splash Effects / Potions) */
+[data-theme="morning"] .market-section-header,
+.theme-morning .market-section-header {
+  background: linear-gradient(90deg, #EAD8B5 0%, #F5E8CC 100%) !important;
+  border: 1px solid #B88A42 !important;
+  border-left: 3.5px solid #8F642D !important;
+}
+
+[data-theme="morning"] .market-section-header .section-title,
+.theme-morning .market-section-header .section-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .market-section-header .section-badge,
+.theme-morning .market-section-header .section-badge {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .section-sub,
+.theme-morning .section-sub {
+  color: #5C4433 !important;
+}
+
+/* Shop Item Cards */
+[data-theme="morning"] .shop-item-card,
+.theme-morning .shop-item-card,
+[data-theme="morning"] .market-item-card,
+.theme-morning .market-item-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.12) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .shop-item-card:hover,
+.theme-morning .shop-item-card:hover,
+[data-theme="morning"] .market-item-card:hover,
+.theme-morning .market-item-card:hover {
+  border-color: #8F642D !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .shop-item-card.is-selected,
+.theme-morning .shop-item-card.is-selected {
+  border-color: #8F642D !important;
+  box-shadow: 0 0 16px rgba(143, 100, 45, 0.3) !important;
+}
+
+[data-theme="morning"] .shop-item-card .card-inner-halo,
+.theme-morning .shop-item-card .card-inner-halo {
+  display: none !important;
+}
+
+[data-theme="morning"] .shop-item-card .slot-badge,
+.theme-morning .shop-item-card .slot-badge {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .shop-item-card .item-visual-frame,
+.theme-morning .shop-item-card .item-visual-frame {
+  background: radial-gradient(circle at center, #FFF4DF 0%, #EAD8B5 80%) !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .shop-item-card .item-name,
+.theme-morning .shop-item-card .item-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .shop-item-card .item-category-label,
+.theme-morning .shop-item-card .item-category-label,
+[data-theme="morning"] .item-desc,
+.theme-morning .item-desc {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .shop-item-card .card-footer,
+.theme-morning .shop-item-card .card-footer {
+  border-top: 1px solid rgba(184, 138, 66, 0.25) !important;
+}
+
+[data-theme="morning"] .shop-item-card .price-pill,
+.theme-morning .shop-item-card .price-pill {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .btn-card-owned,
+.theme-morning .btn-card-owned {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .btn-card-owned:hover,
+.theme-morning .btn-card-owned:hover {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .btn-card-buy,
+.theme-morning .btn-card-buy {
+  background: linear-gradient(180deg, #B88A42 0%, #8F642D 100%) !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.25) !important;
+}
+
+[data-theme="morning"] .btn-card-buy:hover,
+.theme-morning .btn-card-buy:hover {
+  background: linear-gradient(180deg, #A27633 0%, #7A5323 100%) !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.4) !important;
+}
+
+[data-theme="morning"] .badge-equipped,
+.theme-morning .badge-equipped {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border: 1px solid #059669 !important;
+  color: #047857 !important;
+}
+
+[data-theme="morning"] .badge-equipped .badge-dot,
+.theme-morning .badge-equipped .badge-dot {
+  color: #059669 !important;
+}
+
+[data-theme="morning"] .rarity-tag,
+.theme-morning .rarity-tag {
+  background: #FFF4DF !important;
+}
+
+[data-theme="morning"] .showcase-scroll-viewport::-webkit-scrollbar-track,
+.theme-morning .showcase-scroll-viewport::-webkit-scrollbar-track {
+  background: #F5E8CC !important;
+}
+
+[data-theme="morning"] .showcase-scroll-viewport::-webkit-scrollbar-thumb,
+.theme-morning .showcase-scroll-viewport::-webkit-scrollbar-thumb {
+  background: #B88A42 !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .showcase-loading-box .loading-text,
+.theme-morning .showcase-loading-box .loading-text,
+[data-theme="morning"] .empty-inventory-box .empty-title,
+.theme-morning .empty-inventory-box .empty-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .empty-inventory-box .empty-sub,
+.theme-morning .empty-inventory-box .empty-sub {
+  color: #77634F !important;
+}
+
+/* ── J. VAULT / MANUSCRIPTS ────────────────────────────────── */
+[data-theme="morning"] .vault-card,
+.theme-morning .vault-card,
+[data-theme="morning"] .vault-search-deck,
+.theme-morning .vault-search-deck,
+[data-theme="morning"] .vault-modal,
+.theme-morning .vault-modal {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+}
+
+/* ── K. ACHIEVEMENTS & QUESTS ──────────────────────────────── */
+[data-theme="morning"] .quest-card,
+.theme-morning .quest-card,
+[data-theme="morning"] .achievement-card,
+.theme-morning .achievement-card,
+[data-theme="morning"] .reward-card,
+.theme-morning .reward-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.14) !important;
+}
+
+/* ── L. SETTINGS & DIALOGS ─────────────────────────────────── */
+[data-theme="morning"] .settings-card,
+.theme-morning .settings-card,
+[data-theme="morning"] .settings-group,
+.theme-morning .settings-group {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ── M. STORY SEQUENCES & FINAL BOSS ───────────────────────── */
+[data-theme="morning"] .story-dialogue-card,
+.theme-morning .story-dialogue-card,
+[data-theme="morning"] .boss-locked-panel,
+.theme-morning .boss-locked-panel,
+[data-theme="morning"] .father-revelation-scene,
+.theme-morning .father-revelation-scene,
+[data-theme="morning"] .storyline-climax-card,
+.theme-morning .storyline-climax-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .fr-main-title,
+.theme-morning .fr-main-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .fr-subtitle,
+.theme-morning .fr-subtitle {
+  color: #77634F !important;
+}
+
+/* ── N. SWEETALERT2 POPUPS ─────────────────────────────────── */
+[data-theme="morning"] .swal2-popup,
+.theme-morning .swal2-popup,
+[data-theme="morning"] .swal2-gothic-popup,
+.theme-morning .swal2-gothic-popup {
+  background: #FFF4DF !important;
+  color: #3D2B1F !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 20px 50px rgba(143, 100, 45, 0.25) !important;
+}
+
+[data-theme="morning"] .swal2-title,
+.theme-morning .swal2-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .swal2-html-container,
+.theme-morning .swal2-html-container {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .swal2-input,
+.theme-morning .swal2-input {
+  background: #FFFDF7 !important;
+  border-color: #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .swal2-confirm,
+.theme-morning .swal2-confirm {
+  background: #8F642D !important;
+  color: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .swal2-cancel,
+.theme-morning .swal2-cancel {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+  border: 1px solid #B88A42 !important;
+}
+
+/* ── O. BUTTONS (PRIMARY, SECONDARY, UTILITY) ──────────────── */
+[data-theme="morning"] .gothic-btn-gold,
+.theme-morning .gothic-btn-gold,
+[data-theme="morning"] .btn-primary,
+.theme-morning .btn-primary {
+  background: #8F642D !important;
+  color: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .gothic-btn-gold:hover,
+.theme-morning .gothic-btn-gold:hover,
+[data-theme="morning"] .btn-primary:hover,
+.theme-morning .btn-primary:hover {
+  background: #735022 !important;
+  border-color: #735022 !important;
+}
+
+[data-theme="morning"] .btn-secondary,
+.theme-morning .btn-secondary {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .btn-secondary:hover,
+.theme-morning .btn-secondary:hover {
+  background: #d8c399 !important;
+}
+
+/* ── P. SCROLLBARS ─────────────────────────────────────────── */
+[data-theme="morning"] ::-webkit-scrollbar-thumb,
+.theme-morning ::-webkit-scrollbar-thumb {
+  background: #B88A42 !important;
+}
+
+[data-theme="morning"] ::-webkit-scrollbar-track,
+.theme-morning ::-webkit-scrollbar-track {
+  background: #F5E8CC !important;
+}
+
+/* ── Q. MODULE SWITCHING TRANSITION (GAME TRANSITION) ──────── */
+[data-theme="morning"] .game-world-transition-overlay .shutter-strip,
+.theme-morning .game-world-transition-overlay .shutter-strip {
+  background: #F5E8CC !important;
+  border-bottom: 2px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .shutter-strip:nth-child(even),
+.theme-morning .game-world-transition-overlay .shutter-strip:nth-child(even) {
+  background: #EAD8B5 !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .energy-radial-halo,
+.theme-morning .game-world-transition-overlay .energy-radial-halo {
+  background: radial-gradient(circle, rgba(184, 138, 66, 0.28) 0%, transparent 70%) !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .travel-destination-card,
+.theme-morning .game-world-transition-overlay .travel-destination-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 10px 40px rgba(143, 100, 45, 0.28), inset 0 0 15px rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .emblem-halo-box,
+.theme-morning .game-world-transition-overlay .emblem-halo-box {
+  background: #EAD8B5 !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: inset 0 0 10px rgba(143, 100, 45, 0.25) !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .destination-title,
+.theme-morning .game-world-transition-overlay .destination-title {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .destination-sub,
+.theme-morning .game-world-transition-overlay .destination-sub {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .game-world-transition-overlay .pixel-travel-dots .dot,
+.theme-morning .game-world-transition-overlay .pixel-travel-dots .dot {
+  background: #8F642D !important;
+}
+
+/* ── R. THE BLACK ARCHIVE MODAL (COMPLETED & ENCOUNTER) ───── */
+[data-theme="morning"] .black-archive-modal,
+.theme-morning .black-archive-modal {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  outline: none !important;
+  box-shadow: 0 15px 60px rgba(143, 100, 45, 0.28), inset 0 0 35px rgba(184, 138, 66, 0.12) !important;
+}
+
+[data-theme="morning"] .archive-tag,
+.theme-morning .archive-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .archive-close-btn,
+.theme-morning .archive-close-btn {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .archive-close-btn:hover,
+.theme-morning .archive-close-btn:hover {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .status-strip,
+.theme-morning .status-strip {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .gate-rule-hint,
+.theme-morning .gate-rule-hint {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .victory-eyebrow,
+.theme-morning .victory-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .archive-view-title,
+.theme-morning .archive-view-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .archive-view-desc,
+.theme-morning .archive-view-desc {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .archive-relics-box .relic-item,
+.theme-morning .archive-relics-box .relic-item {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .archive-completed-view .btn-gothic-crimson,
+.theme-morning .archive-completed-view .btn-gothic-crimson,
+[data-theme="morning"] .archive-unlocked-view .btn-gothic-crimson,
+.theme-morning .archive-unlocked-view .btn-gothic-crimson,
+[data-theme="morning"] .archive-locked-view .btn-gothic-crimson,
+.theme-morning .archive-locked-view .btn-gothic-crimson {
+  background: linear-gradient(180deg, #8F642D 0%, #735022 100%) !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.35) !important;
+}
+
+[data-theme="morning"] .archive-completed-view .btn-gothic-stone,
+.theme-morning .archive-completed-view .btn-gothic-stone,
+[data-theme="morning"] .archive-unlocked-view .btn-gothic-stone,
+.theme-morning .archive-unlocked-view .btn-gothic-stone,
+[data-theme="morning"] .archive-locked-view .btn-gothic-stone,
+.theme-morning .archive-locked-view .btn-gothic-stone {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .creator-preview-card,
+.theme-morning .creator-preview-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .creator-badge,
+.theme-morning .creator-badge {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .creator-name,
+.theme-morning .creator-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .creator-title,
+.theme-morning .creator-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .creator-quote,
+.theme-morning .creator-quote {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .encounter-briefing,
+.theme-morning .encounter-briefing {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .briefing-label,
+.theme-morning .briefing-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .briefing-val,
+.theme-morning .briefing-val {
+  color: #3D2B1F !important;
+}
+
+/* ── S. THE FINAL ENCOUNTER & CREATOR SCENE (FINALBOSS.VUE) ── */
+[data-theme="morning"] .boss-intro-scene,
+.theme-morning .boss-intro-scene {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  border-top: 3px solid #8F642D !important;
+  box-shadow: 0 10px 40px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .boss-act-strip,
+.theme-morning .boss-act-strip {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .boss-portrait-altar,
+.theme-morning .boss-portrait-altar {
+  background: radial-gradient(circle, #FFFDF7 30%, #EAD8B5 80%) !important;
+  border: 3px solid #B88A42 !important;
+  outline: 3px solid #F5E8CC !important;
+  box-shadow: 0 0 25px rgba(184, 138, 66, 0.35) !important;
+}
+
+[data-theme="morning"] .boss-domain-badge,
+.theme-morning .boss-domain-badge {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .boss-title-name,
+.theme-morning .boss-title-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .boss-guardian-title,
+.theme-morning .boss-guardian-title {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .boss-dialogue-card,
+.theme-morning .boss-dialogue-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  border-left: 4px solid #8F642D !important;
+}
+
+[data-theme="morning"] .intro-dialogue-quote,
+.theme-morning .intro-dialogue-quote {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .intro-lore-body,
+.theme-morning .intro-lore-body {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .stake-card,
+.theme-morning .stake-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .stake-label,
+.theme-morning .stake-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .stake-val,
+.theme-morning .stake-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bs-label,
+.theme-morning .bs-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .bs-val,
+.theme-morning .bs-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bs-val.text-gold,
+.theme-morning .bs-val.text-gold {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .boss-intro-actions .btn-gothic-crimson,
+.theme-morning .boss-intro-actions .btn-gothic-crimson {
+  background: linear-gradient(180deg, #8F642D 0%, #735022 100%) !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.35) !important;
+}
+
+[data-theme="morning"] .boss-intro-actions .btn-gothic-stone,
+.theme-morning .boss-intro-actions .btn-gothic-stone {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ── T. THE VAULT (VAULT.VUE) ──────────────────────────────── */
+[data-theme="morning"] .btn-return-world,
+.theme-morning .btn-return-world {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .btn-return-world:hover,
+.theme-morning .btn-return-world:hover {
+  background: #FFFDF7 !important;
+  color: #8F642D !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .vault-sanctuary-pill,
+.theme-morning .vault-sanctuary-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #8F642D !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .vault-owner-badge,
+.theme-morning .vault-owner-badge {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .vault-owner-badge .badge-title,
+.theme-morning .vault-owner-badge .badge-title {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .vault-owner-badge .badge-name,
+.theme-morning .vault-owner-badge .badge-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .vault-title,
+.theme-morning .vault-title {
+  color: #FFFFFF !important;
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.95),
+    0 0 25px rgba(245, 158, 11, 0.65),
+    0 0 50px rgba(217, 119, 6, 0.4) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.18em !important;
+}
+
+[data-theme="morning"] .vault-subtitle,
+.theme-morning .vault-subtitle {
+  color: #FEF3C7 !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95), 0 0 12px rgba(0, 0, 0, 0.8) !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="morning"] .vault-lore-line,
+.theme-morning .vault-lore-line {
+  color: #FCD34D !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95), 0 0 10px rgba(245, 158, 11, 0.5) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="morning"] .vault-control-deck,
+.theme-morning .vault-control-deck {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .vault-search-box .vault-search-input,
+.theme-morning .vault-search-box .vault-search-input {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #2D1B0F !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .vault-search-box .vault-search-input::placeholder,
+.theme-morning .vault-search-box .vault-search-input::placeholder {
+  color: #5C4E3D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="morning"] .clear-search-btn,
+.theme-morning .clear-search-btn {
+  color: #5C4E3D !important;
+}
+
+[data-theme="morning"] .filter-tab-btn,
+.theme-morning .filter-tab-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #2D1B0F !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="morning"] .filter-tab-btn:hover,
+.theme-morning .filter-tab-btn:hover {
+  background: #FFFDF7 !important;
+  color: #735022 !important;
+}
+
+[data-theme="morning"] .filter-tab-btn.active,
+.theme-morning .filter-tab-btn.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 0 8px rgba(143, 100, 45, 0.35) !important;
+}
+
+[data-theme="morning"] .vault-sort-selector .sort-label,
+.theme-morning .vault-sort-selector .sort-label {
+  color: #3D2B1F !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .vault-sort-selector .sort-select,
+.theme-morning .vault-sort-selector .sort-select {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #2D1B0F !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .btn-add-reviewer,
+.theme-morning .btn-add-reviewer {
+  background: linear-gradient(135deg, #8F642D 0%, #735022 100%) !important;
+  border: 1px solid #B88A42 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 15px rgba(143, 100, 45, 0.35) !important;
+}
+
+[data-theme="morning"] .btn-add-reviewer:hover,
+.theme-morning .btn-add-reviewer:hover {
+  box-shadow: 0 6px 20px rgba(143, 100, 45, 0.5) !important;
+}
+
+.tier-title,
+[data-theme="morning"] .tier-title,
+.theme-morning .tier-title {
+  color: #fef08a !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 12px rgba(245, 158, 11, 0.4) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.15em !important;
+}
+
+.tier-rune,
+[data-theme="morning"] .tier-rune,
+.theme-morning .tier-rune {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+
+/* ── GRIMOIRE BOOKS (STUDY HALL & VAULT) CONTRAST PRESERVATION ── */
+/* Grimoire covers are dark fantasy tomes in both day & night themes: keep text ultra-crisp */
+.grimoire-book,
+.vault-book,
+.vault-book-wrapper,
+[data-theme="morning"] .grimoire-book,
+.theme-morning .grimoire-book,
+[data-theme="morning"] .vault-book,
+.theme-morning .vault-book,
+[data-theme="morning"] .vault-book-wrapper,
+.theme-morning .vault-book-wrapper {
+  color: #ffffff;
+}
+
+.grimoire-book .book-academic-title,
+.grimoire-book .book-reviewer-title,
+.vault-book .book-reviewer-title,
+.vault-book-wrapper .book-reviewer-title,
+[data-theme="morning"] .grimoire-book .book-academic-title,
+.theme-morning .grimoire-book .book-academic-title,
+[data-theme="morning"] .grimoire-book .book-reviewer-title,
+.theme-morning .grimoire-book .book-reviewer-title,
+[data-theme="morning"] .vault-book .book-reviewer-title,
+.theme-morning .vault-book .book-reviewer-title,
+[data-theme="morning"] .vault-book-wrapper .book-reviewer-title,
+.theme-morning .vault-book-wrapper .book-reviewer-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.98), 0 0 10px rgba(0, 0, 0, 0.85) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.grimoire-book .book-moniker-sub,
+.grimoire-book .book-desc-sub,
+.vault-book .book-desc-sub,
+.vault-book-wrapper .book-desc-sub,
+[data-theme="morning"] .grimoire-book .book-moniker-sub,
+.theme-morning .grimoire-book .book-moniker-sub,
+[data-theme="morning"] .grimoire-book .book-desc-sub,
+.theme-morning .grimoire-book .book-desc-sub,
+[data-theme="morning"] .vault-book .book-desc-sub,
+.theme-morning .vault-book .book-desc-sub,
+[data-theme="morning"] .vault-book-wrapper .book-desc-sub,
+.theme-morning .vault-book-wrapper .book-desc-sub {
+  color: #fde68a !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95) !important;
+  font-weight: 600 !important;
+}
+
+.grimoire-book .book-header-row,
+.grimoire-book .book-vol-tag,
+.grimoire-book .book-ch-num,
+.vault-book .book-header-row,
+.vault-book .book-vault-tag,
+.vault-book-wrapper .book-vault-tag,
+[data-theme="morning"] .grimoire-book .book-header-row,
+.theme-morning .grimoire-book .book-header-row,
+[data-theme="morning"] .grimoire-book .book-vol-tag,
+.theme-morning .grimoire-book .book-vol-tag,
+[data-theme="morning"] .grimoire-book .book-ch-num,
+.theme-morning .grimoire-book .book-ch-num,
+[data-theme="morning"] .vault-book .book-header-row,
+.theme-morning .vault-book .book-header-row,
+[data-theme="morning"] .vault-book .book-vault-tag,
+.theme-morning .vault-book .book-vault-tag,
+[data-theme="morning"] .vault-book-wrapper .book-vault-tag,
+.theme-morning .vault-book-wrapper .book-vault-tag {
+  color: #fde68a !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+.grimoire-book .spine-roman,
+.vault-book .spine-book-number,
+.vault-book-wrapper .spine-book-number,
+[data-theme="morning"] .grimoire-book .spine-roman,
+.theme-morning .grimoire-book .spine-roman,
+[data-theme="morning"] .vault-book .spine-book-number,
+.theme-morning .vault-book .spine-book-number,
+[data-theme="morning"] .vault-book-wrapper .spine-book-number,
+.theme-morning .vault-book-wrapper .spine-book-number {
+  color: #fde68a !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+}
+
+.grimoire-book .page-count-text,
+.grimoire-book .meta-size-text,
+.grimoire-book .meta-date-text,
+.vault-book .meta-size-text,
+.vault-book .meta-date-text,
+.vault-book-wrapper .meta-size-text,
+.vault-book-wrapper .meta-date-text,
+[data-theme="morning"] .grimoire-book .page-count-text,
+.theme-morning .grimoire-book .page-count-text,
+[data-theme="morning"] .grimoire-book .meta-size-text,
+.theme-morning .grimoire-book .meta-size-text,
+[data-theme="morning"] .grimoire-book .meta-date-text,
+.theme-morning .grimoire-book .meta-date-text,
+[data-theme="morning"] .vault-book .meta-size-text,
+.theme-morning .vault-book .meta-size-text,
+[data-theme="morning"] .vault-book .meta-date-text,
+.theme-morning .vault-book .meta-date-text,
+[data-theme="morning"] .vault-book-wrapper .meta-size-text,
+.theme-morning .vault-book-wrapper .meta-size-text,
+[data-theme="morning"] .vault-book-wrapper .meta-date-text,
+.theme-morning .vault-book-wrapper .meta-date-text {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+  opacity: 1 !important;
+}
+
+.grimoire-book .page-count-text strong,
+[data-theme="morning"] .grimoire-book .page-count-text strong,
+.theme-morning .grimoire-book .page-count-text strong {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+.grimoire-book .badge-mastered,
+[data-theme="morning"] .grimoire-book .badge-mastered,
+.theme-morning .grimoire-book .badge-mastered {
+  background: rgba(234, 179, 8, 0.35) !important;
+  border: 1px solid #facc15 !important;
+  color: #fef08a !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+}
+
+.grimoire-book .corner-bracket,
+.vault-book .corner-bracket,
+.vault-book-wrapper .corner-bracket,
+[data-theme="morning"] .grimoire-book .corner-bracket,
+.theme-morning .grimoire-book .corner-bracket,
+[data-theme="morning"] .vault-book .corner-bracket,
+.theme-morning .vault-book .corner-bracket,
+[data-theme="morning"] .vault-book-wrapper .corner-bracket,
+.theme-morning .vault-book-wrapper .corner-bracket {
+  color: #fbbf24 !important;
+  opacity: 0.9 !important;
+}
+
+.vault-book .book-read-prompt,
+.vault-book .read-label,
+.vault-book .read-rune,
+.vault-book-wrapper .book-read-prompt,
+.vault-book-wrapper .read-label,
+.vault-book-wrapper .read-rune,
+[data-theme="morning"] .vault-book .book-read-prompt,
+.theme-morning .vault-book .book-read-prompt,
+[data-theme="morning"] .vault-book .read-label,
+.theme-morning .vault-book .read-label,
+[data-theme="morning"] .vault-book .read-rune,
+.theme-morning .vault-book .read-rune,
+[data-theme="morning"] .vault-book-wrapper .book-read-prompt,
+.theme-morning .vault-book-wrapper .book-read-prompt,
+[data-theme="morning"] .vault-book-wrapper .read-label,
+.theme-morning .vault-book-wrapper .read-label,
+[data-theme="morning"] .vault-book-wrapper .read-rune,
+.theme-morning .vault-book-wrapper .read-rune {
+  color: #fde68a !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+
+/* ── U. THE STUDY HALL ENTRANCE (STUDYHALL-LIBRARY.VUE) ─────── */
+[data-theme="morning"] .herald-rune-pill,
+.theme-morning .herald-rune-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #8F642D !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.18) !important;
+}
+
+[data-theme="morning"] .entrance-title,
+.theme-morning .entrance-title {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .entrance-sub,
+.theme-morning .entrance-sub {
+  color: #5C4533 !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .entrance-lore-line,
+.theme-morning .entrance-lore-line {
+  color: #8F642D !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .btn-enter-library,
+.theme-morning .btn-enter-library {
+  background: linear-gradient(180deg, #8F642D 0%, #735022 100%) !important;
+  border: none !important;
+  box-shadow: 0 8px 28px rgba(143, 100, 45, 0.4), inset 0 0 14px rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-theme="morning"] .btn-gothic-border-outer,
+.theme-morning .btn-gothic-border-outer {
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 0 12px rgba(184, 138, 66, 0.45) !important;
+}
+
+[data-theme="morning"] .btn-gothic-border-inner,
+.theme-morning .btn-gothic-border-inner {
+  border: 1px solid #EAD8B5 !important;
+}
+
+[data-theme="morning"] .btn-corner-rune,
+.theme-morning .btn-corner-rune {
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .btn-label-text,
+.theme-morning .btn-label-text {
+  color: #FFFDF7 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="morning"] .btn-rune-left,
+.theme-morning .btn-rune-left,
+[data-theme="morning"] .btn-rune-right,
+.theme-morning .btn-rune-right {
+  color: #FFFDF7 !important;
+  filter: none !important;
+}
+
+[data-theme="morning"] .entrance-meta-pill,
+.theme-morning .entrance-meta-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .meta-dot,
+.theme-morning .meta-dot {
+  color: #8F642D !important;
+}
+
+/* Study Hall Shelves & Reading Room */
+[data-theme="morning"] .shelves-control-deck,
+.theme-morning .shelves-control-deck {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .archive-search-box .archive-search-input,
+.theme-morning .archive-search-box .archive-search-input {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .archive-filter-tabs .filter-btn,
+.theme-morning .archive-filter-tabs .filter-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .archive-filter-tabs .filter-btn.active,
+.theme-morning .archive-filter-tabs .filter-btn.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .archive-progress-pill,
+.theme-morning .archive-progress-pill {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .shelves-theme-toggle,
+.theme-morning .shelves-theme-toggle {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .shelves-theme-toggle:hover,
+.theme-morning .shelves-theme-toggle:hover {
+  background: #FFFDF7 !important;
+  border-color: #735022 !important;
+  color: #1c130d !important;
+}
+
+[data-theme="morning"] .shelves-theme-toggle .theme-icon,
+.theme-morning .shelves-theme-toggle .theme-icon {
+  color: #b45309 !important;
+}
+
+[data-theme="morning"] .return-sanctuary-btn,
+.theme-morning .return-sanctuary-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .spread-top-arch,
+.theme-morning .spread-top-arch {
+  background: #FFF4DF !important;
+  border-bottom: 2px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .herald-vol-tag,
+.theme-morning .herald-vol-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .herald-title,
+.theme-morning .herald-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .herald-moniker,
+.theme-morning .herald-moniker {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .grimoire-edu-banner,
+.theme-morning .grimoire-edu-banner {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ── V. THE DAILY TRIAL / SACRED RITE (SPECIALEVENTLANDING.VUE) ── */
+[data-theme="morning"] .rpg-nav-back-btn,
+.theme-morning .rpg-nav-back-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .chamber-location-badge,
+.theme-morning .chamber-location-badge {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .nav-link-btn,
+.theme-morning .nav-link-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .chamber-hero,
+.theme-morning .chamber-hero {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 30px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .hero-frame-border,
+.theme-morning .hero-frame-border {
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .meta-tag.grand-exam,
+.theme-morning .meta-tag.grand-exam {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .meta-tag.location-name,
+.theme-morning .meta-tag.location-name {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .title-sub,
+.theme-morning .title-sub {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .title-main,
+.theme-morning .title-main {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .hero-motto,
+.theme-morning .hero-motto {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .quick-pill,
+.theme-morning .quick-pill {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .pill-label,
+.theme-morning .pill-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .pill-val,
+.theme-morning .pill-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .quick-pill.highlight-gold .pill-val,
+.theme-morning .quick-pill.highlight-gold .pill-val {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .specs-card,
+.theme-morning .specs-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 10px 30px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .card-header,
+.theme-morning .card-header {
+  border-bottom-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .card-eyebrow,
+.theme-morning .card-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .card-title,
+.theme-morning .card-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .header-seal-tag,
+.theme-morning .header-seal-tag {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stat-cell,
+.theme-morning .stat-cell {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .stat-cell-label,
+.theme-morning .stat-cell-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .stat-cell-value,
+.theme-morning .stat-cell-value {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stat-cell-desc,
+.theme-morning .stat-cell-desc {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .trial-protocols-box,
+.theme-morning .trial-protocols-box {
+  background: #FFFDF7 !important;
+  border: 1px dashed #B88A42 !important;
+}
+
+[data-theme="morning"] .protocols-title,
+.theme-morning .protocols-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .protocols-list li,
+.theme-morning .protocols-list li {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .protocols-list strong,
+.theme-morning .protocols-list strong {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bullet-rune,
+.theme-morning .bullet-rune {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .altar-card,
+.theme-morning .altar-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 10px 30px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .altar-header,
+.theme-morning .altar-header {
+  border-bottom-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .altar-callout-title,
+.theme-morning .altar-callout-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .altar-callout-desc,
+.theme-morning .altar-callout-desc {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .altar-vital-strip,
+.theme-morning .altar-vital-strip {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .vital-label,
+.theme-morning .vital-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .vital-val,
+.theme-morning .vital-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .vital-separator,
+.theme-morning .vital-separator {
+  color: #B88A42 !important;
+}
+
+[data-theme="morning"] .rpg-chamber-cta-btn.begin-btn,
+.theme-morning .rpg-chamber-cta-btn.begin-btn {
+  background: linear-gradient(135deg, #8F642D 0%, #735022 100%) !important;
+  border: 2px solid #B88A42 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 0 20px rgba(143, 100, 45, 0.5) !important;
+}
+
+[data-theme="morning"] .altar-subtext,
+.theme-morning .altar-subtext {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .domains-section-header,
+.theme-morning .domains-section-header {
+  border-bottom-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .section-eyebrow,
+.theme-morning .section-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .section-title,
+.theme-morning .section-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .section-total-badge,
+.theme-morning .section-total-badge {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .domain-sigil-card,
+.theme-morning .domain-sigil-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 6px 18px rgba(143, 100, 45, 0.15) !important;
+}
+
+[data-theme="morning"] .domain-sigil-card:hover,
+.theme-morning .domain-sigil-card:hover {
+  background: #FFFDF7 !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .sigil-corner-tag,
+.theme-morning .sigil-corner-tag {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .sigil-crest-box,
+.theme-morning .sigil-crest-box {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .sigil-glyph,
+.theme-morning .sigil-glyph {
+  color: #8F642D !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .sigil-sector-name,
+.theme-morning .sigil-sector-name {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .sigil-title,
+.theme-morning .sigil-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .sigil-count,
+.theme-morning .sigil-count {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .sigil-source,
+.theme-morning .sigil-source {
+  color: #77634F !important;
+}
+
+/* ── W. SPECIAL EVENT RESULTS & EVALUATION (SPECIALEVENTRESULTS.VUE) ── */
+[data-theme="morning"] .special-event-results-page .crumb-btn,
+.theme-morning .special-event-results-page .crumb-btn {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .crumb-sep,
+.theme-morning .special-event-results-page .crumb-sep {
+  color: #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .crumb-current,
+.theme-morning .special-event-results-page .crumb-current {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .results-nav-actions .nav-link-btn,
+.theme-morning .special-event-results-page .results-nav-actions .nav-link-btn {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .results-nav-actions .nav-link-btn:hover,
+.theme-morning .special-event-results-page .results-nav-actions .nav-link-btn:hover {
+  background: #FFFDF7 !important;
+  color: #8F642D !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .gothic-panel,
+.theme-morning .special-event-results-page .gothic-panel {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.16) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .header-banner-row,
+.theme-morning .special-event-results-page .header-banner-row {
+  border-bottom-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .trial-tag,
+.theme-morning .special-event-results-page .trial-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .trial-date,
+.theme-morning .special-event-results-page .trial-date {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .reward-chip.gold,
+.theme-morning .special-event-results-page .reward-chip.gold,
+[data-theme="morning"] .special-event-results-page .reward-chip.amber,
+.theme-morning .special-event-results-page .reward-chip.amber {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .reward-chip.purple,
+.theme-morning .special-event-results-page .reward-chip.purple {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .metric-card,
+.theme-morning .special-event-results-page .metric-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .special-event-results-page .metric-label,
+.theme-morning .special-event-results-page .metric-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .val-big,
+.theme-morning .special-event-results-page .val-big {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .val-denom,
+.theme-morning .special-event-results-page .val-denom {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .metric-sub-status,
+.theme-morning .special-event-results-page .metric-sub-status {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .status-dev,
+.theme-morning .special-event-results-page .status-dev {
+  color: #B45309 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .status-pass,
+.theme-morning .special-event-results-page .status-pass {
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .metric-progress-track,
+.theme-morning .special-event-results-page .metric-progress-track {
+  background: #EAD8B5 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.correct,
+.theme-morning .special-event-results-page .outcome-pill.correct {
+  background: #DCFCE7 !important;
+  border: 1px solid #16A34A !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.correct .num,
+.theme-morning .special-event-results-page .outcome-pill.correct .num {
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.correct .lbl,
+.theme-morning .special-event-results-page .outcome-pill.correct .lbl {
+  color: #15803D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.missed,
+.theme-morning .special-event-results-page .outcome-pill.missed {
+  background: #FEE2E2 !important;
+  border: 1px solid #DC2626 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.missed .num,
+.theme-morning .special-event-results-page .outcome-pill.missed .num {
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .special-event-results-page .outcome-pill.missed .lbl,
+.theme-morning .special-event-results-page .outcome-pill.missed .lbl {
+  color: #B91C1C !important;
+}
+
+[data-theme="morning"] .special-event-results-page .summary-eyebrow,
+.theme-morning .special-event-results-page .summary-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .summary-text,
+.theme-morning .special-event-results-page .summary-text {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .chip-strong,
+.theme-morning .special-event-results-page .chip-strong {
+  background: #DCFCE7 !important;
+  border: 1px solid #16A34A !important;
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .chip-dev,
+.theme-morning .special-event-results-page .chip-dev {
+  background: #FEF3C7 !important;
+  border: 1px solid #D97706 !important;
+  color: #92400E !important;
+}
+
+[data-theme="morning"] .special-event-results-page .chip-review,
+.theme-morning .special-event-results-page .chip-review {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .section-title,
+.theme-morning .special-event-results-page .section-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-guide-btn,
+.theme-morning .special-event-results-page .bloom-guide-btn {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-guide-btn:hover,
+.theme-morning .special-event-results-page .bloom-guide-btn:hover {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-compact-card,
+.theme-morning .special-event-results-page .bloom-compact-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-compact-card:hover,
+.theme-morning .special-event-results-page .bloom-compact-card:hover {
+  background: #FFFDF7 !important;
+  border-color: #8F642D !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-level-num,
+.theme-morning .special-event-results-page .bloom-level-num {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-level-name,
+.theme-morning .special-event-results-page .bloom-level-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-mini-track,
+.theme-morning .special-event-results-page .bloom-mini-track {
+  background: #EAD8B5 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .bloom-counts-text,
+.theme-morning .special-event-results-page .bloom-counts-text {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .primary-focus-section,
+.theme-morning .special-event-results-page .primary-focus-section {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .focus-icon-box,
+.theme-morning .special-event-results-page .focus-icon-box {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .focus-pill,
+.theme-morning .special-event-results-page .focus-pill {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .focus-sub-pill,
+.theme-morning .special-event-results-page .focus-sub-pill {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .focus-heading,
+.theme-morning .special-event-results-page .focus-heading {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .focus-desc,
+.theme-morning .special-event-results-page .focus-desc {
+  color: #5C4533 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .primary-study-btn,
+.theme-morning .special-event-results-page .primary-study-btn {
+  background: linear-gradient(135deg, #8F642D 0%, #735022 100%) !important;
+  border: 1px solid #B88A42 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 0 15px rgba(143, 100, 45, 0.4) !important;
+}
+
+[data-theme="morning"] .special-event-results-page .recs-count-tag,
+.theme-morning .special-event-results-page .recs-count-tag {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .toggle-all-recs-btn,
+.theme-morning .special-event-results-page .toggle-all-recs-btn {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-compact-card,
+.theme-morning .special-event-results-page .rec-compact-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-domain-label,
+.theme-morning .special-event-results-page .rec-domain-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-topic-title,
+.theme-morning .special-event-results-page .rec-topic-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-bloom-badge,
+.theme-morning .special-event-results-page .rec-bloom-badge {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-bloom-more,
+.theme-morning .special-event-results-page .rec-bloom-more {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-study-link,
+.theme-morning .special-event-results-page .rec-study-link {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .rec-study-link:hover,
+.theme-morning .special-event-results-page .rec-study-link:hover {
+  background: #8F642D !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .clickable-accordion-header,
+.theme-morning .special-event-results-page .clickable-accordion-header {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .accordion-toggle-btn,
+.theme-morning .special-event-results-page .accordion-toggle-btn {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .advanced-panels-container,
+.theme-morning .special-event-results-page .advanced-panels-container {
+  border-top-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .subtab-btn,
+.theme-morning .special-event-results-page .subtab-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .subtab-btn.active,
+.theme-morning .special-event-results-page .subtab-btn.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .subpanel-content,
+.theme-morning .special-event-results-page .subpanel-content {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .breakdown-name,
+.theme-morning .special-event-results-page .breakdown-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .breakdown-counts,
+.theme-morning .special-event-results-page .breakdown-counts {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .breakdown-track,
+.theme-morning .special-event-results-page .breakdown-track {
+  background: #EAD8B5 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-item-card,
+.theme-morning .special-event-results-page .review-item-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .q-num-badge,
+.theme-morning .special-event-results-page .q-num-badge {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-domain-pill,
+.theme-morning .special-event-results-page .review-domain-pill {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-bloom-pill,
+.theme-morning .special-event-results-page .review-bloom-pill {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .study-hall-source-link,
+.theme-morning .special-event-results-page .study-hall-source-link {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-stem,
+.theme-morning .special-event-results-page .review-stem {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-choice,
+.theme-morning .special-event-results-page .review-choice {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-choice.correct-target,
+.theme-morning .special-event-results-page .review-choice.correct-target {
+  background: #DCFCE7 !important;
+  border-color: #16A34A !important;
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-choice.chosen:not(.correct-target),
+.theme-morning .special-event-results-page .review-choice.chosen:not(.correct-target) {
+  background: #FEE2E2 !important;
+  border-color: #DC2626 !important;
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .special-event-results-page .review-explanation-box,
+.theme-morning .special-event-results-page .review-explanation-box {
+  background: #EAD8B5 !important;
+  border: 1px dashed #B88A42 !important;
+}
+
+[data-theme="morning"] .special-event-results-page .exp-title,
+.theme-morning .special-event-results-page .exp-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .special-event-results-page .exp-text,
+.theme-morning .special-event-results-page .exp-text {
+  color: #3D2B1F !important;
+}
+
+/* Bloom Modal Light Mode */
+[data-theme="morning"] .bloom-modal-card,
+.theme-morning .bloom-modal-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 16px 48px rgba(143, 100, 45, 0.28) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .modal-eyebrow,
+.theme-morning .bloom-modal-card .modal-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .modal-title,
+.theme-morning .bloom-modal-card .modal-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .close-btn,
+.theme-morning .bloom-modal-card .close-btn {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .bloom-tab-btn,
+.theme-morning .bloom-modal-card .bloom-tab-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .bloom-tab-btn.active,
+.theme-morning .bloom-modal-card .bloom-tab-btn.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .bloom-modal-card .gothic-subpanel,
+.theme-morning .bloom-modal-card .gothic-subpanel {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION: THE HALL OF RECORDS (LEADERBOARD) LIGHT MODE
+   Warm parchment, antique gold, and dark bronze typography.
+   Preserves underlying Hall of Records background artwork 100%.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Top Navigation Bar */
+[data-theme="morning"] .hall-top-bar,
+.theme-morning .hall-top-bar {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 20px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .hall-nav-back,
+.theme-morning .hall-nav-back {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .hall-nav-back:hover,
+.theme-morning .hall-nav-back:hover {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  color: #1A120B !important;
+}
+
+[data-theme="morning"] .hall-archivist-badge,
+.theme-morning .hall-archivist-badge {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .hall-archivist-badge .archivist-name,
+.theme-morning .hall-archivist-badge .archivist-name {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .hall-archivist-badge .archivist-quote,
+.theme-morning .hall-archivist-badge .archivist-quote {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .hall-archivist-badge .archivist-rune,
+.theme-morning .hall-archivist-badge .archivist-rune {
+  color: #B88A42 !important;
+}
+
+[data-theme="morning"] .hall-nav-arena,
+.theme-morning .hall-nav-arena {
+  background: #8F642D !important;
+  border: 1px solid #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .hall-nav-arena:hover,
+.theme-morning .hall-nav-arena:hover {
+  background: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+/* Monument Crest & Titles */
+[data-theme="morning"] .hall-crest-frame,
+.theme-morning .hall-crest-frame {
+  background: radial-gradient(circle, #FFF4DF 0%, #EAD8B5 100%) !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 0 25px rgba(184, 138, 66, 0.35) !important;
+}
+
+[data-theme="morning"] .hall-eyebrow,
+.theme-morning .hall-eyebrow {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .hall-main-title,
+.theme-morning .hall-main-title {
+  color: #3D2B1F !important;
+  text-shadow: 0 2px 6px rgba(184, 138, 66, 0.3) !important;
+}
+
+[data-theme="morning"] .hall-sub-title,
+.theme-morning .hall-sub-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .hall-lore-desc,
+.theme-morning .hall-lore-desc {
+  color: #5C4433 !important;
+}
+
+/* Ranking Mode Selector Capsule */
+[data-theme="morning"] .selector-capsule,
+.theme-morning .selector-capsule {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 8px 30px rgba(143, 100, 45, 0.2) !important;
+}
+
+[data-theme="morning"] .selector-corner,
+.theme-morning .selector-corner {
+  background: #8F642D !important;
+}
+
+[data-theme="morning"] .mode-btn,
+.theme-morning .mode-btn {
+  background: #F5E8CC !important;
+  border: 1px solid #D8B980 !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .mode-btn .mode-title,
+.theme-morning .mode-btn .mode-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mode-btn .mode-subtitle,
+.theme-morning .mode-btn .mode-subtitle {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .mode-btn:hover:not(.active),
+.theme-morning .mode-btn:hover:not(.active) {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .mode-btn.active,
+.theme-morning .mode-btn.active {
+  background: linear-gradient(135deg, #8F642D 0%, #735022 100%) !important;
+  border-color: #5C401B !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 0 16px rgba(143, 100, 45, 0.35) !important;
+}
+
+[data-theme="morning"] .mode-btn-rating.active,
+.theme-morning .mode-btn-rating.active {
+  background: linear-gradient(135deg, #991B1B 0%, #7F1D1D 100%) !important;
+  border-color: #B91C1C !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 0 16px rgba(185, 28, 28, 0.35) !important;
+}
+
+[data-theme="morning"] .mode-btn.active .mode-title,
+.theme-morning .mode-btn.active .mode-title,
+[data-theme="morning"] .mode-btn.active .mode-subtitle,
+.theme-morning .mode-btn.active .mode-subtitle {
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .search-wrap,
+.theme-morning .search-wrap {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .search-input,
+.theme-morning .search-input {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .search-input::placeholder,
+.theme-morning .search-input::placeholder {
+  color: #8C7A6B !important;
+}
+
+[data-theme="morning"] .clear-search-btn,
+.theme-morning .clear-search-btn {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .ranking-explanation-bar,
+.theme-morning .ranking-explanation-bar {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ranking-explanation-bar .explanation-icon,
+.theme-morning .ranking-explanation-bar .explanation-icon,
+[data-theme="morning"] .ranking-explanation-bar .explanation-text strong,
+.theme-morning .ranking-explanation-bar .explanation-text strong {
+  color: #8F642D !important;
+}
+
+/* Loading State */
+[data-theme="morning"] .hall-loading-state,
+.theme-morning .hall-loading-state {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .hall-loading-state .loading-title,
+.theme-morning .hall-loading-state .loading-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .hall-loading-state .loading-sub,
+.theme-morning .hall-loading-state .loading-sub {
+  color: #77634F !important;
+}
+
+/* Podium & Top 3 Champions Cards */
+[data-theme="morning"] .podium-section-header,
+.theme-morning .podium-section-header {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .podium-card,
+.theme-morning .podium-card {
+  background: #FFFDF7 !important;
+  border: 2px solid #D8B980 !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .podium-card.rank-1,
+.theme-morning .podium-card.rank-1 {
+  border-color: #B88A42 !important;
+  box-shadow: 0 0 35px rgba(184, 138, 66, 0.25), 0 20px 50px rgba(143, 100, 45, 0.22) !important;
+}
+
+[data-theme="morning"] .podium-card.rank-2,
+.theme-morning .podium-card.rank-2 {
+  border-color: #94A3B8 !important;
+  box-shadow: 0 0 25px rgba(148, 163, 184, 0.2), 0 16px 40px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .podium-card.rank-3,
+.theme-morning .podium-card.rank-3 {
+  border-color: #D97706 !important;
+  box-shadow: 0 0 25px rgba(217, 119, 6, 0.2), 0 16px 40px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .podium-crest-badge,
+.theme-morning .podium-crest-badge {
+  background: linear-gradient(180deg, #F5E8CC 0%, #EAD8B5 100%) !important;
+  border-bottom: 1.5px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .rank-1 .podium-crest-badge,
+.theme-morning .rank-1 .podium-crest-badge {
+  border-bottom-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .rank-1 .crest-rank-title,
+.theme-morning .rank-1 .crest-rank-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .rank-2 .crest-rank-title,
+.theme-morning .rank-2 .crest-rank-title {
+  color: #475569 !important;
+}
+
+[data-theme="morning"] .rank-3 .crest-rank-title,
+.theme-morning .rank-3 .crest-rank-title {
+  color: #B45309 !important;
+}
+
+[data-theme="morning"] .podium-card .player-name,
+.theme-morning .podium-card .player-name {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .podium-card .scholar-title-text,
+.theme-morning .podium-card .scholar-title-text {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .podium-card .level-badge,
+.theme-morning .podium-card .level-badge {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .podium-card .primary-stat-box,
+.theme-morning .podium-card .primary-stat-box {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .podium-card .stat-big-number,
+.theme-morning .podium-card .stat-big-number {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .podium-card .stat-unit,
+.theme-morning .podium-card .stat-unit {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .podium-card .stat-sub-detail,
+.theme-morning .podium-card .stat-sub-detail {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .podium-card .card-metrics-grid .metric-lbl,
+.theme-morning .podium-card .card-metrics-grid .metric-lbl {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .podium-card .card-metrics-grid .metric-val,
+.theme-morning .podium-card .card-metrics-grid .metric-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .podium-card .mini-rate-track,
+.theme-morning .podium-card .mini-rate-track {
+  background: #EAD8B5 !important;
+}
+
+/* Champion Roster (Ranks 4+) */
+[data-theme="morning"] .roster-banner-header .banner-title-box,
+.theme-morning .roster-banner-header .banner-title-box {
+  background: #FFF4DF !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .roster-banner-header .banner-line,
+.theme-morning .roster-banner-header .banner-line {
+  background: linear-gradient(90deg, transparent, #B88A42, transparent) !important;
+}
+
+[data-theme="morning"] .roster-column-headers,
+.theme-morning .roster-column-headers {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ranking-row-card,
+.theme-morning .ranking-row-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  border-left: 3px solid #B88A42 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .ranking-row-card:hover,
+.theme-morning .ranking-row-card:hover {
+  background: #FFF4DF !important;
+  border-color: #8F642D !important;
+  border-left-color: #8F642D !important;
+  box-shadow: 0 6px 18px rgba(143, 100, 45, 0.18) !important;
+}
+
+[data-theme="morning"] .ranking-row-card.is-current-user,
+.theme-morning .ranking-row-card.is-current-user {
+  background: #FFF1DA !important;
+  border-color: #B88A42 !important;
+  border-left: 4px solid #8F642D !important;
+  box-shadow: 0 0 16px rgba(184, 138, 66, 0.25) !important;
+}
+
+[data-theme="morning"] .ranking-row-card .rank-insignia,
+.theme-morning .ranking-row-card .rank-insignia {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .ranking-row-card.is-top-ten .rank-digits,
+.theme-morning .ranking-row-card.is-top-ten .rank-digits {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ranking-row-card .player-display-name,
+.theme-morning .ranking-row-card .player-display-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ranking-row-card .title-string,
+.theme-morning .ranking-row-card .title-string {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ranking-row-card .level-chip,
+.theme-morning .ranking-row-card .level-chip {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ranking-row-card .metric-num,
+.theme-morning .ranking-row-card .metric-num {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .ranking-row-card .metric-sub-val,
+.theme-morning .ranking-row-card .metric-sub-val {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .ranking-row-card .winrate-lbl,
+[data-theme="morning"] .ranking-row-card .battles-lbl,
+.theme-morning .ranking-row-card .winrate-lbl,
+.theme-morning .ranking-row-card .battles-lbl {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .ranking-row-card .winrate-bar-track,
+.theme-morning .ranking-row-card .winrate-bar-track {
+  background: #EAD8B5 !important;
+}
+
+[data-theme="morning"] .ranking-row-card .battles-count,
+.theme-morning .ranking-row-card .battles-count {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .ranking-row-card .inspect-btn,
+.theme-morning .ranking-row-card .inspect-btn {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .roster-empty-card,
+.theme-morning .roster-empty-card {
+  background: #FFF4DF !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .roster-empty-card .empty-roster-title,
+.theme-morning .roster-empty-card .empty-roster-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .roster-empty-card .empty-roster-desc,
+.theme-morning .roster-empty-card .empty-roster-desc {
+  color: #77634F !important;
+}
+
+/* Sticky Current Player Banner */
+[data-theme="morning"] .current-player-banner .banner-inner,
+.theme-morning .current-player-banner .banner-inner {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 8px 30px rgba(143, 100, 45, 0.25) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .current-player-banner .user-rank-crest,
+.theme-morning .current-player-banner .user-rank-crest {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+}
+
+[data-theme="morning"] .current-player-banner .rank-prefix,
+.theme-morning .current-player-banner .rank-prefix {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .current-player-banner .rank-val,
+.theme-morning .current-player-banner .rank-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .current-player-banner .banner-name,
+.theme-morning .current-player-banner .banner-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .current-player-banner .banner-title,
+.theme-morning .current-player-banner .banner-title {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .current-player-banner .bstat-lbl,
+.theme-morning .current-player-banner .bstat-lbl {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .current-player-banner .bstat-val,
+.theme-morning .current-player-banner .bstat-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .current-player-banner .bstat-val.text-gold,
+.theme-morning .current-player-banner .bstat-val.text-gold {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .current-player-banner .bstat-val.text-green,
+.theme-morning .current-player-banner .bstat-val.text-green {
+  color: #047857 !important;
+}
+
+[data-theme="morning"] .current-player-banner .jump-rank-btn,
+.theme-morning .current-player-banner .jump-rank-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .current-player-banner .jump-rank-btn:hover,
+.theme-morning .current-player-banner .jump-rank-btn:hover {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .current-player-banner .play-duel-btn,
+.theme-morning .current-player-banner .play-duel-btn {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .current-player-banner .play-duel-btn:hover,
+.theme-morning .current-player-banner .play-duel-btn:hover {
+  background: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+/* Mindkeeper Profile Modal */
+[data-theme="morning"] .mindkeeper-modal,
+.theme-morning .mindkeeper-modal {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 16px 48px rgba(143, 100, 45, 0.3) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .corner-filigree,
+.theme-morning .mindkeeper-modal .corner-filigree {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .mindkeeper-close-btn,
+.theme-morning .mindkeeper-modal .mindkeeper-close-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .mindkeeper-close-btn:hover,
+.theme-morning .mindkeeper-modal .mindkeeper-close-btn:hover {
+  background: #FEE2E2 !important;
+  border-color: #DC2626 !important;
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .mindkeeper-hero-header,
+.theme-morning .mindkeeper-modal .mindkeeper-hero-header {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .hero-display-name,
+.theme-morning .mindkeeper-modal .hero-display-name {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .scholar-title-string,
+.theme-morning .mindkeeper-modal .scholar-title-string {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .character-title-label,
+.theme-morning .mindkeeper-modal .character-title-label {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .profile-section-card,
+.theme-morning .mindkeeper-modal .profile-section-card {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .sec-title,
+.theme-morning .mindkeeper-modal .sec-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .adv-badge-block,
+.theme-morning .mindkeeper-modal .adv-badge-block {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .adv-label,
+.theme-morning .mindkeeper-modal .adv-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .adv-chapter-num,
+[data-theme="morning"] .mindkeeper-modal .adv-part-num,
+.theme-morning .mindkeeper-modal .adv-chapter-num,
+.theme-morning .mindkeeper-modal .adv-part-num {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .adv-chapter-name,
+[data-theme="morning"] .mindkeeper-modal .adv-part-meta,
+.theme-morning .mindkeeper-modal .adv-chapter-name,
+.theme-morning .mindkeeper-modal .adv-part-meta {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .achievement-mini-badge,
+.theme-morning .mindkeeper-modal .achievement-mini-badge {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .ach-name,
+.theme-morning .mindkeeper-modal .ach-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .mindkeeper-modal .empty-achievements-note,
+[data-theme="morning"] .mindkeeper-modal .empty-vault-text,
+.theme-morning .mindkeeper-modal .empty-achievements-note,
+.theme-morning .mindkeeper-modal .empty-vault-text {
+  color: #77634F !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION: STUDY HALL BOOK PREVIEW MODAL LIGHT MODE
+   Warm parchment, antique gold, and dark bronze typography.
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="morning"] .book-preview-card,
+.theme-morning .book-preview-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 16px 48px rgba(143, 100, 45, 0.28) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .preview-close-btn,
+.theme-morning .preview-close-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .preview-close-btn:hover,
+.theme-morning .preview-close-btn:hover {
+  background: #FEE2E2 !important;
+  border-color: #DC2626 !important;
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .preview-sigil-badge,
+.theme-morning .preview-sigil-badge {
+  background: radial-gradient(circle, #FFFDF7 0%, #EAD8B5 100%) !important;
+  border: 2px solid #B88A42 !important;
+  color: #8F642D !important;
+  box-shadow: 0 0 14px rgba(184, 138, 66, 0.3) !important;
+}
+
+[data-theme="morning"] .preview-vol-tag,
+.theme-morning .preview-vol-tag {
+  color: #7A4E1D !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="morning"] .preview-source-tag,
+.theme-morning .preview-source-tag {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #2D1E12 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .preview-title,
+.theme-morning .preview-title {
+  color: #1A120B !important;
+  text-shadow: none !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="morning"] .preview-moniker,
+.theme-morning .preview-moniker {
+  color: #7A4E1D !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .preview-sep,
+.theme-morning .preview-sep {
+  background: linear-gradient(90deg, transparent 0%, #B88A42 50%, transparent 100%) !important;
+  opacity: 0.8 !important;
+}
+
+[data-theme="morning"] .preview-description,
+.theme-morning .preview-description {
+  color: #2D1E12 !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+
+[data-theme="morning"] .preview-stats-panel,
+.theme-morning .preview-stats-panel {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .preview-stats-panel .stat-label,
+.theme-morning .preview-stats-panel .stat-label {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .preview-stats-panel .stat-val,
+.theme-morning .preview-stats-panel .stat-val {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .preview-stats-panel .highlight-val,
+.theme-morning .preview-stats-panel .highlight-val {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .preview-progress-track,
+.theme-morning .preview-progress-track {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .preview-progress-fill,
+.theme-morning .preview-progress-fill {
+  background: linear-gradient(90deg, #B88A42 0%, #D97706 100%) !important;
+  box-shadow: 0 0 10px rgba(184, 138, 66, 0.4) !important;
+}
+
+[data-theme="morning"] .preview-locked-notice,
+.theme-morning .preview-locked-notice {
+  background: #FEF2F2 !important;
+  border: 1px solid #FCA5A5 !important;
+  color: #991B1B !important;
+}
+
+[data-theme="morning"] .book-preview-card .btn-gothic-stone,
+.theme-morning .book-preview-card .btn-gothic-stone {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .book-preview-card .btn-gothic-stone:hover,
+.theme-morning .book-preview-card .btn-gothic-stone:hover {
+  background: #D8B980 !important;
+  border-color: #8F642D !important;
+  color: #1A120B !important;
+}
+
+[data-theme="morning"] .book-preview-card .open-volume-btn,
+.theme-morning .book-preview-card .open-volume-btn {
+  background: linear-gradient(180deg, #991B1B 0%, #7F1D1D 100%) !important;
+  border: 1px solid #B91C1C !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 14px rgba(153, 27, 27, 0.35) !important;
+}
+
+[data-theme="morning"] .book-preview-card .open-volume-btn:hover,
+.theme-morning .book-preview-card .open-volume-btn:hover {
+  background: linear-gradient(180deg, #B91C1C 0%, #991B1B 100%) !important;
+  box-shadow: 0 6px 18px rgba(185, 28, 28, 0.45) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION: QUEST DETAILS & CURRICULUM STUDY ROOM LIGHT MODE
+   High-contrast, crystal-clear readability on warm parchment.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Hero Banner Card */
+[data-theme="morning"] .part-hero-card,
+.theme-morning .part-hero-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 8px 32px rgba(143, 100, 45, 0.16) !important;
+}
+
+[data-theme="morning"] .part-type-tag,
+.theme-morning .part-type-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .part-title-hero,
+.theme-morning .part-title-hero {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .part-description-hero,
+.theme-morning .part-description-hero {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .bounty-badge,
+.theme-morning .bounty-badge {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .bounty-amount,
+.theme-morning .bounty-amount {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .bounty-sub,
+.theme-morning .bounty-sub {
+  color: #047857 !important;
+}
+
+[data-theme="morning"] .status-pill.mastered,
+.theme-morning .status-pill.mastered {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .status-pill.completed,
+.theme-morning .status-pill.completed {
+  background: #FFFDF7 !important;
+  border: 1px solid #10B981 !important;
+  color: #047857 !important;
+}
+
+[data-theme="morning"] .status-pill.in_progress,
+.theme-morning .status-pill.in_progress {
+  background: #FFFDF7 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .status-pill.available,
+.theme-morning .status-pill.available {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  color: #77634F !important;
+}
+
+/* Stage Navigation Tabs */
+[data-theme="morning"] .stage-nav-tabs,
+.theme-morning .stage-nav-tabs {
+  border-top: 1.5px solid rgba(184, 138, 66, 0.3) !important;
+}
+
+[data-theme="morning"] .stage-tab-btn,
+.theme-morning .stage-tab-btn {
+  background: #F5E8CC !important;
+  border: 1px solid #D8B980 !important;
+  color: #77634F !important;
+  box-shadow: none !important;
+}
+
+[data-theme="morning"] .stage-tab-btn .stage-step-num,
+.theme-morning .stage-tab-btn .stage-step-num {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stage-tab-btn:hover,
+.theme-morning .stage-tab-btn:hover {
+  background: #EAD8B5 !important;
+  border-color: #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stage-tab-btn.active,
+.theme-morning .stage-tab-btn.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.3) !important;
+}
+
+[data-theme="morning"] .stage-tab-btn.active .stage-step-num,
+.theme-morning .stage-tab-btn.active .stage-step-num {
+  background: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .challenge-tab .challenge-pill,
+.theme-morning .challenge-tab .challenge-pill {
+  background: #EAD8B5 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .stage-tab-btn.active .challenge-pill,
+.theme-morning .stage-tab-btn.active .challenge-pill {
+  background: #735022 !important;
+  color: #FDE68A !important;
+}
+
+/* Study Module Cards */
+[data-theme="morning"] .study-module-card,
+.theme-morning .study-module-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 8px 24px rgba(143, 100, 45, 0.12) !important;
+}
+
+[data-theme="morning"] .module-title,
+.theme-morning .module-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .module-subtitle,
+.theme-morning .module-subtitle {
+  color: #8F642D !important;
+}
+
+/* Overview Section Body */
+[data-theme="morning"] .overview-body,
+[data-theme="morning"] .overview-body p,
+.theme-morning .overview-body,
+.theme-morning .overview-body p {
+  color: #3D2B1F !important;
+  line-height: 1.75 !important;
+}
+
+[data-theme="morning"] .exam-notice-box,
+.theme-morning .exam-notice-box {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  border-left: 4px solid #8F642D !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .exam-notice-box strong,
+.theme-morning .exam-notice-box strong {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .exam-notice-box span,
+.theme-morning .exam-notice-box span {
+  color: #3D2B1F !important;
+}
+
+/* Concepts Grid */
+[data-theme="morning"] .concepts-grid .concept-card,
+.theme-morning .concepts-grid .concept-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .concepts-grid .concept-card:hover,
+.theme-morning .concepts-grid .concept-card:hover {
+  border-color: #8F642D !important;
+  box-shadow: 0 6px 18px rgba(143, 100, 45, 0.18) !important;
+}
+
+[data-theme="morning"] .concept-name,
+.theme-morning .concept-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .concept-def,
+.theme-morning .concept-def {
+  color: #5C4433 !important;
+  line-height: 1.55 !important;
+}
+
+/* Vocabulary & Terms Table */
+[data-theme="morning"] .terms-grid .term-row,
+.theme-morning .terms-grid .term-row {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+  border-left: 4px solid #B88A42 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.06) !important;
+}
+
+[data-theme="morning"] .terms-grid .term-name,
+[data-theme="morning"] .terms-grid .term-name strong,
+.theme-morning .terms-grid .term-name,
+.theme-morning .terms-grid .term-name strong {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .terms-grid .term-def,
+.theme-morning .terms-grid .term-def {
+  color: #3D2B1F !important;
+}
+
+/* Clinical Vignette */
+[data-theme="morning"] .clinical-case-box,
+.theme-morning .clinical-case-box {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .case-text,
+.theme-morning .case-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .case-takeaways h4,
+.theme-morning .case-takeaways h4 {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .takeaway-list,
+[data-theme="morning"] .takeaway-list li,
+.theme-morning .takeaway-list,
+.theme-morning .takeaway-list li {
+  color: #5C4433 !important;
+}
+
+/* Review Checklist */
+[data-theme="morning"] .checklist-item,
+.theme-morning .checklist-item {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.06) !important;
+}
+
+[data-theme="morning"] .checklist-item:hover,
+.theme-morning .checklist-item:hover {
+  background: #FFF4DF !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .check-text,
+.theme-morning .check-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .check-text strong,
+.theme-morning .check-text strong {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .challenge-ready-banner,
+.theme-morning .challenge-ready-banner {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .challenge-ready-banner h4,
+.theme-morning .challenge-ready-banner h4 {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .challenge-ready-banner p,
+.theme-morning .challenge-ready-banner p {
+  color: #5C4433 !important;
+}
+
+/* Assessment Questions */
+[data-theme="morning"] .question-block,
+.theme-morning .question-block {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .q-number,
+.theme-morning .q-number {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .q-text,
+.theme-morning .q-text {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .option-choice-btn,
+.theme-morning .option-choice-btn {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .option-choice-btn:hover:not(.disabled),
+.theme-morning .option-choice-btn:hover:not(.disabled) {
+  background: #F5E8CC !important;
+  border-color: #B88A42 !important;
+  color: #1A120B !important;
+}
+
+[data-theme="morning"] .option-choice-btn.selected,
+.theme-morning .option-choice-btn.selected {
+  background: #EAD8B5 !important;
+  border-color: #8F642D !important;
+  color: #1A120B !important;
+  box-shadow: 0 2px 10px rgba(143, 100, 45, 0.25) !important;
+}
+
+[data-theme="morning"] .option-letter,
+.theme-morning .option-letter {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .option-choice-btn.selected .option-letter,
+.theme-morning .option-choice-btn.selected .option-letter {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+/* Explanation Boxes */
+[data-theme="morning"] .q-explanation-box.correct-exp,
+.theme-morning .q-explanation-box.correct-exp {
+  background: #DCFCE7 !important;
+  border-left: 4px solid #16A34A !important;
+  color: #166534 !important;
+}
+
+[data-theme="morning"] .q-explanation-box.wrong-exp,
+.theme-morning .q-explanation-box.wrong-exp {
+  background: #FEE2E2 !important;
+  border-left: 4px solid #DC2626 !important;
+  color: #991B1B !important;
+}
+
+/* Actions & Navigation Buttons */
+[data-theme="morning"] .stage-footer-actions .btn-primary,
+.theme-morning .stage-footer-actions .btn-primary,
+[data-theme="morning"] .assessment-submit-bar .btn-primary,
+.theme-morning .assessment-submit-bar .btn-primary {
+  background: linear-gradient(180deg, #B88A42 0%, #8F642D 100%) !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.3) !important;
+}
+
+[data-theme="morning"] .stage-footer-actions .btn-secondary,
+.theme-morning .stage-footer-actions .btn-secondary,
+[data-theme="morning"] .assessment-submit-bar .btn-secondary,
+.theme-morning .assessment-submit-bar .btn-secondary,
+[data-theme="morning"] .part-nav-footer .part-nav-btn,
+.theme-morning .part-nav-footer .part-nav-btn {
+  background: #EAD8B5 !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .part-nav-footer .part-nav-btn.btn-primary,
+.theme-morning .part-nav-footer .part-nav-btn.btn-primary {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .answer-count-tracker,
+.theme-morning .answer-count-tracker {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .answer-count-tracker strong,
+.theme-morning .answer-count-tracker strong {
+  color: #8F642D !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION: PSYCHOLOGY STUDY PATHS (QUESTS.VUE) LIGHT MODE
+   Warm parchment, antique gold, and dark bronze typography.
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="morning"] .psychology-quests-page,
+.theme-morning .psychology-quests-page {
+  background: #FFF4DF !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .page-title-main,
+.theme-morning .page-title-main {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .page-subtitle-main,
+.theme-morning .page-subtitle-main {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .roadmap-toolbar,
+.theme-morning .roadmap-toolbar {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.12) !important;
+}
+
+[data-theme="morning"] .roadmap-toolbar .search-input,
+.theme-morning .roadmap-toolbar .search-input {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .roadmap-toolbar .search-input::placeholder,
+.theme-morning .roadmap-toolbar .search-input::placeholder {
+  color: #8C7A6B !important;
+}
+
+[data-theme="morning"] .filter-tab,
+.theme-morning .filter-tab {
+  background: #F5E8CC !important;
+  border: 1px solid #D8B980 !important;
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .filter-tab:hover,
+.theme-morning .filter-tab:hover {
+  background: #EAD8B5 !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .filter-tab.active,
+.theme-morning .filter-tab.active {
+  background: #8F642D !important;
+  border-color: #735022 !important;
+  color: #FFFDF7 !important;
+}
+
+[data-theme="morning"] .domain-card,
+.theme-morning .domain-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #D8B980 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .domain-title,
+.theme-morning .domain-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .domain-chapter-tag,
+.theme-morning .domain-chapter-tag {
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .domain-desc,
+.theme-morning .domain-desc {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .domain-parts-drawer,
+.theme-morning .domain-parts-drawer {
+  background: #FFF4DF !important;
+  border-top: 1.5px solid #B88A42 !important;
+}
+
+[data-theme="morning"] .part-row,
+.theme-morning .part-row {
+  background: #FFFDF7 !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .part-row:hover,
+.theme-morning .part-row:hover {
+  background: #FFF4DF !important;
+  border-color: #8F642D !important;
+}
+
+[data-theme="morning"] .part-title,
+.theme-morning .part-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .part-desc,
+.theme-morning .part-desc {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .user-hero-card,
+[data-theme="morning"] .today-study-card,
+[data-theme="morning"] .progress-overview-card,
+.theme-morning .user-hero-card,
+.theme-morning .today-study-card,
+.theme-morning .progress-overview-card {
+  background: #FFFDF7 !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.1) !important;
+}
+
+[data-theme="morning"] .user-name,
+.theme-morning .user-name {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .user-role,
+.theme-morning .user-role {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .streak-pill,
+.theme-morning .streak-pill {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+  color: #8F642D !important;
+}
+
+[data-theme="morning"] .today-part-title,
+.theme-morning .today-part-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .today-part-desc,
+.theme-morning .today-part-desc {
+  color: #5C4433 !important;
+}
+
+[data-theme="morning"] .sidebar-title,
+.theme-morning .sidebar-title {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stat-box,
+.theme-morning .stat-box {
+  background: #FFF4DF !important;
+  border: 1px solid #D8B980 !important;
+}
+
+[data-theme="morning"] .stat-box .stat-number,
+.theme-morning .stat-box .stat-number {
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .stat-box .stat-label,
+.theme-morning .stat-box .stat-label {
+  color: #77634F !important;
 }

@@ -78,22 +78,34 @@ class BattleRating {
     public function getLeaderboard(string $type = 'rating', int $limit = 50): array {
         if ($type === 'rating') {
             $sql = "SELECT u.id, u.username, u.nickname, u.avatar_style, u.avatar_seed, u.avatar_options,
-                           u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.level, u.xp, u.created_at
+                           u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.level, u.xp, u.created_at,
+                           COALESCE(u.selected_character_id, 1) AS selected_character_id,
+                           COALESCE(c.class_type, 'MAGE') AS character_class,
+                           COALESCE(c.key_name, 'mage') AS character_key
                     FROM users u
+                    LEFT JOIN characters c ON COALESCE(u.selected_character_id, 1) = c.id
                     WHERE u.total_battles > 0
                     ORDER BY u.battle_rating DESC, u.wins DESC
                     LIMIT ?";
         } elseif ($type === 'level') {
             $sql = "SELECT u.id, u.username, u.nickname, u.avatar_style, u.avatar_seed, u.avatar_options,
-                           u.level, u.xp, u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.created_at
+                           u.level, u.xp, u.battle_rating, u.wins, u.losses, u.draws, u.total_battles, u.created_at,
+                           COALESCE(u.selected_character_id, 1) AS selected_character_id,
+                           COALESCE(c.class_type, 'MAGE') AS character_class,
+                           COALESCE(c.key_name, 'mage') AS character_key
                     FROM users u
+                    LEFT JOIN characters c ON COALESCE(u.selected_character_id, 1) = c.id
                     ORDER BY u.level DESC, u.xp DESC
                     LIMIT ?";
         } elseif ($type === 'weekly') {
-            $sql = "SELECT u.id, u.username, u.avatar_style, u.avatar_seed, u.avatar_options,
+            $sql = "SELECT u.id, u.username, u.nickname, u.avatar_style, u.avatar_seed, u.avatar_options,
                            u.battle_rating, u.level,
+                           COALESCE(u.selected_character_id, 1) AS selected_character_id,
+                           COALESCE(c.class_type, 'MAGE') AS character_class,
+                           COALESCE(c.key_name, 'mage') AS character_key,
                            COUNT(mp.id) AS weekly_wins
                     FROM users u
+                    LEFT JOIN characters c ON COALESCE(u.selected_character_id, 1) = c.id
                     JOIN match_players mp ON mp.user_id = u.id AND mp.outcome = 'won'
                     JOIN matches m ON mp.match_id = m.id AND m.ended_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                     GROUP BY u.id

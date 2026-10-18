@@ -13,18 +13,32 @@
     </div>
 
     <!-- Shelves Control & Focus Bar -->
-    <div class="shelves-control-deck animate-slide-down">
-      <!-- Search the Archives -->
-      <div class="archive-search-box">
-        <span class="search-rune">🔍</span>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search the Archives (e.g. Neurodevelopmental, Bipolar, Trauma)..."
-          class="archive-search-input"
-          aria-label="Search Archives"
-        />
-        <button v-if="searchQuery" @click="searchQuery = ''" class="clear-search-btn">✕</button>
+    <header class="shelves-control-deck animate-slide-down">
+      <div class="deck-left-group">
+        <!-- Back Button on the side of search bar -->
+        <button
+          type="button"
+          class="shelves-back-btn"
+          @click="handleBackToLibrary"
+          title="Back to Study Hall Entrance"
+          id="shelves-back-btn"
+        >
+          <span class="shelves-back-arrow">◀</span>
+          <span class="shelves-back-label">Back</span>
+        </button>
+
+        <!-- Search the Archives -->
+        <div class="archive-search-box">
+          <span class="search-rune">🔍</span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search the Archives (e.g. Neurodevelopmental, Bipolar, Trauma)..."
+            class="archive-search-input"
+            aria-label="Search Archives"
+          />
+          <button v-if="searchQuery" @click="searchQuery = ''" class="clear-search-btn">✕</button>
+        </div>
       </div>
 
       <!-- Filter Tabs -->
@@ -52,15 +66,33 @@
         </button>
       </div>
 
-      <!-- Overall Archive Preservation Metric -->
-      <div class="archive-progress-pill">
-        <span class="ap-label">PRESERVED:</span>
-        <div class="ap-bar">
-          <div class="ap-fill" :style="{ width: overallProgress + '%' }"></div>
+      <!-- Overall Archive Preservation Metric & Theme Toggle -->
+      <div class="deck-right-group">
+        <div class="archive-progress-pill">
+          <span class="ap-label">PRESERVED:</span>
+          <div class="ap-bar">
+            <div class="ap-fill" :style="{ width: overallProgress + '%' }"></div>
+          </div>
+          <span class="ap-val">{{ overallProgress }}%</span>
         </div>
-        <span class="ap-val">{{ overallProgress }}%</span>
+
+        <!-- Audio Volume Control Widget (Increase/Decrease/Slider/Mute) -->
+        <AudioVolumeControl id="shelves-volume-widget" />
+
+        <!-- Global Theme Toggle (NIGHT ☾ ↔ MORNING ☀) -->
+        <button
+          type="button"
+          class="shelves-theme-toggle"
+          :class="{ 'is-morning': game.isMorning }"
+          @click="game.toggleTheme()"
+          :title="game.isMorning ? 'Switch to Night Mode (☾)' : 'Switch to Day Mode (☀)'"
+          id="shelves-theme-toggle-btn"
+        >
+          <span class="theme-icon">{{ game.isMorning ? '☀' : '☾' }}</span>
+          <span class="theme-label">{{ game.isMorning ? 'DAY' : 'NIGHT' }}</span>
+        </button>
       </div>
-    </div>
+    </header>
 
     <!-- Today's Focus Banner if available -->
     <div v-if="todayFocus" class="archive-focus-banner animate-fade-in">
@@ -176,6 +208,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useTransitionStore } from '../../stores/transition'
+import { useGameStore } from '../../stores/game'
 import { curriculumService } from '../../services/curriculumService'
 import { resolveChapterBook } from '../../services/studyHallResolver'
 import { resolveAsset } from '../../services/bossMapping'
@@ -183,6 +216,7 @@ import { CHARACTER_ANIMATIONS } from '../../config/characterAnimations'
 import { battleAudio } from '../../services/battleAudio'
 import StudyHallBook from '../../components/studyhall/StudyHallBook.vue'
 import StudyHallBookPreview from '../../components/studyhall/StudyHallBookPreview.vue'
+import AudioVolumeControl from '../../components/ui/AudioVolumeControl.vue'
 
 const props = defineProps({
   onSelectChapter: {
@@ -198,6 +232,7 @@ const props = defineProps({
 const router = useRouter()
 const auth = useAuthStore()
 const transitionStore = useTransitionStore()
+const game = useGameStore()
 
 const bgImage = computed(() => resolveAsset('assets/game/study-hall-shelves.jpg'))
 const rawDomains = ref([])
@@ -354,7 +389,7 @@ function handleBackToLibrary() {
   background: #06040b;
   overflow-x: hidden;
   user-select: none;
-  padding-top: var(--hud-height, 56px);
+  padding-top: 0;
 }
 
 /* Backdrop */
@@ -393,26 +428,84 @@ function handleBackToLibrary() {
 .glow-1 { top: 25%; left: 10%; }
 .glow-2 { top: 25%; right: 10%; }
 
-/* Controls Deck */
+/* Controls Deck Navigation Header */
 .shelves-control-deck {
-  position: relative;
-  z-index: 20;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: rgba(12, 10, 20, 0.85);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.25);
-  backdrop-filter: blur(8px);
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(180deg, rgba(16, 9, 30, 0.98) 0%, rgba(11, 7, 20, 0.98) 100%);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.deck-left-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 280px;
+  max-width: 560px;
+}
+
+.shelves-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.shelves-back-btn:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateX(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.shelves-back-btn:active {
+  transform: translateX(0);
+}
+
+.shelves-back-arrow {
+  color: #fbbf24;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.shelves-back-label {
+  line-height: 1;
 }
 
 .archive-search-box {
   position: relative;
   flex: 1;
-  min-width: 260px;
-  max-width: 440px;
+  min-width: 180px;
   display: flex;
   align-items: center;
 }
@@ -427,13 +520,15 @@ function handleBackToLibrary() {
 
 .archive-search-input {
   width: 100%;
-  padding: 0.5rem 2rem 0.5rem 2.2rem;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 2rem 0 2.2rem;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(139, 92, 246, 0.35);
-  border-radius: 4px;
+  border-radius: 6px;
   color: #f1f5f9;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   outline: none;
   transition: all 0.2s ease;
 }
@@ -485,6 +580,12 @@ function handleBackToLibrary() {
   box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
 }
 
+.deck-right-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .archive-progress-pill {
   display: flex;
   align-items: center;
@@ -520,6 +621,146 @@ function handleBackToLibrary() {
   font-size: 0.72rem;
   font-weight: 800;
   color: #ffffff;
+}
+
+.shelves-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.shelves-theme-toggle:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.shelves-theme-toggle:active {
+  transform: translateY(0);
+}
+
+.shelves-theme-toggle .theme-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #fbbf24;
+}
+
+.shelves-theme-toggle .theme-label {
+  line-height: 1;
+}
+
+.shelves-theme-toggle.is-morning {
+  background: #EAD8B5;
+  border-color: #B88A42;
+  color: #3D2B1F;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2);
+}
+
+.shelves-theme-toggle.is-morning:hover {
+  background: #FFFDF7;
+  border-color: #735022;
+  color: #1c130d;
+}
+
+.shelves-theme-toggle.is-morning .theme-icon {
+  color: #b45309;
+}
+
+/* ── SHELVES MUSIC TOGGLE BUTTON ── */
+.shelves-music-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(14, 8, 26, 0.88);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.shelves-music-toggle:hover {
+  background: rgba(28, 16, 52, 0.96);
+  border-color: #a855f7;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 16px rgba(168, 85, 247, 0.4);
+}
+
+.shelves-music-toggle:active {
+  transform: translateY(0);
+}
+
+.shelves-music-toggle.is-muted {
+  background: rgba(45, 10, 10, 0.88);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.shelves-music-toggle.is-muted:hover {
+  background: rgba(70, 15, 15, 0.96);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.shelves-music-toggle .music-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.shelves-music-toggle .music-label {
+  line-height: 1;
+}
+
+.shelves-music-toggle.is-morning {
+  background: #EAD8B5;
+  border-color: #B88A42;
+  color: #3D2B1F;
+  box-shadow: 0 4px 16px rgba(143, 100, 45, 0.2);
+}
+
+.shelves-music-toggle.is-morning:hover {
+  background: #FFFDF7;
+  border-color: #735022;
+  color: #1c130d;
+}
+
+.shelves-music-toggle.is-morning.is-muted {
+  background: #fed7aa;
+  border-color: #ea580c;
+  color: #7c2d12;
 }
 
 /* Today's Focus Banner */
@@ -622,16 +863,17 @@ function handleBackToLibrary() {
 
 .tier-rune {
   color: #fbbf24;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
 }
 
 .tier-title {
   font-family: Georgia, 'Cinzel', serif;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 800;
-  letter-spacing: 0.15em;
-  color: #e2e8f0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.16em;
+  color: #fef08a;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
 .tier-books-row {

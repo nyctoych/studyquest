@@ -434,7 +434,27 @@ class AdventureController {
         $this->userModel->completeTutorial($userId);
         $this->userModel->addXP($userId, 100);
         $this->userModel->addCoins($userId, 50);
+
+        // Tutorial safety: Ensure user enters the main world with 100% full health (no health deduction from tutorial)
+        require_once __DIR__ . '/../services/AdventureHealthService.php';
+        $healthService = AdventureHealthService::getInstance();
+        $stats = $healthService->getScaledStats($userId);
+        $fullHp = (int)($stats['max_hp'] ?? 150);
+
+        Database::getInstance()->prepare("
+            UPDATE users
+            SET adventure_current_hp = ?,
+                adventure_hp_persisted = 1,
+                health_regen_last_at = NOW()
+            WHERE id = ?
+        ")->execute([$fullHp, $userId]);
+
         $user = $this->userModel->findById($userId);
+        $healthState = $healthService->syncAndGetHealth($userId);
+        $user['adventure_current_hp'] = $fullHp;
+        $user['adventure_max_hp'] = $fullHp;
+        $user['adventure_health'] = $healthState;
+
         echo json_encode([
             'success' => true,
             'message' => 'Tutorial complete! Welcome to StudyQuest!',
@@ -442,6 +462,8 @@ class AdventureController {
             'coins_earned' => 50,
             'new_xp' => (int)$user['xp'],
             'new_coins' => (int)($user['coins'] ?? 0),
+            'health' => $healthState,
+            'user' => $user,
         ]);
     }
 
@@ -479,8 +501,10 @@ class AdventureController {
             $char = $this->charModel->findByKey('mage') ?: $this->charModel->findById(1);
         }
 
-        // Apply Centralized Scaling (Level 1-50, 10% non-compounding base per level)
-        $scaled = Character::calculateScaledStats($char, $userLevel);
+        // Apply Centralized Scaling (Level 1-50, 10% non-compounding base per level) + Allocated Milestones
+        require_once __DIR__ . '/../models/AttributeAllocation.php';
+        $allocTotals = (new AttributeAllocation())->getAllocationTotals($userId, (int)($char['id'] ?? 1));
+        $scaled = Character::calculateScaledStats($char, $userLevel, $allocTotals);
         $playerMaxHp = (int)($scaled['max_health'] ?? $scaled['scaled_health'] ?? $scaled['health'] ?? 150);
         $charDmg = (int)($scaled['damage'] ?? $scaled['scaled_damage'] ?? 10);
         $charCritDmg = (int)($scaled['crit_damage'] ?? $scaled['scaled_crit_damage'] ?? 35);
@@ -508,8 +532,9 @@ class AdventureController {
                     'reason' => 'insufficient_health',
                     'current_hp' => 0,
                     'required_hp' => 1,
-                    'max_hp' => $playerMaxHp,
-                    'health_regeneration' => AdventureHealthService::REGEN_HP_PER_HOUR,
+                    'health_regeneration' => AdventureHealthService::REGEN_HP_PER_MINUTE,
+                    'regen_rate' => AdventureHealthService::REGEN_HP_PER_MINUTE,
+                    'regen_rate_label' => '+1 HP / Min',
                     'seconds_until_next_regen' => $healthState['seconds_until_next_regen'] ?? 0,
                     'last_regen_at' => $healthState['last_regen_at'] ?? date('Y-m-d H:i:s'),
                     'message' => 'Your strength has been exhausted. Recover at least 1 HP before returning to battle.'
@@ -520,83 +545,13 @@ class AdventureController {
             $playerCurrentHp = $playerMaxHp;
         }
 
-        // Support seamless reconnect for active Final Boss battle (preserves HP & Phase 2 state across refresh)
-        if ($mode === 'final_boss' && empty($input['restart'])) {
-            $activeStmt = $this->db->prepare("
-                SELECT * FROM adventure_active_battles
-                WHERE user_id = ? AND encounter_type = 'final_boss' AND status = 'active'
-                ORDER BY id DESC LIMIT 1
-            ");
-            $activeStmt->execute([$userId]);
-            $existing = $activeStmt->fetch(PDO::FETCH_ASSOC);
-            if ($existing) {
-                $battleId = (int)$existing['id'];
-                $playerCurrentHp = (int)$existing['player_current_health'];
-                $playerMaxHp = (int)$existing['player_max_health'];
-                $enemyCurrentHp = (int)$existing['enemy_current_health'];
-                $enemyMaxHp = (int)$existing['enemy_max_health'];
-                $bossPhase = (int)($existing['final_boss_phase'] ?? 1);
-                if ($bossPhase < 2 && $enemyCurrentHp <= ($enemyMaxHp * 0.50)) {
-                    $bossPhase = 2;
-                }
-                $storedQuestions = json_decode($existing['question_sequence'] ?? '[]', true) ?: [];
-                $qIdx = (int)($existing['current_question_index'] ?? 0);
-                $firstQ = null;
-                $activeQ = $storedQuestions[$qIdx] ?? $storedQuestions[0] ?? null;
-                if ($activeQ) {
-                    $firstQ = [
-                        'id' => $activeQ['id'],
-                        'question' => $activeQ['question'],
-                        'choices' => [
-                            'A' => $activeQ['choice_a'],
-                            'B' => $activeQ['choice_b'],
-                            'C' => $activeQ['choice_c'],
-                            'D' => $activeQ['choice_d'],
-                        ],
-                        'difficulty' => $activeQ['difficulty'] ?? 'intermediate'
-                    ];
-                }
-
-                echo json_encode([
-                    'success' => true,
-                    'battle_id' => $battleId,
-                    'battle_mode' => $battleMode,
-                    'character' => $char,
-                    'character_level' => $scaled['level'],
-                    'level' => $scaled['level'],
-                    'player_level' => $scaled['level'],
-                    'player_max_health' => $playerMaxHp,
-                    'player_current_health' => $playerCurrentHp,
-                    'player_hp' => $playerCurrentHp,
-                    'max_health' => $playerMaxHp,
-                    'current_hp' => $playerCurrentHp,
-                    'character_damage' => $charDmg,
-                    'character_crit_damage' => $charCritDmg,
-                    'damage' => $charDmg,
-                    'crit_damage' => $charCritDmg,
-                    'attack_power' => $charDmg,
-                    'critical_attack_power' => $charCritDmg,
-                    'enemy_name' => $existing['enemy_name'],
-                    'enemy_title' => $existing['enemy_title'],
-                    'enemy_max_health' => $enemyMaxHp,
-                    'enemy_current_health' => $enemyCurrentHp,
-                    'final_boss_phase' => $bossPhase,
-                    'current_question_index' => $qIdx,
-                    'first_question' => $firstQ,
-                    'questions' => array_map(function ($q) {
-                        return [
-                            'id' => $q['id'],
-                            'question' => $q['question'],
-                            'choices' => ['A' => $q['choice_a'], 'B' => $q['choice_b'], 'C' => $q['choice_c'], 'D' => $q['choice_d']],
-                            'difficulty' => $q['difficulty'] ?? 'intermediate',
-                        ];
-                    }, $storedQuestions),
-                    'status' => 'active',
-                    'battle_status' => 'active'
-                ]);
-                return;
-            }
-        }
+        // Always close any unfinished active battles for this user so every new battle starts completely fresh with 100% full enemy HP
+        $abandonStmt = $this->db->prepare("
+            UPDATE adventure_active_battles 
+            SET status = 'abandoned' 
+            WHERE user_id = ? AND status = 'active'
+        ");
+        $abandonStmt->execute([$userId]);
 
         // Determine enemy details based on mode
         $enemyName = 'Corrupted Specter';
@@ -624,16 +579,16 @@ class AdventureController {
                 if ($bRow) {
                     $enemyName = $bRow['name'];
                     $enemyTitle = $bRow['story_title'] ?: 'Chapter Climax Guardian';
-                    $enemyMaxHp = (int)($bRow['max_hp'] ?: 300);
+                    $enemyMaxHp = (int)($bRow['max_hp'] ?: 100);
                 }
             }
         } elseif ($mode === 'tutorial') {
             $enemyName = 'Cognito Sentinel';
             $enemyTitle = 'Automaton of the Threshold';
-            $enemyMaxHp = 50;
+            $enemyMaxHp = 30;
         } elseif ($partId) {
             $pStmt = $this->db->prepare("
-                SELECT aps.enemy_name, aps.enemy_flavor, aps.enemy_max_hp, pp.title
+                SELECT aps.enemy_name, aps.enemy_flavor, aps.enemy_max_hp, pp.title, pp.domain_id, pp.part_number
                 FROM psychology_parts pp
                 LEFT JOIN adventure_part_story aps ON aps.part_id = pp.id
                 WHERE pp.id = ?
@@ -643,7 +598,7 @@ class AdventureController {
             if ($pRow) {
                 $enemyName = $pRow['enemy_name'] ?: 'Fracture Specter';
                 $enemyTitle = $pRow['enemy_flavor'] ?: ($pRow['title'] ? "Aberration of {$pRow['title']}" : 'Cognitive Aberration');
-                $enemyMaxHp = (int)($pRow['enemy_max_hp'] ?: 100);
+                $enemyMaxHp = (int)($pRow['enemy_max_hp'] ?: self::calculateEnemyHp((int)($pRow['domain_id'] ?? 1), (int)($pRow['part_number'] ?? 1)));
             }
         }
 
@@ -755,14 +710,14 @@ class AdventureController {
             'enemy_current_health' => $enemyCurrentHp,
             'final_boss_phase' => ($mode === 'final_boss' ? 1 : null),
             'first_question' => $firstQ,
-            'questions' => ($mode === 'final_boss') ? array_map(function ($q) {
+            'questions' => array_map(function ($q) {
                 return [
                     'id' => $q['id'],
                     'question' => $q['question'],
                     'choices' => ['A' => $q['choice_a'], 'B' => $q['choice_b'], 'C' => $q['choice_c'], 'D' => $q['choice_d']],
                     'difficulty' => $q['difficulty'] ?? 'intermediate',
                 ];
-            }, $questions) : null,
+            }, $questions),
             'status' => 'active',
             'battle_status' => 'active'
         ]);
@@ -779,11 +734,64 @@ class AdventureController {
         echo json_encode($result['data']);
     }
 
+    // ── POST /adventure/battle/dodge-potion ───────────────────
+    public function dodgePotion(): void {
+        $userId = AuthMiddleware::userId();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $battleId = (int)($input['battle_id'] ?? 0);
+
+        $result = $this->battleEngine->resolveDodgePotion($userId, $battleId, $input);
+        http_response_code($result['status']);
+        echo json_encode($result['data']);
+    }
+
+    // ── GET /adventure/dodge-potion/status ────────────────────
+    public function dodgePotionStatus(): void {
+        $userId = AuthMiddleware::userId();
+        require_once __DIR__ . '/../services/DodgePotionService.php';
+        $state = DodgePotionService::getInstance()->getCharges($userId);
+        echo json_encode(['success' => true, 'charges' => $state, 'potion_state' => $state, 'dodge_potion' => $state]);
+    }
+
     // ── GET /adventure/health ─────────────────────────────────
     public function health(): void {
         $userId = AuthMiddleware::userId();
         require_once __DIR__ . '/../services/AdventureHealthService.php';
         $healthState = AdventureHealthService::getInstance()->syncAndGetHealth($userId);
         echo json_encode(['success' => true, 'health' => $healthState]);
+    }
+
+    // ── POST /adventure/battle/abandon ────────────────────────
+    public function abandonBattle(): void {
+        $userId = AuthMiddleware::userId();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $battleId = (int)($input['battle_id'] ?? 0);
+        if ($battleId > 0) {
+            $stmt = $this->db->prepare("UPDATE adventure_active_battles SET status = 'abandoned' WHERE id = ? AND user_id = ? AND status = 'active'");
+            $stmt->execute([$battleId, $userId]);
+        } else {
+            $stmt = $this->db->prepare("UPDATE adventure_active_battles SET status = 'abandoned' WHERE user_id = ? AND status = 'active'");
+            $stmt->execute([$userId]);
+        }
+        echo json_encode(['success' => true, 'message' => 'Battle session closed']);
+    }
+
+    public static function calculateEnemyHp(int $chapterId, int $partNumber): int {
+        $configs = [
+            1  => ['base' => 30,  'step' => 5],   // Part 1: 30 HP, Part 10: 75 HP (easy for beginners dealing 10-15 dmg)
+            2  => ['base' => 50,  'step' => 6],   // Part 1: 50 HP, Part 10: 104 HP
+            3  => ['base' => 75,  'step' => 7],   // Part 1: 75 HP, Part 10: 138 HP
+            4  => ['base' => 105, 'step' => 8],   // Part 1: 105 HP, Part 10: 177 HP
+            5  => ['base' => 140, 'step' => 9],   // Part 1: 140 HP, Part 10: 221 HP
+            6  => ['base' => 180, 'step' => 10],  // Part 1: 180 HP, Part 10: 270 HP
+            7  => ['base' => 225, 'step' => 12],  // Part 1: 225 HP, Part 10: 333 HP
+            8  => ['base' => 275, 'step' => 14],  // Part 1: 275 HP, Part 10: 401 HP
+            9  => ['base' => 330, 'step' => 16],  // Part 1: 330 HP, Part 10: 474 HP
+            10 => ['base' => 390, 'step' => 18],  // Part 1: 390 HP, Part 10: 552 HP
+            11 => ['base' => 455, 'step' => 20],  // Part 1: 455 HP, Part 10: 635 HP
+            12 => ['base' => 525, 'step' => 25],  // Part 1: 525 HP, Part 10: 750 HP
+        ];
+        $cfg = $configs[$chapterId] ?? ['base' => 30 + max(0, $chapterId - 1) * 45, 'step' => 5 + max(0, $chapterId - 1) * 2];
+        return $cfg['base'] + (($partNumber - 1) * $cfg['step']);
     }
 }

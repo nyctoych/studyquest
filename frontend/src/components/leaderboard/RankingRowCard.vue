@@ -19,13 +19,14 @@
     <div class="row-player-cell">
       <div class="avatar-frame">
         <AvatarImg
+          :character="player.character_class || player.class_type || player.character_key"
+          :player="player"
           :style-name="player.avatar_style || 'adventurer'"
           :seed="player.avatar_seed || player.username"
           :options="player.avatar_options || {}"
           :size="42"
           class="row-avatar"
         />
-        <span v-if="isCurrentUser" class="avatar-you-indicator">YOU</span>
       </div>
 
       <div class="player-text-block">
@@ -231,18 +232,7 @@ function formatRank(r) {
   border: 1px solid rgba(181, 148, 16, 0.3);
 }
 
-.avatar-you-indicator {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #dc2626;
-  color: #fff;
-  font-family: var(--font-pixel, monospace);
-  font-size: 0.48rem;
-  padding: 0.1rem 0.3rem;
-  border: 1px solid #000;
-  border-radius: 2px;
-}
+
 
 .player-text-block {
   min-width: 0;

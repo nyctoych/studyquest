@@ -28,12 +28,35 @@ class SpecialEvent {
 
     public function getTodayPublishedEvent(int $userId = 0): ?array {
         $today = date('Y-m-d');
+        // 1. Check user-specific published event if requested
+        if ($userId > 0) {
+            $stmt = $this->db->prepare("
+                SELECT * FROM special_events 
+                WHERE event_date = ? AND user_id = ? AND status = 'published'
+                LIMIT 1
+            ");
+            $stmt->execute([$today, $userId]);
+            $row = $stmt->fetch();
+            if ($row) return $row;
+        }
+
+        // 2. Check global published event (user_id = 0)
         $stmt = $this->db->prepare("
             SELECT * FROM special_events 
-            WHERE event_date = ? AND user_id = ? AND status = 'published'
+            WHERE event_date = ? AND user_id = 0 AND status = 'published'
             LIMIT 1
         ");
-        $stmt->execute([$today, $userId]);
+        $stmt->execute([$today]);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        // 3. Fallback to ANY published event for today so users can immediately take the exam
+        $stmt = $this->db->prepare("
+            SELECT * FROM special_events 
+            WHERE event_date = ? AND status = 'published'
+            ORDER BY id DESC LIMIT 1
+        ");
+        $stmt->execute([$today]);
         return $stmt->fetch() ?: null;
     }
 

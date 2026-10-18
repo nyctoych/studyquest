@@ -8,7 +8,7 @@
       </div>
 
       <div class="ch-body animate-slide-up">
-        <!-- Character Preview -->
+        <!-- Character Preview & RPG Stats -->
         <div class="char-preview-panel glass-card">
           <div class="char-avatar-wrap">
             <AvatarImg
@@ -33,6 +33,66 @@
               <div class="cstat flex items-center gap-1">
                 <span class="cstat-icon"><PixelEmoji emoji="sword" size="xs" /></span>
                 <span class="cstat-val">{{ auth.battleRating }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 9: Character Attributes & Milestone Allocations Summary -->
+          <div class="char-attributes-section">
+            <div class="attr-summary-heading">
+              <span class="attr-summary-title font-cinzel">ATTRIBUTES</span>
+              <span class="attr-alloc-count font-pixel">
+                ATTRIBUTE ALLOCATIONS: {{ allocStore.completedCount }} / 10
+              </span>
+            </div>
+
+            <!-- Authoritative RPG Combat Stats -->
+            <div class="char-stats-bars">
+              <div class="char-stat-row">
+                <span class="stat-name flex items-center gap-1"><PixelEmoji emoji="sword" size="xs" /> Attack Damage</span>
+                <span class="stat-val font-pixel">{{ currentDamage }}</span>
+              </div>
+              <div class="char-stat-row">
+                <span class="stat-name flex items-center gap-1"><PixelEmoji emoji="heart" size="xs" /> Maximum Health</span>
+                <span class="stat-val font-pixel">{{ currentHealth }}</span>
+              </div>
+              <div class="char-stat-row">
+                <span class="stat-name flex items-center gap-1"><PixelEmoji emoji="lightning" size="xs" /> Critical Damage</span>
+                <span class="stat-val font-pixel">{{ currentCrit }}</span>
+              </div>
+            </div>
+
+            <!-- 10 Milestone Pips & Progression Indicator -->
+            <div class="milestone-alloc-progress">
+              <div class="milestones-track" role="list" aria-label="Attribute Milestones (Levels 5-50)">
+                <div
+                  v-for="m in allMilestones"
+                  :key="m"
+                  class="milestone-pip"
+                  :class="{
+                    claimed: isClaimed(m),
+                    pending: isPending(m),
+                    locked: isLocked(m)
+                  }"
+                  :title="getMilestoneTooltip(m)"
+                >
+                  <span class="pip-level">{{ m }}</span>
+                </div>
+              </div>
+
+              <!-- Action button when player has pending milestones -->
+              <div v-if="allocStore.hasPending" class="alloc-action-wrap">
+                <button
+                  type="button"
+                  class="btn-open-alloc font-cinzel animate-pulse"
+                  @click="allocStore.openModal()"
+                >
+                  ✦ ALLOCATE ATTRIBUTES (+{{ allocStore.pendingMilestones.length }}) ✦
+                </button>
+              </div>
+              <div v-else class="alloc-status-note font-pixel">
+                <span v-if="allocStore.completedCount === 10">★ All 10 Milestones Mastered!</span>
+                <span v-else>Next milestone unlocks at Level {{ nextMilestoneToUnlock }}</span>
               </div>
             </div>
           </div>
@@ -97,11 +157,13 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useAttributeAllocationStore } from '../stores/attributeAllocation'
 import AvatarImg from '../components/AvatarImg.vue'
 import api from '../services/api'
 
 const auth = useAuthStore()
 const toast = useToastStore()
+const allocStore = useAttributeAllocationStore()
 
 const categories = [
   { id: 'character_skin', name: 'Skin', icon: 'person' },
@@ -115,6 +177,45 @@ const activeCategory = ref('character_skin')
 const ownedItems = ref([])
 const loadingItems = ref(true)
 
+// Milestone Tracker
+const allMilestones = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+
+const currentDamage = computed(() => allocStore.scaledStats?.damage ?? 10)
+const currentHealth = computed(() => allocStore.scaledStats?.max_health ?? 150)
+const currentCrit = computed(() => allocStore.scaledStats?.crit_damage ?? 35)
+
+const nextMilestoneToUnlock = computed(() => {
+  const lvl = auth.level || 1
+  for (const m of allMilestones) {
+    if (m > lvl) return m
+  }
+  return 50
+})
+
+function isClaimed(milestone) {
+  return allocStore.allocations.some(a => Number(a.milestone_level) === Number(milestone))
+}
+
+function isPending(milestone) {
+  return allocStore.pendingMilestones.includes(Number(milestone))
+}
+
+function isLocked(milestone) {
+  return !isClaimed(milestone) && !isPending(milestone)
+}
+
+function getMilestoneTooltip(milestone) {
+  const alloc = allocStore.allocations.find(a => Number(a.milestone_level) === Number(milestone))
+  if (alloc) {
+    const name = alloc.attribute_type === 'attack_damage' ? 'Attack Damage (+10)' : alloc.attribute_type === 'health' ? 'Health (+25)' : 'Critical Damage (+15)'
+    return `Level ${milestone}: ${name}`
+  }
+  if (isPending(milestone)) {
+    return `Level ${milestone}: Ready to Allocate!`
+  }
+  return `Level ${milestone}: Locked (Requires Level ${milestone})`
+}
+
 const categoryItems = computed(() =>
   ownedItems.value.filter(i => i.category_slug === activeCategory.value)
 )
@@ -127,6 +228,7 @@ const equippedAura = computed(() => auth.equipped.find(e => e.category_slug === 
 
 onMounted(async () => {
   try {
+    allocStore.fetchAllocations()
     const res = await api.get('/shop/owned')
     if (res.data.success) ownedItems.value = res.data.items || []
   } catch { }
@@ -149,9 +251,9 @@ async function equip(item) {
   try {
     await api.post('/shop/equip', { item_id: item.id })
     await auth.fetchUser()
-    toast.success(`${item.name} equipped!`)
-  } catch {
-    toast.error('Failed to equip item')
+    toast.success(`Equipped ${item.name}!`)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Failed to equip item')
   }
 }
 
@@ -159,9 +261,9 @@ async function unequip(item) {
   try {
     await api.post('/shop/unequip', { item_id: item.id })
     await auth.fetchUser()
-    toast.info(`${item.name} unequipped`)
-  } catch {
-    toast.error('Failed to unequip item')
+    toast.info(`Unequipped ${item.name}`)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Failed to unequip item')
   }
 }
 </script>
@@ -173,10 +275,10 @@ async function unequip(item) {
 .ch-header { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.75rem; }
 .ch-title { font-family: 'Cinzel', serif; font-size: 2.2rem; font-weight: 800; color: #e2d9cc; letter-spacing: 0.04em; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
 
-.ch-body { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; align-items: start; }
+.ch-body { display: grid; grid-template-columns: 310px 1fr; gap: 1.5rem; align-items: start; }
 
 /* Preview */
-.char-preview-panel { padding: 2rem 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; text-align: center; background: linear-gradient(180deg, #141318 0%, #0c0d12 100%); border: 1px solid rgba(181, 148, 16, 0.35); box-shadow: 0 0 0 2px #050608, 0 8px 25px rgba(0,0,0,0.7); border-radius: 4px; }
+.char-preview-panel { padding: 1.75rem 1.25rem; display: flex; flex-direction: column; align-items: center; gap: 1.25rem; text-align: center; background: linear-gradient(180deg, #141318 0%, #0c0d12 100%); border: 1px solid rgba(181, 148, 16, 0.35); box-shadow: 0 0 0 2px #050608, 0 8px 25px rgba(0,0,0,0.7); border-radius: 4px; }
 .char-avatar-wrap { position: relative; }
 .char-avatar { border-radius: 4px; border: 2px solid rgba(181, 148, 16, 0.4); box-shadow: 0 0 0 2px #050608; }
 .preview-aura { position: absolute; inset: -8px; border-radius: 4px; animation: auraRotate 3s linear infinite; pointer-events: none; }
@@ -187,6 +289,136 @@ async function unequip(item) {
 .cstat { display: flex; align-items: center; gap: 0.35rem; }
 .cstat-icon { font-size: 0.95rem; }
 .cstat-val { font-family: 'Press Start 2P', monospace; font-size: 0.65rem; color: #e2d9cc; }
+
+/* Section 9: Attribute Allocation Summary in Character Hall */
+.char-attributes-section {
+  width: 100%;
+  background: rgba(10, 8, 14, 0.7);
+  border: 1px solid rgba(181, 148, 16, 0.25);
+  border-radius: 4px;
+  padding: 1rem 0.85rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.attr-summary-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+.attr-summary-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 0.08em;
+}
+.attr-alloc-count {
+  font-size: 0.62rem;
+  color: #d4af37;
+  letter-spacing: 0.05em;
+}
+.char-stats-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.char-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+.stat-name {
+  color: #a89f91;
+  font-size: 0.75rem;
+}
+.stat-val {
+  font-size: 0.8rem;
+  color: #f5efe6;
+  font-weight: 700;
+}
+
+/* 10 Milestone Pips */
+.milestone-alloc-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: center;
+}
+.milestones-track {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+.milestone-pip {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.45rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.milestone-pip.claimed {
+  background: rgba(212, 175, 55, 0.3);
+  border: 1px solid #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.4);
+}
+.milestone-pip.pending {
+  background: rgba(163, 230, 53, 0.25);
+  border: 1px solid #a3e635;
+  color: #a3e635;
+  animation: pipPulse 1.5s infinite;
+}
+.milestone-pip.locked {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #635b4f;
+}
+@keyframes pipPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(163, 230, 53, 0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 10px rgba(163, 230, 53, 0.7); transform: scale(1.08); }
+}
+
+.alloc-action-wrap {
+  width: 100%;
+}
+.btn-open-alloc {
+  width: 100%;
+  background: linear-gradient(180deg, #d4af37 0%, #997305 100%);
+  border: 1px solid #ffd700;
+  color: #0c0914;
+  padding: 0.55rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.45);
+  transition: all 0.2s;
+}
+.btn-open-alloc:hover {
+  background: linear-gradient(180deg, #ffe066 0%, #b38600 100%);
+  transform: translateY(-1px);
+}
+.alloc-status-note {
+  font-size: 0.55rem;
+  color: #8c8273;
+  text-align: center;
+}
 
 /* Cosmetics panel */
 .cosmetics-panel { display: flex; flex-direction: column; gap: 1rem; }

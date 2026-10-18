@@ -23,7 +23,7 @@
 
         <!-- Large Pixel Art Sprite -->
         <img
-          :src="character.sprite_path"
+          :src="previewSpriteSrc"
           :alt="character.name"
           class="character-large-sprite pixel-art"
           @error="onSpriteError"
@@ -49,13 +49,32 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { resolveAsset } from '../../services/bossMapping'
+import { getCharacterAnimationConfig } from '../../config/characterAnimations'
 
 const props = defineProps({
   character: {
     type: Object,
     required: true
   }
+})
+
+const hasImageFailed = ref(false)
+
+watch(() => props.character?.id, () => {
+  hasImageFailed.value = false
+})
+
+const previewSpriteSrc = computed(() => {
+  if (hasImageFailed.value) {
+    return resolveAsset(props.character?.sprite_path || '')
+  }
+  const c = props.character
+  if (!c) return ''
+  const animConfig = getCharacterAnimationConfig(c)
+  const rawPath = c.idle_asset_path || animConfig?.idle || c.sprite_path || ''
+  return resolveAsset(rawPath)
 })
 
 // Centralized Per-Character Scale & Offset configurations (Section 42 & 43)
@@ -82,7 +101,10 @@ const classCrestIcon = computed(() => {
 })
 
 function onSpriteError(e) {
-  console.warn(`[CharacterPreview] Image failed to load for ${props.character.name}: ${props.character.sprite_path}`)
+  console.warn(`[CharacterPreview] Image failed to load for ${props.character.name}: ${previewSpriteSrc.value}`)
+  if (!hasImageFailed.value) {
+    hasImageFailed.value = true
+  }
 }
 </script>
 

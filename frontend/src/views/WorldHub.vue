@@ -1,690 +1,882 @@
 <template>
-  <div class="rpg-world-hub">
-    <!-- Top Greeting Pill (Anchored to top viewport below HUD) -->
+  <div
+    class="rpg-world-hub"
+    :class="[
+      `dimension-${currentDimension}`,
+      `theme-${currentTheme}`,
+      { 'is-transitioning': isTransitioning }
+    ]"
+    tabindex="0"
+    @keydown="onKeyDown"
+  >
+
+
+    <!-- ── 2. WELCOME PLAYER PILL (Left anchor below HUD) ─────── -->
     <div class="world-welcome-bar animate-slide-down">
       <div class="welcome-pill">
         <span class="welcome-greet">Welcome back,</span>
-        <strong class="welcome-name">{{ auth.nickname || auth.user?.username }}</strong>!
-        <span v-if="auth.streak > 0" class="welcome-streak flex items-center gap-1.5"><PixelEmoji emoji="fire" size="sm" /> {{ auth.streak }}-day streak</span>
+        <strong class="welcome-name">{{ auth.nickname || auth.user?.username || 'Scholar' }}</strong>!
+        <span v-if="auth.streak > 0" class="welcome-streak flex items-center gap-1.5">
+          <PixelEmoji emoji="fire" size="sm" /> {{ auth.streak }}-day streak
+        </span>
       </div>
     </div>
 
-    <!-- Town Scene Canvas / Backdrop -->
-    <!-- Horizontally draggable panorama scene container -->
+    <!-- ── 3. WORLD CANVAS & PANORAMA ENVIRONMENT ─────────────── -->
     <div
-      class="town-scene-wrapper"
-      ref="townSceneRef"
-      @mousedown="onDragStart"
+      class="world-dimension-viewport"
+      ref="viewportRef"
+      :style="{
+        backgroundImage: `url('${activeBackground}')`
+      }"
       @touchstart="onTouchStart"
-      @touchmove="onTouchMove"
       @touchend="onTouchEnd"
     >
-      <!-- Fixed canvas that keeps background image and hotspots in 100% lockstep -->
-      <div class="town-scene-canvas" ref="canvasRef">
-        <img
-          src="/assets/game/gothic_world_hub.jpg"
-          alt="Realm Citadel"
-          class="town-scene-img"
-          draggable="false"
-        />
+      <Transition :name="transitionAnimName">
+        <div
+          :key="`${currentDimension}-${currentTheme}`"
+          class="dimension-scene"
+          :class="`scene-${currentDimension}`"
+          :style="{
+            backgroundImage: `url('${activeBackground}')`
+          }"
+        >
+          <!-- Background Image Layer -->
+          <img
+            :src="activeBackground"
+            :alt="activeDimensionData.title"
+            class="dimension-bg-img"
+            draggable="false"
+            @error="onImageError"
+          />
 
-        <!-- Ambient light and vignette layers -->
-        <div class="scene-vignette"></div>
-        <div class="portal-pulse-glow"></div>
-        <div class="fountain-shimmer-glow"></div>
-
-        <!-- Atmospheric Animated Fire, Torch Sparkles & Colosseum Braziers -->
-        <div class="fire-fx-container">
-          <!-- 1. Colosseum Brazier 1 (Left balustrade) -->
-          <div class="fire-point fire-gold-brazier" style="top: 55.6%; left: 5.8%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="fire-star-sparkle sp-3"></div>
-            <div class="fire-star-sparkle sp-4"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-            <div class="ember-spark e-4"></div>
-            <div class="ember-spark e-5"></div>
+          <!-- Atmospheric Lighting & Fog Overlays -->
+          <div class="dimension-vignette"></div>
+          <div v-if="currentTheme === 'night'" class="dimension-night-particles" aria-hidden="true">
+            <div class="ambient-glow-core"></div>
           </div>
+          <div v-else class="dimension-morning-sunbeam" aria-hidden="true"></div>
 
-          <!-- 2. Colosseum Brazier 2 (Mid balustrade) -->
-          <div class="fire-point fire-gold-brazier" style="top: 55.6%; left: 21.6%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="fire-star-sparkle sp-3"></div>
-            <div class="fire-star-sparkle sp-4"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-            <div class="ember-spark e-4"></div>
-            <div class="ember-spark e-5"></div>
-          </div>
+          <!-- Interactive Module Hotspots for this Dimension -->
+          <div class="dimension-hotspots-layer">
+            <div
+              v-for="spot in activeDimensionData.hotspots"
+              :key="spot.id"
+              class="world-hotspot-building"
+              :class="`spot-${spot.id}`"
+              :style="spot.style"
+              @click="handleSpotClick(spot)"
+              @mouseenter="hoveredSpot = spot.id"
+              @mouseleave="hoveredSpot = null"
+            >
+              <div class="building-hitbox">
+                <!-- SPECIAL PHYSICAL PARCHMENT SCROLL ENTRANCE FOR HALL OF FAME -->
+                <div
+                  v-if="spot.id === 'hall-of-fame'"
+                  class="physical-parchment-scroll-entrance"
+                  :class="{ 'is-hovered': hoveredSpot === 'hall-of-fame' }"
+                >
+                  <!-- Top Wooden Roller Spindle -->
+                  <div class="scroll-rod rod-top">
+                    <div class="rod-finial finial-left">
+                      <span class="finial-ball"></span>
+                      <span class="finial-collar"></span>
+                    </div>
+                    <div class="rod-spindle">
+                      <div class="rod-paper-roll"></div>
+                    </div>
+                    <div class="rod-finial finial-right">
+                      <span class="finial-collar"></span>
+                      <span class="finial-ball"></span>
+                    </div>
+                  </div>
 
-          <!-- 3. Colosseum Brazier 3 (Right balustrade) -->
-          <div class="fire-point fire-gold-brazier" style="top: 56.6%; left: 31.6%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="fire-star-sparkle sp-3"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-            <div class="ember-spark e-4"></div>
-          </div>
+                  <!-- Unrolled Ancient Parchment Body -->
+                  <div class="scroll-body-sheet">
+                    <!-- Deckled paper edge overlays -->
+                    <div class="scroll-aged-overlay"></div>
+                    <div class="scroll-edge-curl left"></div>
+                    <div class="scroll-edge-curl right"></div>
+                    <div class="scroll-crease crease-top"></div>
+                    <div class="scroll-crease crease-mid"></div>
 
-          <!-- 4. Colosseum Brazier 4 (Entrance pillar) -->
-          <div class="fire-point fire-gold-brazier" style="top: 58.0%; left: 39.1%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="fire-star-sparkle sp-3"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-          </div>
+                    <!-- Wax Seal with Ribbon -->
+                    <div class="scroll-wax-seal">
+                      <div class="seal-stamp">
+                        <PixelEmoji emoji="crown" size="xs" />
+                      </div>
+                      <div class="seal-ribbon"></div>
+                    </div>
 
-          <!-- 5. Street Lantern Post (Left foreground) -->
-          <div class="fire-point fire-lantern" style="top: 72.8%; left: 14.8%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-          </div>
+                    <!-- Inscribed Manuscript Text -->
+                    <div class="scroll-manuscript-text">
+                      <div class="scroll-crest-row">
+                        <span class="scroll-flourish">❦</span>
+                        <span class="scroll-crest-label font-pixel">{{ hofLatestBatch ? `${hofLatestBatch.batch_name.toUpperCase()} EXAM` : 'BLEPP BOARD OF HONOR' }}</span>
+                        <span class="scroll-flourish">❦</span>
+                      </div>
+                      <div class="scroll-title-row">
+                        <span class="scroll-star-glyph">✦</span>
+                        <h4 class="scroll-title-text font-pixel">{{ spot.name.toUpperCase() }}</h4>
+                        <span class="scroll-star-glyph">✦</span>
+                      </div>
 
-          <!-- 6. Ground Stone Lantern (Bottom Left) -->
-          <div class="fire-point fire-lantern" style="top: 77.2%; left: 6.9%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-          </div>
+                      <!-- Real-Time Passer Inscription Display (1 by 1 displaying and fading) -->
+                      <div
+                        class="scroll-passer-stage"
+                        @mouseenter="isHofTickerPaused = true"
+                        @mouseleave="isHofTickerPaused = false"
+                      >
+                        <Transition name="passer-fade" mode="out-in">
+                          <div
+                            v-if="currentPasser"
+                            :key="currentPasser.id || currentPasser.name"
+                            class="passer-fading-card"
+                          >
+                            <div v-if="currentPasser.rank_badge" class="passer-rank-ribbon font-pixel">
+                              👑 {{ currentPasser.rank_badge }}
+                            </div>
+                            <div v-else class="passer-player-tag font-pixel">
+                              ✦ VERIFIED PASSER ✦
+                            </div>
+                            <div v-if="currentPasser.username" class="passer-username-display font-pixel">
+                              <span class="handle-at">@</span>{{ currentPasser.username }}
+                            </div>
+                            <div class="passer-name-display font-pixel">{{ currentPasser.name.trim() }}<span class="passer-cred-badge font-pixel">, {{ currentPasser.credential || 'RPm' }}</span></div>
+                            <div class="passer-school-sub">
+                              {{ currentPasser.school }}
+                            </div>
+                          </div>
+                          <div v-else class="passer-fading-card">
+                            <p class="scroll-subtitle-text">
+                              {{ spot.subtitle }}
+                            </p>
+                          </div>
+                        </Transition>
+                      </div>
 
-          <!-- 7. Central Archway Torch -->
-          <div class="fire-point fire-gold" style="top: 67.8%; left: 47.7%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-          </div>
+                      <!-- Glowing Live Announcements Indicator -->
+                      <div class="scroll-live-badge">
+                        <span class="scroll-pulse-dot"></span>
+                        <span class="font-pixel scroll-badge-label">
+                          PRC VERIFIED · {{ hofPassers.length > 0 ? `${(hofCurrentPasserIndex % hofPassers.length) + 1}/${hofPassers.length}` : 'LIVE ROSTER' }}
+                        </span>
+                      </div>
 
-          <!-- 8. Cathedral Right Entrance Torch -->
-          <div class="fire-point fire-gold" style="top: 62.0%; left: 62.4%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-            <div class="ember-spark e-3"></div>
-          </div>
+                      <div class="scroll-action-hint font-pixel">
+                        <span class="hint-pulse">▶</span>
+                        <span>CLICK TO UNROLL ROSTER</span>
+                        <span class="hint-pulse">◀</span>
+                      </div>
+                    </div>
+                  </div>
 
-          <!-- 9. Marketplace Street Lantern -->
-          <div class="fire-point fire-lantern" style="top: 73.6%; left: 76.5%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="fire-star-sparkle sp-2"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-          </div>
+                  <!-- Bottom Wooden Roller Spindle -->
+                  <div class="scroll-rod rod-bottom">
+                    <div class="rod-finial finial-left">
+                      <span class="finial-ball"></span>
+                      <span class="finial-collar"></span>
+                    </div>
+                    <div class="rod-spindle">
+                      <div class="rod-paper-roll"></div>
+                    </div>
+                    <div class="rod-finial finial-right">
+                      <span class="finial-collar"></span>
+                      <span class="finial-ball"></span>
+                    </div>
+                  </div>
 
-          <!-- 10. Marketplace Right Lantern -->
-          <div class="fire-point fire-lantern" style="top: 75.8%; left: 82.2%;">
-            <div class="fire-halo"></div>
-            <div class="fire-flame-core"></div>
-            <div class="fire-star-sparkle sp-1"></div>
-            <div class="ember-spark e-1"></div>
-            <div class="ember-spark e-2"></div>
-          </div>
-        </div>
+                  <!-- Hanging Royal Silk Ribbon Tails -->
+                  <div class="scroll-ribbon-tails">
+                    <div class="ribbon-tail tail-crimson"></div>
+                    <div class="ribbon-tail tail-gold"></div>
+                  </div>
+                </div>
 
-        <!-- Interactive Hotspots on the Town Map -->
-        <div class="town-hotspots-layer">
-          <!-- 1. ADVENTURE (Center Palace Portal - Stage map & boss battles) -->
-          <div
-            class="town-building spot-adventure"
-            @click="handleSpotClick('/adventure')"
-            @mouseenter="hoveredSpot = 'adventure'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="portal-swirl-fx"></div>
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="sword" size="sm" /></span>
-                <span class="building-name">Adventure Gate</span>
-                <span class="badge-dot pulse"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2. STUDY HALL (Psychology Study Paths & Quests) -->
-          <div
-            class="town-building spot-quests"
-            @click="handleSpotClick('/studyhall')"
-            @mouseenter="hoveredSpot = 'quests'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="scroll" size="sm" /></span>
-                <span class="building-name">Study Hall</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. ARENA (Multiplayer Colosseum) -->
-          <div
-            class="town-building spot-multiplayer"
-            @click="handleSpotClick('/multiplayer')"
-            @mouseenter="hoveredSpot = 'multiplayer'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="lightning" size="sm" /></span>
-                <span class="building-name">Arena</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. MARKET (Cosmetics Boutique & Bazaar) -->
-          <div
-            class="town-building spot-shop"
-            @click="handleSpotClick('/market')"
-            @mouseenter="hoveredSpot = 'shop'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="cart" size="sm" /></span>
-                <span class="building-name">Market</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 5. HALL OF RECORDS (Leaderboards) -->
-          <div
-            class="town-building spot-leaderboard"
-            @click="handleSpotClick('/leaderboard')"
-            @mouseenter="hoveredSpot = 'leaderboard'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="trophy" size="sm" /></span>
-                <span class="building-name">Hall of Records</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 6. ACHIEVEMENT HALL (Achievements & Milestones) -->
-          <div
-            class="town-building spot-achievements"
-            @click="handleSpotClick('/achievements')"
-            @mouseenter="hoveredSpot = 'achievements'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="shield" size="sm" /></span>
-                <span class="building-name">Achievement Hall</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 7. CHRONICLE HALL (Social Posts / World Activity) -->
-          <div
-            class="town-building spot-chronicle"
-            @click="handleSpotClick('/chronicle')"
-            @mouseenter="hoveredSpot = 'chronicle'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="book" size="sm" /></span>
-                <span class="building-name">Chronicle Hall</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 8. SETTINGS (System Configuration) -->
-          <div
-            class="town-building spot-settings"
-            @click="handleSpotClick('/settings')"
-            @mouseenter="hoveredSpot = 'settings'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill">
-                <span class="building-icon"><PixelEmoji emoji="gear" size="sm" /></span>
-                <span class="building-name">Settings</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 9. SPECIAL EVENT (The Daily Trial / Ancient Examination Chamber) -->
-          <div
-            class="town-building spot-special-event"
-            @click="handleSpotClick('/special-event')"
-            @mouseenter="hoveredSpot = 'special-event'"
-            @mouseleave="hoveredSpot = null"
-          >
-            <div class="building-hitbox">
-              <div class="building-badge-pill special-event-pill">
-                <span class="building-icon"><PixelEmoji emoji="crown" size="sm" /></span>
-                <span class="building-name">Daily Trial</span>
-                <span class="badge-dot pulse trial-dot"></span>
+                <!-- Default building badge pill for other buildings -->
+                <div v-else class="building-badge-pill" :class="[spot.pillClass, { 'is-locked-spot': isSpotLocked(spot) }]">
+                  <span class="building-icon">
+                    <PixelEmoji v-if="!isSpotLocked(spot)" :emoji="spot.icon" size="sm" />
+                    <span v-else class="lock-icon-glyph">🔒</span>
+                  </span>
+                  <div class="building-text-col">
+                    <span class="building-name">{{ spot.name }}</span>
+                    <span v-if="isSpotLocked(spot)" class="building-sub lock-sub font-pixel">UNLOCKS AT LVL 15</span>
+                    <span v-else-if="spot.subtitle" class="building-sub">{{ spot.subtitle }}</span>
+                  </div>
+                  <span v-if="isSpotLocked(spot)" class="badge-lock-tag font-pixel">LV.15</span>
+                  <span v-else-if="spot.dotClass" class="badge-dot" :class="spot.dotClass"></span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </div>
 
-    <!-- Bottom Navigation Dock: All Modules (Horizontally scrollable/draggable on mobile) -->
-    <nav
-      class="world-module-dock animate-slide-up"
-      ref="dockRef"
-      aria-label="Game Modules"
-      @mousedown="onDockDragStart"
-      @touchstart="onDockTouchStart"
-      @touchmove="onDockTouchMove"
-      @touchend="onDockTouchEnd"
+    <!-- ── 4. HORIZONTAL WORLD NAVIGATION SIDE CONTROLS ───────── -->
+    <!-- Left Travel Button: Available only on MAIN (Main -> Review) -->
+    <div
+      v-if="currentDimension === 'main'"
+      class="world-side-nav side-nav-left animate-slide-right"
+      :class="{ 'guide-pulse': showGuideModal }"
+      @click="goToDimension('review')"
+      role="button"
+      title="Travel West to Training Grounds & Arena"
     >
-      <div
-        v-for="mod in modulesList"
-        :key="mod.path"
-        class="module-dock-item"
-        :class="{ 'active': activeRoute === mod.path }"
-        :title="mod.name"
-        @click="navigateModule(mod.path)"
-      >
-        <span class="dock-icon"><PixelEmoji :emoji="mod.icon" size="sm" /></span>
-        <span class="dock-name">{{ mod.name }}</span>
-      </div>
-    </nav>
-
-    <!-- Bottom-Left World Chat Terminal (Desktop only) -->
-    <div class="bottom-chat-terminal" :class="{ 'chat-expanded': chatExpanded }">
-      <div class="chat-controls">
-        <button class="chat-ctrl-btn shield-btn" @click="handleSpotClick('/leaderboard')" title="Leaderboards">
-          <PixelEmoji emoji="shield" size="xs" />
-        </button>
-        <button class="chat-ctrl-btn bubble-btn" @click="chatExpanded = !chatExpanded" title="Toggle Chat">
-          <PixelEmoji emoji="scroll" size="xs" />
-        </button>
-        <div class="chat-time-stamp">
-          <span>{{ timeDisplay }}</span>
+      <div class="side-nav-card">
+        <span class="nav-arrow-symbol">◀</span>
+        <div class="nav-meta">
+          <span class="nav-tag font-pixel">TRAVEL WEST</span>
+          <span class="nav-dest font-pixel">REVIEW</span>
+          <span class="nav-hint">Arena & Trials</span>
         </div>
-      </div>
-
-      <div class="chat-feed" @click="chatExpanded = !chatExpanded">
-        <div v-for="(msg, idx) in visibleMessages" :key="idx" class="chat-line">
-          <span class="chat-tag" :class="'tag-' + msg.type">[{{ msg.channel }}]</span>
-          <span class="chat-text"> {{ msg.content }}</span>
-        </div>
-      </div>
-
-      <div v-if="chatExpanded" class="chat-input-row" @click.stop>
-        <input
-          v-model="newMsgText"
-          type="text"
-          placeholder="Type message to students..."
-          class="chat-input"
-          @keyup.enter="sendChatMessage"
-        />
-        <button class="chat-send-btn" @click="sendChatMessage">Send</button>
       </div>
     </div>
+
+    <!-- Right Travel Button: Available on REVIEW (Review -> Main) and MAIN (Main -> Others) -->
+    <div
+      v-if="currentDimension === 'review'"
+      class="world-side-nav side-nav-right animate-slide-left"
+      :class="{ 'guide-pulse': showGuideModal }"
+      @click="goToDimension('main')"
+      role="button"
+      title="Return East to Central Town Hall"
+    >
+      <div class="side-nav-card">
+        <div class="nav-meta text-right">
+          <span class="nav-tag font-pixel">RETURN EAST</span>
+          <span class="nav-dest font-pixel">MAIN HUB</span>
+          <span class="nav-hint">Central Town Hall</span>
+        </div>
+        <span class="nav-arrow-symbol">▶</span>
+      </div>
+    </div>
+
+    <div
+      v-if="currentDimension === 'main'"
+      class="world-side-nav side-nav-right animate-slide-left"
+      :class="{ 'guide-pulse': showGuideModal }"
+      @click="goToDimension('others')"
+      role="button"
+      title="Travel East to Marketplace & Castle Archives"
+    >
+      <div class="side-nav-card">
+        <div class="nav-meta text-right">
+          <span class="nav-tag font-pixel">TRAVEL EAST</span>
+          <span class="nav-dest font-pixel">OTHERS</span>
+          <span class="nav-hint">Market & Leaderboards</span>
+        </div>
+        <span class="nav-arrow-symbol">▶</span>
+      </div>
+    </div>
+
+    <!-- Left Travel Button: Available only on OTHERS (Others -> Main) -->
+    <div
+      v-if="currentDimension === 'others'"
+      class="world-side-nav side-nav-left animate-slide-right"
+      :class="{ 'guide-pulse': showGuideModal }"
+      @click="goToDimension('main')"
+      role="button"
+      title="Return West to Central Town Hall"
+    >
+      <div class="side-nav-card">
+        <span class="nav-arrow-symbol">◀</span>
+        <div class="nav-meta">
+          <span class="nav-tag font-pixel">RETURN WEST</span>
+          <span class="nav-dest font-pixel">MAIN HUB</span>
+          <span class="nav-hint">Central Town Hall</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 5. FAST RPG ZONE BANNER NOTIFICATION ───────────────── -->
+    <Transition name="zone-banner">
+      <div v-if="showZoneBanner" class="rpg-zone-banner">
+        <span class="zone-location-tag font-pixel">ENTERED REGION</span>
+        <h2 class="zone-name font-pixel">{{ activeDimensionData.title.toUpperCase() }}</h2>
+        <span class="zone-sub">{{ activeDimensionData.subtitle }}</span>
+      </div>
+    </Transition>
+
+    <!-- ── 6. REALM NAVIGATION GUIDE FADING MODAL ─────────────── -->
+    <Transition name="guide-fade">
+      <div
+        v-if="showGuideModal"
+        class="realm-guide-overlay"
+        @click.self="dismissGuideModal"
+      >
+        <div
+          class="realm-guide-card gothic-panel"
+          @click.stop
+        >
+          <div class="guide-corner tl"></div>
+          <div class="guide-corner tr"></div>
+          <div class="guide-corner bl"></div>
+          <div class="guide-corner br"></div>
+
+          <div class="guide-header-strip">
+            <div class="guide-badge font-pixel">
+              <span class="guide-icon">🧭</span>
+              <span>REALM EXPLORATION GUIDE</span>
+            </div>
+            <button class="guide-close-btn" @click="dismissGuideModal" title="Close Guide">✕</button>
+          </div>
+
+          <h3 class="guide-headline font-pixel">DISCOVER ALL WORLD MODULES</h3>
+          <p class="guide-subtext">
+            Use the <strong>Left (◀)</strong> and <strong>Right (▶)</strong> side buttons to travel between sectors:
+          </p>
+
+          <div class="guide-sectors-display">
+            <div
+              class="guide-sector-box"
+              :class="{ 'is-active': currentDimension === 'review' }"
+              @click="goToDimension('review')"
+              title="Click to view Review sector"
+            >
+              <div class="sector-head font-pixel">◀ WEST</div>
+              <div class="sector-title font-pixel">REVIEW</div>
+              <div class="sector-tags">⚡ Arena · 👑 Test Your Knowledge</div>
+            </div>
+
+            <div
+              class="guide-sector-box"
+              :class="{ 'is-active': currentDimension === 'main' }"
+              @click="goToDimension('main')"
+              title="Click to view Main Hub sector"
+            >
+              <div class="sector-head font-pixel">● CENTER</div>
+              <div class="sector-title font-pixel">MAIN HUB</div>
+              <div class="sector-tags">⚔️ Adventure · 📜 Study Hall · 📚 Vault · 🏆 Achievements · 👑 Hall of Fame</div>
+            </div>
+
+            <div
+              class="guide-sector-box"
+              :class="{ 'is-active': currentDimension === 'others' }"
+              @click="goToDimension('others')"
+              title="Click to view Others sector"
+            >
+              <div class="sector-head font-pixel">EAST ▶</div>
+              <div class="sector-title font-pixel">OTHERS</div>
+              <div class="sector-tags">🛒 Market · 👑 Leaderboards</div>
+            </div>
+          </div>
+
+          <div class="guide-footer-row">
+            <span class="guide-tip-note font-pixel">✦ Click arrows ◀ ▶ or use [← / →] arrow keys to travel ✦</span>
+            <button class="btn btn-gothic-crimson btn-sm font-pixel guide-confirm-btn" @click="dismissGuideModal">
+              GOT IT ▸
+            </button>
+          </div>
+
+          <!-- Auto-fade progress countdown bar -->
+          <div class="guide-timer-track">
+            <div class="guide-timer-bar"></div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useGameStore } from '../stores/game'
 import { useTransitionStore } from '../stores/transition'
 import { useAdventureStore } from '../stores/adventure'
+import { resolveAsset } from '../services/bossMapping'
+import { WORLD_BACKGROUNDS, resolveWorldBg, resolveWorldBackground } from '../config/worldThemeConfig'
+import PixelEmoji from '../components/ui/PixelEmoji.vue'
+import { hallOfFameService } from '../services/hallOfFameService'
+import { battleAudio } from '../services/battleAudio'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const game = useGameStore()
 const transitionStore = useTransitionStore()
 const adventure = useAdventureStore()
 
+// ── THREE DIMENSIONS DEFINITION ─────────────────────────────
+const DIMENSIONS = {
+  review: {
+    id: 'review',
+    title: WORLD_BACKGROUNDS.review.title,
+    subtitle: WORLD_BACKGROUNDS.review.subtitle,
+    backgroundNight: WORLD_BACKGROUNDS.review.night,
+    backgroundMorning: WORLD_BACKGROUNDS.review.morning,
+    hotspots: [
+      {
+        id: 'arena',
+        name: 'Arena',
+        subtitle: 'Multiplayer Colosseum',
+        path: '/multiplayer',
+        icon: 'lightning',
+        style: { top: '48%', left: '26%' },
+        pillClass: 'spot-arena-pill'
+      },
+      {
+        id: 'special-event',
+        name: 'Test Your Knowledge',
+        subtitle: 'Mock Board Exam Simulator',
+        path: '/special-event',
+        icon: 'crown',
+        style: { top: '68%', left: '60%' },
+        pillClass: 'special-event-pill',
+        dotClass: 'trial-dot pulse'
+      }
+    ]
+  },
+  main: {
+    id: 'main',
+    title: WORLD_BACKGROUNDS.main.title,
+    subtitle: WORLD_BACKGROUNDS.main.subtitle,
+    backgroundNight: WORLD_BACKGROUNDS.main.night,
+    backgroundMorning: WORLD_BACKGROUNDS.main.morning,
+    hotspots: [
+      {
+        id: 'studyhall',
+        name: 'Study Hall',
+        subtitle: 'Curriculum & Archives',
+        path: '/studyhall',
+        icon: 'scroll',
+        style: { top: '44%', left: '50%' },
+        pillClass: 'studyhall-pill'
+      },
+      {
+        id: 'adventure',
+        name: 'Adventure Gate',
+        subtitle: 'Storyline & Boss Battles',
+        path: '/adventure',
+        icon: 'sword',
+        style: { top: '66%', left: '50%' },
+        pillClass: 'adventure-pill',
+        dotClass: 'pulse'
+      },
+      {
+        id: 'vault',
+        name: 'Vault',
+        subtitle: 'Manuscript Archive',
+        path: '/vault',
+        icon: 'book',
+        style: { top: '56%', left: '16%' },
+        pillClass: 'vault-badge',
+        dotClass: 'pulse vault-dot'
+      },
+      {
+        id: 'achievements',
+        name: 'Achievement Hall',
+        subtitle: 'Trophies & Badges',
+        path: '/achievements',
+        icon: 'trophy',
+        style: { top: '72%', left: '76%' },
+        pillClass: 'achievements-pill',
+        dotClass: 'pulse achievements-dot'
+      },
+      {
+        id: 'hall-of-fame',
+        name: 'Hall of Fame',
+        subtitle: 'Celebrating Verified Board Passers',
+        path: '/hall-of-fame',
+        icon: 'crown',
+        style: { top: '26%', left: '88%' },
+        pillClass: 'hall-of-fame-pill',
+        dotClass: 'pulse fame-dot'
+      }
+    ]
+  },
+  others: {
+    id: 'others',
+    title: WORLD_BACKGROUNDS.others.title,
+    subtitle: WORLD_BACKGROUNDS.others.subtitle,
+    backgroundNight: WORLD_BACKGROUNDS.others.night,
+    backgroundMorning: WORLD_BACKGROUNDS.others.morning,
+    hotspots: [
+      {
+        id: 'market',
+        name: 'Market',
+        subtitle: 'Merchant Bazaar',
+        path: '/market',
+        icon: 'cart',
+        style: { top: '68%', left: '30%' },
+        pillClass: 'market-pill'
+      },
+      {
+        id: 'records',
+        name: 'Leaderboards',
+        subtitle: 'Leaderboard & Rankings',
+        path: '/leaderboard',
+        icon: 'crown',
+        style: { top: '56%', left: '68%' },
+        pillClass: 'records-pill'
+      }
+    ]
+  }
+}
+
+// ── STATE ───────────────────────────────────────────────────
+const currentDimension = ref('main') // default is always 'main'
+const transitionDirection = ref('east') // 'east' | 'west'
+const isTransitioning = ref(false)
+const showZoneBanner = ref(false)
+const showGuideModal = ref(false)
 const hoveredSpot = ref(null)
-const chatExpanded = ref(false)
-const newMsgText = ref('')
-const timeDisplay = ref('')
-const townSceneRef = ref(null)
-const canvasRef = ref(null)
-const dockRef = ref(null)
+const viewportRef = ref(null)
+let guideTimer = null
+
+const currentTheme = computed(() => game.theme || 'night')
+
+const activeDimensionData = computed(() => DIMENSIONS[currentDimension.value] || DIMENSIONS.main)
+
+const activeBackground = computed(() => {
+  return resolveWorldBg(currentDimension.value, currentTheme.value)
+})
 
 const activeRoute = computed(() => route.path)
 
-// ── PANORAMA DRAG-SCROLL (Town Scene) ────────────────────────
-let dragActive = false
-let dragStartX = 0
-let dragScrollLeft = 0
-let hasPanned = false
-
-function isMobilePanorama() {
-  return window.innerWidth <= 1100
-}
-
-function onDragStart(e) {
-  if (e.button !== 0) return
-  const el = townSceneRef.value
-  if (!el || !isMobilePanorama()) return
-  dragActive = true
-  hasPanned = false
-  dragStartX = e.clientX
-  dragScrollLeft = el.scrollLeft
-  el.style.cursor = 'grabbing'
-  el.style.userSelect = 'none'
-
-  window.addEventListener('mousemove', onDragMove)
-  window.addEventListener('mouseup', onDragEnd)
-}
-
-function onDragMove(e) {
-  if (!dragActive) return
-  const el = townSceneRef.value
-  if (!el) return
-  const dx = e.clientX - dragStartX
-  if (Math.abs(dx) > 5) {
-    hasPanned = true
-  }
-  el.scrollLeft = dragScrollLeft - dx
-}
-
-function onDragEnd() {
-  if (!dragActive) return
-  dragActive = false
-  const el = townSceneRef.value
-  if (el) {
-    el.style.cursor = ''
-    el.style.userSelect = ''
-  }
-  window.removeEventListener('mousemove', onDragMove)
-  window.removeEventListener('mouseup', onDragEnd)
-}
-
-// Touch events for town scene
-let touchDragStartX = 0
-let touchDragScrollLeft = 0
-
-function onTouchStart(e) {
-  const el = townSceneRef.value
-  if (!el || !isMobilePanorama() || e.touches.length !== 1) return
-  touchDragStartX = e.touches[0].clientX
-  touchDragScrollLeft = el.scrollLeft
-  hasPanned = false
-}
-
-function onTouchMove(e) {
-  const el = townSceneRef.value
-  if (!el || !isMobilePanorama() || e.touches.length !== 1) return
-  const dx = e.touches[0].clientX - touchDragStartX
-  if (Math.abs(dx) > 5) {
-    hasPanned = true
-  }
-  el.scrollLeft = touchDragScrollLeft - dx
-}
-
-function onTouchEnd() {}
-
-function handleSpotClick(path) {
-  if (hasPanned) return
-  if (path === '/adventure') {
-    const chId = adventure.currentUnlockedChapterId || Number(localStorage.getItem('sq_active_chapter')) || Number(localStorage.getItem('sq_unlocked_chapter')) || 1
-    transitionStore.triggerTravel(`/adventure/${chId}`, router)
-    return
-  }
-  transitionStore.triggerTravel(path, router)
-}
-
-// ── DOCK DRAG-SCROLL ─────────────────────────────────────────
-let dockDragActive = false
-let dockStartX = 0
-let dockScrollLeft = 0
-let dockHasMoved = false
-
-function onDockDragStart(e) {
-  if (e.button !== 0) return
-  const el = dockRef.value
-  if (!el) return
-  dockDragActive = true
-  dockHasMoved = false
-  dockStartX = e.clientX
-  dockScrollLeft = el.scrollLeft
-  el.style.cursor = 'grabbing'
-  el.style.userSelect = 'none'
-
-  window.addEventListener('mousemove', onDockDragMove)
-  window.addEventListener('mouseup', onDockDragEnd)
-}
-
-function onDockDragMove(e) {
-  if (!dockDragActive) return
-  const el = dockRef.value
-  if (!el) return
-  const dx = e.clientX - dockStartX
-  if (Math.abs(dx) > 4) {
-    dockHasMoved = true
-  }
-  el.scrollLeft = dockScrollLeft - dx
-}
-
-function onDockDragEnd() {
-  if (!dockDragActive) return
-  dockDragActive = false
-  const el = dockRef.value
-  if (el) {
-    el.style.cursor = ''
-    el.style.userSelect = ''
-  }
-  window.removeEventListener('mousemove', onDockDragMove)
-  window.removeEventListener('mouseup', onDockDragEnd)
-}
-
-let dockTouchStartX = 0
-let dockTouchScrollLeft = 0
-
-function onDockTouchStart(e) {
-  const el = dockRef.value
-  if (!el || e.touches.length !== 1) return
-  dockTouchStartX = e.touches[0].clientX
-  dockTouchScrollLeft = el.scrollLeft
-  dockHasMoved = false
-}
-
-function onDockTouchMove(e) {
-  const el = dockRef.value
-  if (!el || e.touches.length !== 1) return
-  const dx = e.touches[0].clientX - dockTouchStartX
-  if (Math.abs(dx) > 4) {
-    dockHasMoved = true
-  }
-  el.scrollLeft = dockTouchScrollLeft - dx
-}
-
-function onDockTouchEnd() {}
-
-function navigateModule(path) {
-  if (dockHasMoved) return
-  if (path === '/adventure') {
-    const chId = adventure.currentUnlockedChapterId || Number(localStorage.getItem('sq_active_chapter')) || Number(localStorage.getItem('sq_unlocked_chapter')) || 1
-    transitionStore.triggerTravel(`/adventure/${chId}`, router)
-    return
-  }
-  transitionStore.triggerTravel(path, router)
-}
-
-const modulesList = [
-  { name: 'Study Hall',        path: '/studyhall',     icon: 'scroll' },
-  { name: 'Adventure Gate',    path: '/adventure',     icon: 'sword' },
-  { name: 'The Daily Trial',   path: '/special-event', icon: 'crown' },
-  { name: 'Arena',             path: '/multiplayer',   icon: 'lightning' },
-  { name: 'Market',            path: '/market',        icon: 'cart' },
-  { name: 'Hall of Records',   path: '/leaderboard',   icon: 'trophy' },
-  { name: 'Achievement Hall',  path: '/achievements',  icon: 'shield' },
-  { name: 'Chronicle Hall',    path: '/chronicle',     icon: 'book' },
-  { name: 'Settings',          path: '/settings',      icon: 'gear' }
-]
-
-const messages = ref([
-  { type: 'sys', channel: 'StudyQuest', content: "Welcome to the Psychology Game World! Explore Quests, Practice, and Multiplayer." },
-  { type: 'world', channel: 'Scholar', content: "Preparing for the Psychological Assessment board exam!" },
-  { type: 'sys', channel: 'System', content: "Daily quest resets at midnight. Keep up your study streak!" }
-])
-
-const visibleMessages = computed(() => {
-  return chatExpanded.value ? messages.value : messages.value.slice(-2)
+const transitionAnimName = computed(() => {
+  return transitionDirection.value === 'west' ? 'slide-west' : 'slide-east'
 })
 
-function centerScene() {
-  const el = townSceneRef.value
-  if (el && isMobilePanorama() && el.scrollWidth > el.clientWidth) {
-    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2
+// ── NAVIGATION BETWEEN 3 DIMENSIONS ─────────────────────────
+let bannerTimeout = null
+
+function triggerZoneBanner() {
+  showZoneBanner.value = true
+  if (bannerTimeout) clearTimeout(bannerTimeout)
+  bannerTimeout = setTimeout(() => {
+    showZoneBanner.value = false
+  }, 1800)
+}
+
+function triggerGuideModal() {
+  showGuideModal.value = true
+  if (guideTimer) clearTimeout(guideTimer)
+  guideTimer = setTimeout(() => {
+    showGuideModal.value = false
+  }, 3000)
+}
+
+function dismissGuideModal() {
+  if (guideTimer) clearTimeout(guideTimer)
+  showGuideModal.value = false
+}
+
+function goToDimension(target) {
+  dismissGuideModal()
+  if (isTransitioning.value || target === currentDimension.value) return
+
+  try {
+    battleAudio.playSelect()
+  } catch {}
+
+  // Enforce RPG rules: no direct Review <-> Others without routing through Main
+  if (
+    (currentDimension.value === 'review' && target === 'others') ||
+    (currentDimension.value === 'others' && target === 'review')
+  ) {
+    // Force route through Main first
+    target = 'main'
+  }
+
+  // Determine horizontal travel direction
+  if (currentDimension.value === 'main') {
+    transitionDirection.value = target === 'review' ? 'west' : 'east'
+  } else if (currentDimension.value === 'review') {
+    transitionDirection.value = 'east' // Returning east to main
+  } else if (currentDimension.value === 'others') {
+    transitionDirection.value = 'west' // Returning west to main
+  }
+
+  isTransitioning.value = true
+  currentDimension.value = target
+
+  triggerZoneBanner()
+
+  setTimeout(() => {
+    isTransitioning.value = false
+  }, 450)
+}
+
+// Keyboard arrow navigation
+function onKeyDown(e) {
+  if (e.key === 'Escape' && showGuideModal.value) {
+    dismissGuideModal()
+    return
+  }
+  if (e.key === 'ArrowLeft') {
+    dismissGuideModal()
+    if (currentDimension.value === 'main') goToDimension('review')
+    else if (currentDimension.value === 'others') goToDimension('main')
+  } else if (e.key === 'ArrowRight') {
+    dismissGuideModal()
+    if (currentDimension.value === 'main') goToDimension('others')
+    else if (currentDimension.value === 'review') goToDimension('main')
   }
 }
 
-function handleResize() {
-  if (isMobilePanorama()) {
-    centerScene()
+// Mobile touch swipe gestures
+let touchStartX = 0
+function onTouchStart(e) {
+  if (e.touches && e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX
+  }
+}
+function onTouchEnd(e) {
+  if (e.changedTouches && e.changedTouches.length === 1) {
+    const dx = e.changedTouches[0].clientX - touchStartX
+    if (Math.abs(dx) > 60) {
+      if (dx > 0) {
+        // Swiped right -> travel West
+        if (currentDimension.value === 'main') goToDimension('review')
+        else if (currentDimension.value === 'others') goToDimension('main')
+      } else {
+        // Swiped left -> travel East
+        if (currentDimension.value === 'main') goToDimension('others')
+        else if (currentDimension.value === 'review') goToDimension('main')
+      }
+    }
   }
 }
 
+// ── MODULE INTERACTION & TRAVEL ─────────────────────────────
+function isSpotLocked(spot) {
+  if (!spot) return false
+  const spotId = typeof spot === 'object' ? spot.id : null
+  const path = typeof spot === 'object' ? spot.path : spot
+  if (spotId === 'arena' || path === '/multiplayer' || path === '/arena') {
+    const userLevel = Number(auth.user?.level || 1)
+    return userLevel < 15
+  }
+  return false
+}
+
+function handleSpotClick(spot) {
+  if (isTransitioning.value) return
+  const path = typeof spot === 'string' ? spot : spot.path
+  const spotId = typeof spot === 'object' ? spot.id : null
+
+  if (spotId === 'arena' || path === '/multiplayer' || path === '/arena') {
+    const userLevel = Number(auth.user?.level || 1)
+    if (userLevel < 15) {
+      battleAudio.playError?.()
+      toast.warning(`Colosseum Locked: You must reach Level 15 to enter the Arena. (Your Level: ${userLevel})`)
+      return
+    }
+  }
+
+  try {
+    battleAudio.playSelect()
+  } catch {}
+
+  if (path === '/adventure') {
+    const chId = adventure.currentUnlockedChapterId || Number(localStorage.getItem('sq_active_chapter')) || Number(localStorage.getItem('sq_unlocked_chapter')) || 1
+    transitionStore.triggerTravel(`/adventure/${chId}`, router)
+    return
+  }
+  transitionStore.triggerTravel(path, router)
+}
+
+
+
+// ── BACKGROUND PRELOADING & RESILIENCE ─────────────────────
+function preloadAllWorldBackgrounds() {
+  const imagesToPreload = [
+    resolveWorldBg('main', 'night'),
+    resolveWorldBg('main', 'morning'),
+    resolveWorldBg('review', 'night'),
+    resolveWorldBg('review', 'morning'),
+    resolveWorldBg('others', 'night'),
+    resolveWorldBg('others', 'morning'),
+  ]
+  imagesToPreload.forEach(src => {
+    if (!src) return
+    const img = new Image()
+    img.src = src
+  })
+}
+
+function onImageError(e) {
+  console.warn('[WorldHub] Background image failed to load:', e?.target?.src)
+}
+
+// Watch for navigation directly back to /world to trigger guide
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath === '/world') {
+      triggerGuideModal()
+    }
+  }
+)
+
+// ── HALL OF FAME SCROLL REAL-TIME PASSER TICKER ─────────────
+const hofPassers = ref([])
+const hofLatestBatch = ref(null)
+const hofCurrentPasserIndex = ref(0)
+const isHofTickerPaused = ref(false)
+let hofTickerTimer = null
+let hofPollingTimer = null
+
+const currentPasser = computed(() => {
+  if (!hofPassers.value || hofPassers.value.length === 0) return null
+  return hofPassers.value[hofCurrentPasserIndex.value % hofPassers.value.length]
+})
+
+async function fetchHofPassers() {
+  try {
+    const res = await hallOfFameService.getLatestPassers(50)
+    if (res.data?.success && Array.isArray(res.data?.passers)) {
+      hofPassers.value = res.data.passers
+      hofLatestBatch.value = res.data.batch
+    }
+  } catch (err) {
+    console.warn('Could not fetch latest board passers ticker:', err)
+  }
+}
+
+function startHofTicker() {
+  if (hofTickerTimer) clearInterval(hofTickerTimer)
+  hofTickerTimer = setInterval(() => {
+    if (!isHofTickerPaused.value && hofPassers.value.length > 1) {
+      hofCurrentPasserIndex.value = (hofCurrentPasserIndex.value + 1) % hofPassers.value.length
+    }
+  }, 3600) // 3.6s per passer display and fade
+}
+
+// ── LIFECYCLE ───────────────────────────────────────────────
 onMounted(() => {
-  const d = new Date()
-  timeDisplay.value = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-
-  // Center town scene panorama on mobile/tablet so cathedral/adventure is front and center
-  setTimeout(centerScene, 60)
-  window.addEventListener('resize', handleResize)
   adventure.loadChapters()
+  window.addEventListener('keydown', onKeyDown)
+  preloadAllWorldBackgrounds()
+  triggerZoneBanner()
+  triggerGuideModal()
+
+  // Real-time board passers ticker on physical parchment scroll
+  fetchHofPassers().then(() => {
+    startHofTicker()
+  })
+  hofPollingTimer = setInterval(fetchHofPassers, 30000)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  window.removeEventListener('mousemove', onDragMove)
-  window.removeEventListener('mouseup', onDragEnd)
-  window.removeEventListener('mousemove', onDockDragMove)
-  window.removeEventListener('mouseup', onDockDragEnd)
+  window.removeEventListener('keydown', onKeyDown)
+  if (bannerTimeout) clearTimeout(bannerTimeout)
+  if (guideTimer) clearTimeout(guideTimer)
+  if (hofTickerTimer) clearInterval(hofTickerTimer)
+  if (hofPollingTimer) clearInterval(hofPollingTimer)
 })
-
-function sendChatMessage() {
-  if (!newMsgText.value.trim()) return
-  messages.value.push({
-    type: 'player',
-    channel: auth.nickname || auth.user?.username || 'Scholar',
-    content: newMsgText.value.trim()
-  })
-  newMsgText.value = ''
-}
 </script>
 
 <style scoped>
-/* ── WORLD HUB ROOT ──────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   1. WORLD HUB ROOT CONTAINER
+   ══════════════════════════════════════════════════════════════ */
 .rpg-world-hub {
   position: relative;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--gothic-void);
+  background: #080a0e;
   user-select: none;
+  outline: none;
 }
 
-/* ── TOWN SCENE (Horizontally draggable on mobile) ─── */
-.town-scene-wrapper {
+/* ══════════════════════════════════════════════════════════════
+   2. TOP DIMENSION NAVIGATOR / WORLD BREADCRUMB
+   ══════════════════════════════════════════════════════════════ */
+.world-dimension-bar {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  cursor: default;
+  top: calc(var(--hud-height, 60px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  pointer-events: auto;
 }
 
-.town-scene-canvas {
-  position: relative;
-  width: 100%;
-  height: 100%;
+.dimension-nav-track {
+  display: flex;
+  align-items: center;
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-lit);
+  box-shadow: var(--shadow-gothic);
+  padding: 0.25rem 0.5rem;
+  gap: 0.35rem;
 }
 
-.town-scene-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 46%;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  filter: contrast(1.05) saturate(1.08);
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
-  display: block;
+.dimension-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-muted);
 }
 
-/* ── ATMOSPHERE OVERLAYS ──────────────────────── */
-.scene-vignette {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at center, transparent 65%, rgba(6,7,10,0.55) 100%),
-    linear-gradient(180deg, rgba(6,7,10,0.4) 0%, transparent 20%, transparent 80%, rgba(6,7,10,0.7) 100%);
-  pointer-events: none;
+.dimension-tab:hover {
+  background: var(--gothic-raised);
+  color: var(--text-primary);
 }
 
-/* Crimson portal void energy */
-.portal-pulse-glow {
-  position: absolute;
-  top: 59%;
-  left: 58%;
-  transform: translate(-50%, -50%);
-  width: 130px;
-  height: 170px;
-  background: radial-gradient(ellipse, rgba(185,28,28,0.4) 0%, rgba(185,28,28,0.1) 50%, transparent 80%);
-  animation: crimsonPulse 3s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes crimsonPulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-  50%       { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+.dimension-tab.active {
+  background: var(--gothic-elevated);
+  border: 1px solid var(--aged-gold);
+  color: var(--aged-gold-shine);
+  box-shadow: 0 0 10px rgba(184, 134, 11, 0.25);
 }
 
-/* Cyan/Runic candle shimmer at foreground fountain */
-.fountain-shimmer-glow {
-  position: absolute;
-  top: 80%;
-  left: 38%;
-  transform: translate(-50%, -50%);
-  width: 180px;
-  height: 100px;
-  background: radial-gradient(ellipse, rgba(56,189,248,0.25) 0%, transparent 70%);
-  animation: fountainGlow 2.5s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes fountainGlow {
-  0%   { opacity: 0.3; }
-  100% { opacity: 0.75; }
+.tab-main.active {
+  border-color: var(--aged-gold-bright);
 }
 
-/* ── GOTHIC WELCOME BAR (Pinned below HUD) ───── */
+.dim-name {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.dim-sub {
+  font-family: var(--font-gothic);
+  font-size: 0.75rem;
+  opacity: 0.8;
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .dim-sub { display: inline; }
+}
+
+.dim-arrow-icon {
+  font-size: 8px;
+  opacity: 0.7;
+}
+
+.dim-hub-dot {
+  font-size: 10px;
+  color: var(--aged-gold-bright);
+}
+
+.dim-track-connector {
+  width: 16px;
+  height: 2px;
+  background: var(--gothic-border);
+  transition: background 0.2s ease;
+}
+
+.dim-track-connector.lit {
+  background: var(--aged-gold-dim);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3. WELCOME PILL (Below Top Left HUD)
+   ══════════════════════════════════════════════════════════════ */
 .world-welcome-bar {
   position: absolute;
   top: calc(var(--hud-height, 60px) + 8px);
@@ -692,6 +884,7 @@ function sendChatMessage() {
   z-index: 20;
   pointer-events: auto;
 }
+
 .welcome-pill {
   display: inline-flex;
   align-items: center;
@@ -699,21 +892,24 @@ function sendChatMessage() {
   background: var(--gothic-surface);
   border: 1px solid var(--gothic-border-bone);
   border-left: 3px solid var(--aged-gold-dim);
-  padding: 0.4rem 1rem;
+  padding: 0.4rem 0.9rem;
   box-shadow: var(--shadow-gothic);
 }
+
 .welcome-greet {
   font-family: var(--font-gothic);
   font-style: italic;
   color: var(--text-muted);
   font-size: 0.88rem;
 }
+
 .welcome-name {
   font-family: var(--font-pixel);
   font-size: 7px;
   color: var(--aged-gold-bright);
   letter-spacing: 0.05em;
 }
+
 .welcome-streak {
   background: var(--crimson-void);
   border: 1px solid var(--crimson-deep);
@@ -723,372 +919,1214 @@ function sendChatMessage() {
   color: #ff8060;
 }
 
-/* ── TOWN HOTSPOTS LAYER ─────────────────────── */
-.town-hotspots-layer {
+/* ══════════════════════════════════════════════════════════════
+   4. WORLD VIEWPORT & 3D DIMENSION TRANSITIONS
+   ══════════════════════════════════════════════════════════════ */
+.world-dimension-viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  z-index: 1;
+}
+
+.dimension-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.dimension-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: contrast(1.05) saturate(1.06);
+  pointer-events: none;
+  user-select: none;
+  display: block;
+  z-index: 1;
+}
+
+.dimension-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 65%, rgba(6, 7, 10, 0.45) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.theme-morning .dimension-vignette {
+  background: radial-gradient(ellipse at center, transparent 75%, rgba(120, 95, 60, 0.15) 100%);
+}
+
+.dimension-morning-sunbeam {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(254, 240, 138, 0.08) 0%, transparent 40%, rgba(217, 119, 6, 0.05) 100%);
+  pointer-events: none;
+}
+
+/* ── 300-600ms HORIZONTAL SLIDE TRANSITION ───────────── */
+.slide-east-enter-active,
+.slide-east-leave-active,
+.slide-west-enter-active,
+.slide-west-leave-active {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+}
+
+.slide-east-enter-from {
+  transform: translateX(35%);
+  opacity: 0.1;
+}
+
+.slide-east-leave-to {
+  transform: translateX(-35%);
+  opacity: 0.1;
+}
+
+.slide-west-enter-from {
+  transform: translateX(-35%);
+  opacity: 0.1;
+}
+
+.slide-west-leave-to {
+  transform: translateX(35%);
+  opacity: 0.1;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   5. INTERACTIVE HOTSPOTS LAYER
+   ══════════════════════════════════════════════════════════════ */
+.dimension-hotspots-layer {
   position: absolute;
   inset: 0;
   z-index: 10;
   pointer-events: none;
 }
-.town-building {
+
+.world-hotspot-building {
   position: absolute;
   pointer-events: auto;
   cursor: pointer;
+  transform: translate(-50%, -50%);
 }
+
 .building-hitbox {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-}
-.town-building:hover .building-hitbox {
-  transform: translateY(-4px);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── GOTHIC PIXEL BUILDING BADGES ────────────── */
+.world-hotspot-building:hover .building-hitbox {
+  transform: translateY(-5px) scale(1.04);
+}
+
 .building-badge-pill {
   position: relative;
   background: var(--gothic-surface);
   border: 1px solid var(--gothic-border-lit);
-  padding: 0.3rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  box-shadow: var(--shadow-gothic), inset 0 1px 0 rgba(255,255,255,0.04);
-  transition: border-color 0.15s;
+  gap: 0.55rem;
+  box-shadow: var(--shadow-gothic), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.18s ease;
 }
-.town-building:hover .building-badge-pill {
-  border-color: var(--bone-dim);
-  box-shadow: var(--shadow-gothic), 0 0 12px rgba(200,185,154,0.15);
+
+.world-hotspot-building:hover .building-badge-pill {
+  border-color: var(--aged-gold-bright);
+  box-shadow: var(--shadow-gothic), 0 0 14px rgba(217, 119, 6, 0.3);
 }
+
+.building-badge-pill.is-locked-spot {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(15, 23, 42, 0.88);
+}
+
+.world-hotspot-building:hover .building-badge-pill.is-locked-spot {
+  border-color: rgba(239, 68, 68, 0.85);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+}
+
+.lock-sub {
+  color: #f87171 !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-size: 7px;
+}
+
+.badge-lock-tag {
+  font-size: 7px;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  margin-left: 0.2rem;
+}
+
+.lock-icon-glyph {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .building-icon {
-  font-size: 1rem;
+  font-size: 1.1rem;
+  line-height: 1;
 }
+
+.building-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
 .building-name {
   font-family: var(--font-pixel);
-  font-size: 7px;
+  font-size: 8px;
   color: var(--bone-white);
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+
+.building-sub {
+  font-family: var(--font-gothic);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .badge-dot {
   width: 8px;
   height: 8px;
   background: var(--crimson-bright);
   border: 1px solid var(--gothic-void);
 }
+
 .badge-dot.pulse {
   animation: crimsonPulse 1.8s infinite;
 }
 
-.portal-swirl-fx,
-.fountain-spray-fx {
-  display: none;
+.badge-dot.trial-dot {
+  background: #f59e0b;
 }
 
-/* ── HOTSPOT COORDINATES (aligned with gothic landmarks) ─── */
-.spot-adventure {
-  top: 57%; left: 58%;
-  transform: translate(-50%, -50%);
-  width: 200px; height: 180px;
-}
-.spot-adventure .building-badge-pill {
-  margin-top: 110px;
-  border-color: var(--crimson-deep);
-}
-.spot-adventure:hover .building-badge-pill { border-color: var(--crimson); }
-
-.spot-quests {
-  top: 54%; left: 45%;
-  width: 140px; height: 120px;
-}
-.spot-quests .building-badge-pill { margin-top: 65px; border-color: var(--aged-gold-dim); }
-.spot-quests:hover .building-badge-pill { border-color: var(--aged-gold); }
-
-.spot-multiplayer {
-  top: 48%; left: 16%;
-  width: 200px; height: 180px;
-}
-.spot-multiplayer .building-badge-pill { margin-top: 110px; border-color: var(--shadow-teal); }
-
-.spot-shop {
-  top: 68%; left: 71%;
-  width: 160px; height: 140px;
-}
-.spot-shop .building-badge-pill { margin-top: 85px; border-color: var(--arcane-dim); }
-
-.spot-leaderboard {
-  top: 32%; left: 82%;
-  width: 160px; height: 120px;
-}
-.spot-leaderboard .building-badge-pill { margin-top: 65px; border-color: var(--aged-gold-dim); }
-
-.spot-chronicle {
-  top: 78%; left: 34%;
-  transform: translate(-50%, -50%);
-  width: 150px; height: 110px;
-}
-.spot-chronicle .building-badge-pill { margin-top: 70px; border-color: var(--shadow-teal); }
-
-.spot-settings {
-  top: 82%; left: 20%;
-  width: 130px; height: 90px;
-}
-.spot-settings .building-badge-pill { margin-top: 45px; border-color: var(--ash-grey); }
-
-.spot-special-event {
-  top: 38%; left: 34%;
-  width: 170px; height: 130px;
-}
-.spot-special-event .building-badge-pill {
-  margin-top: 65px;
-  border-color: #8b5cf6;
-  background: rgba(26, 16, 48, 0.92);
-}
-.spot-special-event:hover .building-badge-pill {
-  border-color: #c4b5fd;
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
-}
-.trial-dot {
-  background: #a855f7 !important;
+.badge-dot.vault-dot {
+  background: #3b82f6;
 }
 
-/* ── GOTHIC MODULE DOCK (bottom nav) ─────────── */
-.world-module-dock {
-  position: absolute;
-  bottom: 0.8rem;
-  right: 1.2rem;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--gothic-surface);
-  border: 1px solid var(--gothic-border-lit);
-  border-top: 2px solid var(--gothic-border-bone);
-  padding: 0.3rem 0.5rem;
-  box-shadow: var(--shadow-gothic);
-  z-index: 25;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  cursor: default;
+.badge-dot.achievements-dot {
+  background: #eab308;
 }
-.world-module-dock::-webkit-scrollbar { display: none; }
 
-.module-dock-item {
+.badge-dot.fame-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHYSICAL PARCHMENT SCROLL — HALL OF FAME CELESTIAL ENTRANCE
+   ══════════════════════════════════════════════════════════════ */
+.physical-parchment-scroll-entrance {
+  position: relative;
+  width: 250px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.35rem 0.55rem;
-  text-decoration: none;
-  border: 1px solid transparent;
-  transition: background 0.1s, border-color 0.1s;
-  flex-shrink: 0;
   cursor: pointer;
-}
-.module-dock-item:hover,
-.module-dock-item.active {
-  background: var(--gothic-raised);
-  border-color: var(--gothic-border-lit);
-}
-.dock-icon { font-size: 1.1rem; }
-.dock-name {
-  font-family: var(--font-pixel);
-  font-size: 5px;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-.module-dock-item:hover .dock-name,
-.module-dock-item.active .dock-name {
-  color: var(--bone-white);
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 20px rgba(251, 191, 36, 0.5));
+  animation: celestialScrollFloat 4.6s ease-in-out infinite;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+  user-select: none;
 }
 
-/* ── GOTHIC CHRONICLE TERMINAL (chat) ───────── */
-.bottom-chat-terminal {
-  position: absolute;
-  bottom: 0.8rem;
-  left: 1.2rem;
-  width: 360px;
-  max-width: calc(100vw - 2rem);
-  background: var(--gothic-surface);
-  border: 1px solid var(--gothic-border-lit);
-  border-top: 2px solid var(--crimson-deep);
-  padding: 0.4rem 0.6rem;
-  box-shadow: var(--shadow-gothic);
-  z-index: 25;
-  transition: max-height 0.2s;
+.physical-parchment-scroll-entrance:hover {
+  transform: translateY(-8px) scale(1.05);
+  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 30px rgba(251, 191, 36, 0.85));
 }
-.bottom-chat-terminal.chat-expanded {
-  width: 420px;
-  max-height: 240px;
+
+@keyframes celestialScrollFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
-.chat-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.25rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--gothic-border);
-}
-.chat-ctrl-btn {
-  width: 26px;
-  height: 26px;
-  background: var(--gothic-raised);
-  border: 1px solid var(--gothic-border-lit);
+
+/* Wooden Roller Spindles (Top and Bottom) */
+.scroll-rod {
+  position: relative;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: background 0.1s;
+  z-index: 6;
 }
-.chat-ctrl-btn:hover { background: var(--gothic-elevated); }
-.chat-time-stamp {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  background: var(--gothic-void);
-  padding: 0.1rem 0.4rem;
+
+.scroll-rod.rod-top {
+  margin-bottom: -5px;
 }
-.chat-feed {
-  cursor: pointer;
+
+.scroll-rod.rod-bottom {
+  margin-top: -5px;
+}
+
+.rod-spindle {
+  flex: 1;
+  height: 15px;
+  background: linear-gradient(180deg, #4a2109 0%, #7c3e16 35%, #4a2109 75%, #240e03 100%);
+  border-top: 1px solid #a65824;
+  border-bottom: 1px solid #140701;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 3px 8px rgba(0, 0, 0, 0.7);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rolled Cylinder of Parchment Paper around Spindle */
+.rod-paper-roll {
+  width: 90%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6e8cc 30%, #e5cf9d 65%, #9e7f47 100%);
+  border-top: 1px solid #fffdf7;
+  border-bottom: 1px solid #73592a;
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* Turned Wooden Finials (Spherical ends of wooden rods) */
+.rod-finial {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 7;
+}
+
+.finial-ball {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffd700 0%, #b45309 45%, #451a03 90%);
+  border: 1px solid #290f02;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7), inset 0 2px 3px rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.finial-collar {
+  width: 5px;
+  height: 11px;
+  background: linear-gradient(180deg, #ffd700 0%, #b45309 50%, #78350f 100%);
+  border: 1px solid #3d1704;
+  flex-shrink: 0;
+}
+
+.finial-left {
+  flex-direction: row;
+  margin-right: -2px;
+}
+
+.finial-right {
+  flex-direction: row;
+  margin-left: -2px;
+}
+
+/* Unrolled Ancient Parchment Body Sheet */
+.scroll-body-sheet {
+  position: relative;
+  width: 86%;
+  min-height: 125px;
+  background: linear-gradient(180deg, #fcf6e8 0%, #f7edd4 20%, #f0dcab 65%, #e1c487 100%);
+  border-left: 2.5px solid #9c7b41;
+  border-right: 2.5px solid #9c7b41;
+  padding: 0.75rem 0.85rem 0.65rem;
+  text-align: center;
+  box-shadow:
+    inset 0 10px 14px rgba(105, 68, 23, 0.28),
+    inset 0 -10px 14px rgba(105, 68, 23, 0.35),
+    0 10px 24px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+
+.scroll-aged-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(130, 85, 30, 0.2) 100%);
+  pointer-events: none;
+}
+
+/* Subtle Horizontal Creases in Ancient Parchment */
+.scroll-crease {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: rgba(140, 95, 40, 0.16);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.scroll-crease.crease-top { top: 30%; }
+.scroll-crease.crease-mid { top: 72%; }
+
+/* Deckled / Curled Side Edges */
+.scroll-edge-curl {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+}
+
+.scroll-edge-curl.left {
+  left: 0;
+  background: linear-gradient(90deg, rgba(70, 42, 12, 0.3) 0%, transparent 100%);
+}
+
+.scroll-edge-curl.right {
+  right: 0;
+  background: linear-gradient(-90deg, rgba(70, 42, 12, 0.3) 0%, transparent 100%);
+}
+
+/* Wax Seal on Top Left of Parchment */
+.scroll-wax-seal {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 10;
   display: flex;
   flex-direction: column;
+  align-items: center;
+}
+
+.seal-stamp {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ef4444 0%, #b91c1c 45%, #7f1d1d 80%, #450a0a 100%);
+  border: 1px solid #ff7b72;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7), inset 0 2px 3px rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-10deg);
+}
+
+.seal-ribbon {
+  width: 9px;
+  height: 15px;
+  background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+  margin-top: -3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Inscribed Manuscript Calligraphy */
+.scroll-manuscript-text {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.scroll-crest-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0.85;
+}
+
+.scroll-flourish {
+  font-size: 8px;
+  color: #854d0e;
+}
+
+.scroll-crest-label {
+  font-size: 6px;
+  color: #78350f;
+  letter-spacing: 0.1em;
+}
+
+.scroll-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.scroll-star-glyph {
+  font-size: 9px;
+  color: #b45309;
+}
+
+.scroll-title-text {
+  font-size: 11px;
+  color: #2b1404;
+  letter-spacing: 0.09em;
+  margin: 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.scroll-subtitle-text {
+  font-family: var(--font-gothic, serif);
+  font-size: 0.78rem;
+  font-style: italic;
+  font-weight: 700;
+  color: #523111;
+  margin: 0;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+/* Real-Time Passer Ticker Stage (1-by-1 displaying & fading) */
+.scroll-passer-stage {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.15rem 0 0.1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.passer-fading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  padding: 0.1rem 0.2rem;
+}
+
+.passer-rank-ribbon {
+  font-size: 6.5px;
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  border-radius: 2px;
+  padding: 0.1rem 0.45rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.15rem;
+  display: inline-flex;
+  align-items: center;
   gap: 0.2rem;
 }
-.chat-line {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  line-height: 1.3;
-  color: var(--text-primary);
+
+.passer-player-tag {
+  font-size: 6px;
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  border-radius: 2px;
+  padding: 0.1rem 0.4rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.passer-username-display {
+  font-size: 8px;
+  color: #92400e;
+  letter-spacing: 0.08em;
+  margin: 0.05rem 0 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.passer-username-display .handle-at {
+  color: #d97706;
+  font-weight: 800;
+}
+
+.passer-name-display {
+  font-size: 8.5px;
+  color: #2b1404;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.25;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  max-width: 95%;
+  word-break: break-word;
+}
+
+.passer-cred-badge {
+  color: #78350f;
+  font-size: 7.5px;
+  margin-left: 0.15rem;
+  white-space: nowrap;
+}
+
+.passer-school-sub {
+  font-family: var(--font-gothic, serif);
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 600;
+  color: #5c3b1c;
+  line-height: 1.15;
+  margin-top: 0.12rem;
+  max-width: 92%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat-tag {
-  font-weight: 700;
-  font-size: 0.7rem;
+
+/* Smooth 1-by-1 fade transition */
+.passer-fade-enter-active,
+.passer-fade-leave-active {
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), filter 0.55s ease;
 }
-.tag-sys    { color: var(--crimson-bright); }
-.tag-world  { color: var(--aged-gold); }
-.tag-player { color: var(--bone-white); }
-.chat-input-row {
-  margin-top: 0.4rem;
-  display: flex;
+
+.passer-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  filter: blur(1.5px);
+}
+
+.passer-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  filter: blur(1.5px);
+}
+
+/* Live Badge on the Scroll */
+.scroll-live-badge {
+  display: inline-flex;
+  align-items: center;
   gap: 0.35rem;
+  background: rgba(180, 83, 9, 0.14);
+  border: 1px solid rgba(180, 83, 9, 0.4);
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  margin-top: 0.25rem;
 }
-.chat-input {
-  flex: 1;
-  background: var(--gothic-void);
-  border: 1px solid var(--gothic-border-lit);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  padding: 0.3rem 0.5rem;
-  outline: none;
+
+.scroll-pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #059669;
+  box-shadow: 0 0 6px #10b981;
+  animation: radarPulse 1.6s infinite;
 }
-.chat-input:focus { border-color: var(--bone-dim); }
-.chat-send-btn {
-  background: var(--crimson-deep);
-  border: 1px solid var(--crimson);
-  color: var(--bone-white);
-  font-family: var(--font-pixel);
+
+.scroll-badge-label {
+  font-size: 6.5px;
+  color: #6d2e0b;
+  letter-spacing: 0.06em;
+}
+
+/* Interactive Action Hint */
+.scroll-action-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 6px;
-  padding: 0 0.7rem;
+  color: #92400e;
+  letter-spacing: 0.08em;
+  margin-top: 0.25rem;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+
+.physical-parchment-scroll-entrance:hover .scroll-action-hint {
+  opacity: 1;
+  color: #b45309;
+}
+
+.hint-pulse {
+  font-size: 5px;
+  animation: crimsonPulse 1.4s infinite;
+}
+
+/* Hanging Silk Ribbons from bottom */
+.scroll-ribbon-tails {
+  position: absolute;
+  bottom: -20px;
+  right: 28px;
+  display: flex;
+  gap: 4px;
+  z-index: 3;
+}
+
+.ribbon-tail {
+  width: 11px;
+  height: 24px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
+}
+
+.ribbon-tail.tail-crimson {
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+}
+
+.ribbon-tail.tail-gold {
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  height: 28px;
+}
+
+@keyframes crimsonPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%       { transform: scale(1.3); opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   6. SIDE NAVIGATION TRAVEL CONTROLS
+   ══════════════════════════════════════════════════════════════ */
+.world-side-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 24;
   cursor: pointer;
-  transition: background 0.1s;
-}
-.chat-send-btn:hover { background: var(--crimson); }
-
-/* ── RESPONSIVE ───────────────────────────────── */
-
-/* Tablet & Mobile (<= 1100px): panorama mode — town scene becomes wide & horizontally draggable */
-@media (max-width: 1100px) {
-  .rpg-world-hub {
-    overflow-x: hidden;
-    overflow-y: hidden;
-  }
-
-  /* Make the town scene scrollable horizontally as a wide panorama */
-  .town-scene-wrapper {
-    overflow-x: auto;
-    overflow-y: hidden;
-    width: 100%;
-    height: 100%;
-    cursor: grab;
-    touch-action: pan-x;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .town-scene-wrapper::-webkit-scrollbar { display: none; }
-  .town-scene-wrapper:active { cursor: grabbing; }
-
-  /* Fixed canvas width: keeps entire pixel art city & hotspot coordinates in perfect sync */
-  .town-scene-canvas {
-    width: 1200px;
-    min-width: 1200px;
-    height: 100%;
-    flex-shrink: 0;
-  }
-
-  .town-scene-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 46%;
-  }
-
-  .town-hotspots-layer {
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Dock: bottom full width, horizontal draggable scroll */
-  .world-module-dock {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-top: 2px solid var(--gothic-border-bone);
-    padding: 0.3rem 0.6rem;
-    justify-content: flex-start;
-    gap: 0;
-    cursor: grab;
-    touch-action: pan-x;
-  }
-  .world-module-dock:active { cursor: grabbing; }
-  .bottom-chat-terminal { display: none; }
-
-  .world-welcome-bar {
-    top: calc(var(--hud-height, 60px) + 8px);
-    left: 0.75rem;
-  }
+  pointer-events: auto;
 }
 
-/* Mobile phones (<= 650px) */
+.side-nav-left {
+  left: 1.5rem;
+}
+
+.side-nav-right {
+  right: 1.5rem;
+}
+
+.side-nav-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--gothic-surface);
+  border: 1px solid var(--gothic-border-bone);
+  padding: 0.65rem 1rem;
+  box-shadow: var(--shadow-gothic);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.side-nav-left:hover .side-nav-card {
+  transform: translateX(-4px);
+  border-color: var(--aged-gold-bright);
+  box-shadow: var(--shadow-gothic), 0 0 16px rgba(217, 119, 6, 0.25);
+}
+
+.side-nav-right:hover .side-nav-card {
+  transform: translateX(4px);
+  border-color: var(--aged-gold-bright);
+  box-shadow: var(--shadow-gothic), 0 0 16px rgba(217, 119, 6, 0.25);
+}
+
+.nav-arrow-symbol {
+  font-size: 1.25rem;
+  color: var(--aged-gold-bright);
+  transition: transform 0.2s ease;
+}
+
+.side-nav-left:hover .nav-arrow-symbol {
+  transform: translateX(-3px);
+}
+
+.side-nav-right:hover .nav-arrow-symbol {
+  transform: translateX(3px);
+}
+
+.nav-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.nav-tag {
+  font-size: 6px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.nav-dest {
+  font-size: 8px;
+  color: var(--aged-gold-shine);
+  letter-spacing: 0.05em;
+}
+
+.nav-hint {
+  font-family: var(--font-gothic);
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. RPG ZONE BANNER
+   ══════════════════════════════════════════════════════════════ */
+.rpg-zone-banner {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gothic-surface);
+  border: 1px solid var(--aged-gold-dim);
+  border-top: 2px solid var(--aged-gold-bright);
+  padding: 0.6rem 1.8rem;
+  text-align: center;
+  box-shadow: var(--shadow-gothic), 0 0 20px rgba(184, 134, 11, 0.25);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.zone-location-tag {
+  font-size: 6px;
+  color: var(--aged-gold-bright);
+  letter-spacing: 0.15em;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.zone-name {
+  font-size: 11px;
+  color: var(--text-bright);
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.zone-sub {
+  font-family: var(--font-gothic);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.zone-banner-enter-active,
+.zone-banner-leave-active {
+  transition: all 0.3s ease;
+}
+
+.zone-banner-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -12px);
+}
+
+.zone-banner-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+
+
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   9. REALM NAVIGATION GUIDE FADING MODAL & PULSE
+   ══════════════════════════════════════════════════════════════ */
+.world-side-nav.guide-pulse .side-nav-card {
+  animation: sideNavCardPulse 1.4s ease-in-out infinite alternate;
+  border-color: #ffd700;
+}
+
+@keyframes sideNavCardPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4), inset 0 0 6px rgba(255, 215, 0, 0.2);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.95), inset 0 0 12px rgba(255, 215, 0, 0.5);
+    transform: scale(1.08);
+  }
+}
+
+.realm-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 12, 0.65);
+  backdrop-filter: blur(4px);
+  padding: 1.5rem;
+}
+
+.realm-guide-card {
+  position: relative;
+  max-width: 580px;
+  width: 100%;
+  background: radial-gradient(circle at 50% 0%, rgba(38, 26, 50, 0.98), rgba(13, 10, 20, 0.99));
+  border: 2px solid var(--border-gold, #cba558);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.85), 0 0 28px rgba(203, 165, 88, 0.25);
+  border-radius: 8px;
+  padding: 1.5rem 1.75rem 1.25rem;
+  color: var(--text-bright, #fff);
+  text-align: center;
+  overflow: hidden;
+}
+
+.guide-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--gold-bright, #ffd700);
+  border-style: solid;
+  pointer-events: none;
+}
+.guide-corner.tl { top: 4px; left: 4px; border-width: 2px 0 0 2px; }
+.guide-corner.tr { top: 4px; right: 4px; border-width: 2px 2px 0 0; }
+.guide-corner.bl { bottom: 4px; left: 4px; border-width: 0 0 2px 2px; }
+.guide-corner.br { bottom: 4px; right: 4px; border-width: 0 2px 2px 0; }
+
+.guide-header-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(203, 165, 88, 0.25);
+  padding-bottom: 0.5rem;
+}
+
+.guide-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 10px;
+  color: var(--gold-bright, #ffd700);
+  letter-spacing: 0.1em;
+}
+
+.guide-close-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: var(--text-muted, #999);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 8px;
+  transition: all 0.2s;
+}
+
+.guide-close-btn:hover {
+  color: #fff;
+  border-color: var(--crimson-accent, #ff4d6d);
+  background: rgba(255, 77, 109, 0.15);
+}
+
+.guide-headline {
+  font-size: 13px;
+  color: var(--gold-bright, #ffe082);
+  letter-spacing: 0.08em;
+  margin: 0 0 0.5rem;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.guide-subtext {
+  font-size: 0.95rem;
+  color: #d0c8d8;
+  line-height: 1.45;
+  margin: 0 0 1.2rem;
+  font-family: var(--font-gothic, serif);
+}
+
+.guide-subtext strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.guide-sectors-display {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.guide-sector-box {
+  padding: 0.75rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(20, 16, 28, 0.85);
+  border: 1px solid rgba(203, 165, 88, 0.3);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.guide-sector-box:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold-bright, #ffd700);
+  background: rgba(45, 32, 62, 0.95);
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.25);
+}
+
+.guide-sector-box.is-active {
+  border-color: #ffd700;
+  background: linear-gradient(180deg, rgba(72, 48, 92, 0.85), rgba(30, 20, 45, 0.95));
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+}
+
+.sector-head {
+  font-size: 9px;
+  color: #a095ad;
+  letter-spacing: 0.06em;
+}
+
+.guide-sector-box.is-active .sector-head {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.sector-title {
+  font-size: 11px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.sector-tags {
+  font-size: 0.72rem;
+  color: #b8b0c5;
+  margin-top: 0.2rem;
+  line-height: 1.2;
+  font-family: var(--font-gothic, serif);
+}
+
+.guide-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.guide-tip-note {
+  font-size: 9px;
+  color: #a99ec0;
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+.guide-confirm-btn {
+  padding: 0.4rem 1rem;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* Auto-fade timer progress indicator */
+.guide-timer-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.guide-timer-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff4d6d, #ffd700);
+  transform-origin: left;
+  animation: guideTimerDrain 3s linear forwards;
+}
+
+@keyframes guideTimerDrain {
+  0% { width: 100%; }
+  100% { width: 0%; }
+}
+
+/* Smooth modal fade transitions */
+.guide-fade-enter-active,
+.guide-fade-leave-active {
+  transition: opacity 0.45s ease;
+}
+
+.guide-fade-enter-active .realm-guide-card,
+.guide-fade-leave-active .realm-guide-card {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.guide-fade-enter-from,
+.guide-fade-leave-to {
+  opacity: 0;
+}
+
+.guide-fade-enter-from .realm-guide-card {
+  transform: scale(0.92) translateY(16px);
+}
+
+.guide-fade-leave-to .realm-guide-card {
+  transform: scale(0.95) translateY(12px);
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   10. RESPONSIVE DESIGN
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  .world-side-nav {
+    top: auto;
+    bottom: 4.8rem;
+    transform: none;
+  }
+  .side-nav-left { left: 0.75rem; }
+  .side-nav-right { right: 0.75rem; }
+  .side-nav-card {
+    padding: 0.4rem 0.6rem;
+    gap: 0.4rem;
+  }
+  .nav-hint { display: none; }
+  .world-welcome-bar { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME — WORLD HUB (MATCHES REFERENCE)
+   ══════════════════════════════════════════════════════════════ */
+.theme-morning .welcome-pill,
+[data-theme="morning"] .welcome-pill {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+  color: #3D2B1F !important;
+  box-shadow: 0 4px 12px rgba(143, 100, 45, 0.12) !important;
+}
+
+.theme-morning .welcome-greet,
+[data-theme="morning"] .welcome-greet {
+  color: #77634F !important;
+}
+
+.theme-morning .welcome-name,
+[data-theme="morning"] .welcome-name {
+  color: #3D2B1F !important;
+}
+
+.theme-morning .welcome-streak,
+[data-theme="morning"] .welcome-streak {
+  color: #991b1b !important;
+}
+
+.theme-morning .building-badge-pill,
+[data-theme="morning"] .building-badge-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 6px 18px rgba(143, 100, 45, 0.16) !important;
+}
+
+.theme-morning .building-name,
+[data-theme="morning"] .building-name {
+  color: #3D2B1F !important;
+}
+
+.theme-morning .building-sub,
+[data-theme="morning"] .building-sub {
+  color: #77634F !important;
+}
+
+.theme-morning .side-nav-card,
+[data-theme="morning"] .side-nav-card {
+  background: #FFF4DF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 6px 18px rgba(143, 100, 45, 0.16) !important;
+}
+
+.theme-morning .nav-dest,
+[data-theme="morning"] .nav-dest {
+  color: #3D2B1F !important;
+}
+
+.theme-morning .nav-sub,
+[data-theme="morning"] .nav-sub {
+  color: #77634F !important;
+}
+
+.theme-morning .nav-arrow-symbol,
+[data-theme="morning"] .nav-arrow-symbol {
+  color: #8F642D !important;
+}
+
+.theme-morning .realm-guide-card,
+[data-theme="morning"] .realm-guide-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 16px 40px rgba(143, 100, 45, 0.25) !important;
+  color: #3D2B1F !important;
+}
+
+.theme-morning .guide-headline,
+[data-theme="morning"] .guide-headline {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+.theme-morning .guide-subtext,
+[data-theme="morning"] .guide-subtext {
+  color: #77634F !important;
+}
+
+.theme-morning .guide-subtext strong,
+[data-theme="morning"] .guide-subtext strong {
+  color: #3D2B1F !important;
+}
+
+.theme-morning .guide-sector-box,
+[data-theme="morning"] .guide-sector-box {
+  background: #F5E8CC !important;
+  border: 1px solid #B88A42 !important;
+}
+
+.theme-morning .sector-title,
+[data-theme="morning"] .sector-title {
+  color: #3D2B1F !important;
+}
+
+.theme-morning .sector-head,
+[data-theme="morning"] .sector-head {
+  color: #77634F !important;
+}
+
+.theme-morning .guide-confirm-btn,
+[data-theme="morning"] .guide-confirm-btn {
+  background: #B88A42 !important;
+  color: #FFFDF7 !important;
+  border: 1px solid #8F642D !important;
+}
+
+.theme-morning .hall-of-fame-pill,
+[data-theme="morning"] .hall-of-fame-pill {
+  background: #FFF4DF !important;
+  border: 1.5px solid #d97706 !important;
+  box-shadow: 0 6px 18px rgba(217, 119, 6, 0.25) !important;
+}
+
+@media (max-width: 900px) {
+  .spot-hall-of-fame {
+    top: 24% !important;
+    left: 84% !important;
+  }
+}
+
 @media (max-width: 650px) {
-  .world-welcome-bar {
-    top: calc(var(--hud-height, 54px) + 6px);
-    left: 0.5rem;
+  .spot-hall-of-fame {
+    top: 22% !important;
+    left: 80% !important;
+    transform: translate(-50%, -50%) scale(0.92);
   }
-  .welcome-greet { font-size: 0.78rem; }
-  .welcome-name { font-size: 6px; }
-
-  .module-dock-item { padding: 0.3rem 0.45rem; }
-  .dock-icon { font-size: 1rem; }
-  .dock-name { font-size: 5px; }
-}
-
-@media (max-width: 420px) {
-  .dock-name { display: none; }
-  .module-dock-item { padding: 0.35rem 0.5rem; }
 }
 </style>

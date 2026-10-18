@@ -171,4 +171,46 @@ defineEmits(['advance'])
 .dialogue-action-btn:hover .btn-arrow {
   transform: translateX(3px);
 }
+
+</style>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   DIALOGUE BOX — MORNING / LIGHT MODE STYLES (UNSCOPED GLOBAL)
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="morning"] .gothic-dialogue-box,
+.theme-morning .gothic-dialogue-box {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+  box-shadow: 0 4px 14px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .gothic-dialogue-box::before,
+.theme-morning .gothic-dialogue-box::before {
+  background: linear-gradient(to bottom, #D97706, #B45309) !important;
+}
+
+[data-theme="morning"] .dialogue-avatar-frame,
+.theme-morning .dialogue-avatar-frame {
+  background: #F3E4C8 !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="morning"] .dialogue-speaker-name,
+.theme-morning .dialogue-speaker-name {
+  color: #8F642D !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .dialogue-speaker-title,
+.theme-morning .dialogue-speaker-title {
+  color: #77634F !important;
+}
+
+[data-theme="morning"] .dialogue-quote,
+.theme-morning .dialogue-quote {
+  color: #2D1E12 !important;
+  font-weight: 500 !important;
+}
 </style>

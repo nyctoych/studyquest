@@ -46,23 +46,27 @@ export const CHARACTER_ANIMATIONS = {
     classType: 'MELEE',
     // Assets from /assets/CHARACTERS/DUAL-WIELDER (MELEE)/
     sprite: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    fallbackSprite: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/dual-wilder.png',
-    idle: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    opening: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    attack: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
+    fallbackSprite: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
+    idle: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee IDLE.gif',
+    idleStatic: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee IDLE.png',
+    opening: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee OPENING.gif',
+    attack: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee Attack.gif',
     attackStatic: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    death: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    victory: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
+    hit: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee HIT.gif',
+    death: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee DEATH.gif',
+    deathStatic: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee DEATH.png',
+    victory: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee VICTORY .gif',
     // Result screen animations & poses
-    resultVictory: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Meleeee IDLE.gif',
-    resultDeath: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    resultDeathStatic: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Dual-wielder.png',
-    // Timings (ms)
-    openingDuration: 1500,
-    attackDuration: 1200,
-    impactTiming: 1200,
-    deathDuration: 1500,
-    victoryDuration: 1200,
+    resultVictory: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee VICTORY .gif',
+    resultDeath: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee DEATH.gif',
+    resultDeathStatic: '/assets/CHARACTERS/DUAL-WIELDER (MELEE)/Melee DEATH.png',
+    // Timings (ms) - exact length of full GIF animations
+    openingDuration: 6800, // Exact 39 frames (6800ms) plays completely from start to end
+    attackDuration: 1900,  // Exact 14 frames (1900ms) plays completely from start to end
+    impactTiming: 1200,    // Slash impact occurs during rapid dual-blade frames (1050-1300ms)
+    hitDuration: 600,      // Exact 3 frames (600ms) hit reaction
+    deathDuration: 3800,   // Exact 9 frames (3800ms) plays completely before static Melee DEATH.png
+    victoryDuration: 4800, // Exact 12 frames (4800ms) continuous loop
     // Visual alignments
     scale: 1.08,
     offsetY: 2,

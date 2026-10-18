@@ -20,4 +20,23 @@ async function saveMatchResult(payload) {
   return response.data
 }
 
-module.exports = { saveMatchResult }
+/**
+ * Fetch combat profile for a user from PHP backend
+ * Returns authoritative scaled stats, character details, and equipped effects.
+ */
+async function getCombatProfile(userId) {
+  try {
+    const url = `${PHP_API_URL}/multiplayer/combat-profile?user_id=${userId}`
+    const response = await axios.get(url, {
+      headers: {
+        'X-Internal-Token': INTERNAL_TOKEN,
+      },
+      timeout: 5000,
+    })
+    return response.data?.success ? response.data : null
+  } catch (e) {
+    return null
+  }
+}
+
+module.exports = { saveMatchResult, getCombatProfile }

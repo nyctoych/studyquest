@@ -32,6 +32,8 @@
         <div class="avatar-disc-pedestal">
           <div class="pedestal-halo"></div>
           <AvatarImg
+            :character="player.character_class || player.class_type || player.character_key"
+            :player="player"
             :style-name="player.avatar_style || 'adventurer'"
             :seed="player.avatar_seed || player.username"
             :options="player.avatar_options || {}"

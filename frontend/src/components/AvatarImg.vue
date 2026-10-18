@@ -66,89 +66,87 @@
     </div>
 
     <!-- ══ BASE CIRCULAR DISC (Avatar + Aura Ring) ══ -->
-    <div class="avatar-base-disc" :style="discStyle">
+    <div class="avatar-base-disc" :class="discClasses" :style="discStyle">
       <!-- Aura Ring (animated inside disc border) -->
       <div v-if="activeAura" class="aura-ring" :class="activeAura.effect_key"></div>
 
-      <!-- Local Gothic / Pixel-Art Scholar Character Portrait -->
-      <svg
-        :width="size"
-        :height="size"
-        viewBox="0 0 100 100"
-        class="scholar-svg-portrait"
-        aria-label="Scholar Adventurer"
-      >
-        <defs>
-          <radialGradient :id="'discBgGrad-' + componentId" cx="50%" cy="40%" r="60%">
-            <stop offset="0%" :stop-color="portraitColors.bgCenter"/>
-            <stop offset="100%" :stop-color="portraitColors.bgOuter"/>
-          </radialGradient>
-          <filter :id="'pixelGlow-' + componentId" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="0" stdDeviation="1.5" :flood-color="portraitColors.eyeGlow" flood-opacity="0.8"/>
-          </filter>
-        </defs>
-
-        <!-- Disc background fill -->
-        <circle cx="50" cy="50" r="48" :fill="'url(#discBgGrad-' + componentId + ')'"/>
-
-        <!-- Shadow cowl back -->
-        <path d="M22 88 C20 70, 26 50, 34 38 C42 26, 58 26, 66 38 C74 50, 80 70, 78 88 Z" :fill="portraitColors.cowlDark"/>
-
-        <!-- Robe / Shoulders -->
-        <path d="M12 98 C18 78, 32 72, 50 72 C68 72, 82 78, 88 98 Z" :fill="portraitColors.robeBase"/>
-        <path d="M38 72 L50 86 L62 72 Z" :fill="portraitColors.robeTrim"/>
-
-        <!-- Brooch / Amulet of Wisdom -->
-        <polygon points="50,83 54,88 50,93 46,88" :fill="portraitColors.gemColor" stroke="#ffffff" stroke-width="0.6"/>
-
-        <!-- Face / Head (Skin Tone) -->
-        <ellipse cx="50" cy="52" rx="19" ry="22" :fill="portraitColors.skinColor"/>
-
-        <!-- Scholar Cowl / Hood Overlay Frame -->
-        <path d="M28 42 C30 25, 42 16, 50 16 C58 16, 70 25, 72 42 C72 58, 68 66, 68 66 C68 66, 62 56, 50 56 C38 56, 32 66, 32 66 C32 66, 28 58, 28 42 Z" :fill="portraitColors.cowlMain"/>
-        <path d="M29 42 C30 26, 42 18, 50 18 C58 18, 70 26, 71 42" fill="none" :stroke="portraitColors.cowlTrim" stroke-width="1.5"/>
-
-        <!-- Gothic Scholar Forelock -->
-        <path d="M38 42 Q46 44 48 50 Q43 45 38 45 Z" :fill="portraitColors.hairColor"/>
-        <path d="M62 42 Q54 44 52 50 Q57 45 62 45 Z" :fill="portraitColors.hairColor"/>
-
-        <!-- Piercing Scholar Eyes -->
-        <ellipse cx="43" cy="52" rx="3.5" ry="2" :fill="portraitColors.eyeSclera"/>
-        <ellipse cx="57" cy="52" rx="3.5" ry="2" :fill="portraitColors.eyeSclera"/>
-        <circle cx="43" cy="52" r="1.8" :fill="portraitColors.eyeColor" :filter="'url(#pixelGlow-' + componentId + ')'"/>
-        <circle cx="57" cy="52" r="1.8" :fill="portraitColors.eyeColor" :filter="'url(#pixelGlow-' + componentId + ')'"/>
-        <circle cx="42" cy="51" r="0.6" fill="#ffffff"/>
-        <circle cx="56" cy="51" r="0.6" fill="#ffffff"/>
-
-        <!-- Eyebrows -->
-        <path d="M39 48 Q44 46 47 48" fill="none" :stroke="portraitColors.hairColor" stroke-width="1" stroke-linecap="round"/>
-        <path d="M61 48 Q56 46 53 48" fill="none" :stroke="portraitColors.hairColor" stroke-width="1" stroke-linecap="round"/>
-
-        <!-- Nose -->
-        <path d="M50 52 L49 57 L52 57" fill="none" :stroke="portraitColors.shadowSkin" stroke-width="1" stroke-linecap="round"/>
-
-        <!-- Mouth -->
-        <path d="M47 62 Q50 63 53 62" fill="none" :stroke="portraitColors.shadowSkin" stroke-width="1.2" stroke-linecap="round"/>
-      </svg>
+      <!-- Character Class Profile Avatar (Non-Changeable) -->
+      <img
+        :src="currentAvatarSrc"
+        :alt="avatarAlt"
+        class="avatar-profile-img"
+        draggable="false"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, getCurrentInstance } from 'vue'
+import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { getProfileAvatarByClass, normalizeCharacterClass } from '../utils/avatar'
 
 const auth = useAuthStore()
-const instance = getCurrentInstance()
-const componentId = instance?.uid ?? Math.floor(Math.random() * 100000)
 
 const props = defineProps({
-  styleName:   { type: String, default: 'adventurer' }, // Retained for backwards compatibility
-  seed:        { type: String, default: 'default' },    // Retained for backwards compatibility
-  options:     { type: Object, default: () => ({}) },   // Retained for backwards compatibility
-  size:        { type: Number, default: 48 },
-  previewItem: { type: Object, default: null },         // Live "Try On" item from shop
-  equipped:    { type: Array,  default: null }          // Custom equipped list (defaults to auth store)
+  styleName:      { type: String, default: 'adventurer' }, // Retained for backwards compatibility
+  seed:           { type: String, default: 'default' },    // Retained for backwards compatibility
+  options:        { type: Object, default: () => ({}) },   // Retained for backwards compatibility
+  size:           { type: Number, default: 48 },
+  previewItem:    { type: Object, default: null },         // Live "Try On" item from shop
+  equipped:       { type: Array,  default: null },         // Custom equipped list (defaults to auth store)
+  character:      { type: [Object, String], default: null }, // Character object or class name
+  characterClass: { type: String, default: '' },           // Explicit class name
+  player:         { type: Object, default: null }          // Player data from leaderboard/dossier
+})
+
+// ── Resolve Character Class ─────────────────────────────────────────
+const resolvedClass = computed(() => {
+  if (props.characterClass) {
+    return normalizeCharacterClass(props.characterClass)
+  }
+  if (props.character) {
+    if (typeof props.character === 'string') return normalizeCharacterClass(props.character)
+    if (props.character.class_type) return normalizeCharacterClass(props.character.class_type)
+    if (props.character.key_name) return normalizeCharacterClass(props.character.key_name)
+    if (props.character.name) return normalizeCharacterClass(props.character.name)
+  }
+  if (props.player) {
+    if (props.player.character_class) return normalizeCharacterClass(props.player.character_class)
+    if (props.player.class_type) return normalizeCharacterClass(props.player.class_type)
+    if (props.player.character_key) return normalizeCharacterClass(props.player.character_key)
+    if (props.player.selected_character?.class_type) return normalizeCharacterClass(props.player.selected_character.class_type)
+    if (props.player.character?.class_type) return normalizeCharacterClass(props.player.character.class_type)
+    if (props.player.selected_character_id === 2) return 'MELEE'
+    if (props.player.selected_character_id === 3) return 'RANGE'
+    if (props.player.selected_character_id === 1) return 'MAGE'
+    // Prevent leaking the viewer's own class to competitors or leaderboard entries
+    return 'MAGE'
+  }
+  if (props.options?.character_class) return normalizeCharacterClass(props.options.character_class)
+  if (props.options?.class_type) return normalizeCharacterClass(props.options.class_type)
+
+  // Auth user fallback (only when rendering current logged-in user)
+  return auth.characterClass || 'MAGE'
+})
+
+// ── Official Non-Changeable Profile Avatar Image ───────────────────
+// IF MAGE  => NecroProfile.png
+// IF MELEE => MeleeProfile.png
+// IF RANGE => ArcherProfile.png
+const currentAvatarSrc = computed(() => {
+  return getProfileAvatarByClass(resolvedClass.value)
+})
+
+const avatarAlt = computed(() => {
+  if (resolvedClass.value === 'MELEE') return 'Dual-Wielder (Melee) Avatar'
+  if (resolvedClass.value === 'RANGE') return 'Archer (Range) Avatar'
+  return 'Necromancer (Mage) Avatar'
+})
+
+const discClasses = computed(() => {
+  const cls = resolvedClass.value.toLowerCase()
+  return [`class-disc-${cls}`]
 })
 
 // ── Full active items list (preview overrides equipped slot) ────────
@@ -176,83 +174,6 @@ function getByCategory(slug) {
 const activeSkin       = computed(() => getByCategory('character_skin'))
 const activeAura       = computed(() => getByCategory('aura'))
 const activeBackEffect = computed(() => getByCategory('back_effect'))
-
-// ── Local Palette based on equipped character skin ─────────────────
-const portraitColors = computed(() => {
-  const skinKey = activeSkin.value?.effect_key || 'skin-default'
-
-  switch (skinKey) {
-    case 'skin-crimson':
-      return {
-        bgCenter:    '#2c0f14',
-        bgOuter:     '#120406',
-        skinColor:   '#c25b3a',
-        shadowSkin:  '#8a371c',
-        cowlDark:    '#25080c',
-        cowlMain:    '#4a0d14',
-        cowlTrim:    '#c0392b',
-        robeBase:    '#32090e',
-        robeTrim:    '#8b1a1a',
-        gemColor:    '#ff4444',
-        hairColor:   '#180507',
-        eyeSclera:   '#ffdede',
-        eyeColor:    '#e74c3c',
-        eyeGlow:     '#ff2222',
-      }
-    case 'skin-midnight':
-      return {
-        bgCenter:    '#211636',
-        bgOuter:     '#0c0618',
-        skinColor:   '#8b7bb0',
-        shadowSkin:  '#59477e',
-        cowlDark:    '#180f28',
-        cowlMain:    '#2e1f4d',
-        cowlTrim:    '#a855f7',
-        robeBase:    '#1f1435',
-        robeTrim:    '#6b21a8',
-        gemColor:    '#c084fc',
-        hairColor:   '#130a21',
-        eyeSclera:   '#f3e8ff',
-        eyeColor:    '#a855f7',
-        eyeGlow:     '#c084fc',
-      }
-    case 'skin-auric':
-      return {
-        bgCenter:    '#362810',
-        bgOuter:     '#161004',
-        skinColor:   '#d4a853',
-        shadowSkin:  '#997327',
-        cowlDark:    '#241a08',
-        cowlMain:    '#4d3810',
-        cowlTrim:    '#f59e0b',
-        robeBase:    '#33250a',
-        robeTrim:    '#b45309',
-        gemColor:    '#fbbf24',
-        hairColor:   '#1f1604',
-        eyeSclera:   '#fef3c7',
-        eyeColor:    '#f59e0b',
-        eyeGlow:     '#fbbf24',
-      }
-    case 'skin-default':
-    default:
-      return {
-        bgCenter:    '#1c2538',
-        bgOuter:     '#0b101c',
-        skinColor:   '#f2d3b1',
-        shadowSkin:  '#c79d74',
-        cowlDark:    '#0e1422',
-        cowlMain:    '#182136',
-        cowlTrim:    '#4f6b9c',
-        robeBase:    '#131a2b',
-        robeTrim:    '#2b3d63',
-        gemColor:    '#60a5fa',
-        hairColor:   '#0d111c',
-        eyeSclera:   '#ffffff',
-        eyeColor:    '#38bdf8',
-        eyeGlow:     '#38bdf8',
-      }
-  }
-})
 
 // ── Wrapper classes ────────────────────────────────────────────────
 const wrapperClasses = computed(() => {
@@ -296,11 +217,44 @@ const discStyle = computed(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   z-index: 2;
+  transition: all 0.3s ease;
 }
 
-/* ── Avatar Image ──────────────────────────────────────────────────── */
+.avatar-base-disc.class-disc-mage {
+  background: radial-gradient(circle at 50% 35%, #25123a 0%, #0d0617 85%);
+  border: 2px solid rgba(168, 85, 247, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(168, 85, 247, 0.25);
+}
+
+.avatar-base-disc.class-disc-melee {
+  background: radial-gradient(circle at 50% 35%, #152238 0%, #080f1c 85%);
+  border: 2px solid rgba(59, 130, 246, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(59, 130, 246, 0.25);
+}
+
+.avatar-base-disc.class-disc-range {
+  background: radial-gradient(circle at 50% 35%, #122d20 0%, #06150e 85%);
+  border: 2px solid rgba(34, 197, 94, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(34, 197, 94, 0.25);
+}
+
+/* ── Avatar Profile Image ────────────────────────────────────────── */
+.avatar-profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  display: block;
+  position: relative;
+  z-index: 2;
+  transform: scale(1.16) translateY(5%);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
 .avatar-img {
   width: 100%;
   height: 100%;

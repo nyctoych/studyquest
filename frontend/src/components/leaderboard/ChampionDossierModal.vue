@@ -24,6 +24,8 @@
       <div class="dossier-character-stage">
         <div class="character-halo"></div>
         <AvatarImg
+          :character="player.character_class || player.class_type || player.character_key"
+          :player="player"
           :style-name="player.avatar_style || 'adventurer'"
           :seed="player.avatar_seed || player.username"
           :options="player.avatar_options || {}"
@@ -152,15 +154,21 @@ const winRate = computed(() => {
   backdrop-filter: blur(10px);
   z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 1.5rem;
+  padding-top: calc(var(--hud-height, 68px) + 1.75rem);
+  padding-bottom: 2.5rem;
+  overflow-y: auto;
 }
 
 .dossier-modal {
   position: relative;
   width: 100%;
   max-width: 520px;
+  margin-top: 1.25rem;
+  margin-bottom: 2rem;
+  max-height: calc(100vh - var(--hud-height, 68px) - 5rem);
   background: linear-gradient(180deg, #161722 0%, #0d0e15 100%);
   border: 1px solid #b59410;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(181, 148, 16, 0.25);

@@ -150,11 +150,44 @@ class SpecialEventMigration {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
+            // 7. special_event_adaptive_history table (Auditable tracking of daily Bloom adaptations)
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS special_event_adaptive_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    special_event_id INT NOT NULL,
+                    user_id INT NOT NULL,
+                    target_bloom ENUM('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create') NULL,
+                    secondary_bloom ENUM('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create') NULL,
+                    distribution JSON NOT NULL,
+                    weakness_summary JSON DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_adapt_user (user_id),
+                    INDEX idx_adapt_event (special_event_id),
+                    INDEX idx_adapt_bloom (target_bloom)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Add adaptive columns to special_events if not already present
+            self::ensureAdaptiveColumns($db);
+
             self::seedDefaultSettings($db);
 
         } catch (Throwable $e) {
             error_log("SpecialEventMigration Error: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    private static function ensureAdaptiveColumns(PDO $db): void {
+        $cols = $db->query("SHOW COLUMNS FROM special_events LIKE 'target_bloom'")->fetchAll();
+        if (empty($cols)) {
+            $db->exec("
+                ALTER TABLE special_events
+                ADD COLUMN target_bloom VARCHAR(50) NULL DEFAULT NULL AFTER assigned_domains,
+                ADD COLUMN secondary_bloom VARCHAR(50) NULL DEFAULT NULL AFTER target_bloom,
+                ADD COLUMN is_adaptive TINYINT(1) NOT NULL DEFAULT 0 AFTER secondary_bloom,
+                ADD COLUMN adaptive_distribution JSON DEFAULT NULL AFTER is_adaptive
+            ");
         }
     }
 
@@ -190,7 +223,14 @@ class SpecialEventMigration {
                 'Configurable Bloom Taxonomy question distribution (sum = 140)'
             ],
             'immediate_feedback' => ['false', 'Whether to reveal Bloom level and feedback immediately upon answering in practice mode'],
-            'groq_model' => ['llama-3.3-70b-versatile', 'Configurable Groq LLM model']
+            'groq_model' => ['openai/gpt-oss-120b', 'Configurable Groq LLM model'],
+            'adaptive_enabled' => ['true', 'Enable adaptive Bloom distribution targeting user weaknesses'],
+            'adaptive_primary_weight' => ['40', 'Percentage of 140 items allocated to primary weakest Bloom level (56 Qs)'],
+            'adaptive_secondary_weight' => ['20', 'Percentage of 140 items allocated to secondary Bloom level (28 Qs)'],
+            'adaptive_remaining_weight' => ['10', 'Percentage allocated to each remaining Bloom level (14 Qs each x 4 = 56 Qs)'],
+            'adaptive_min_sample_threshold' => ['8', 'Minimum questions answered in a Bloom level before classifying as reliable weakness'],
+            'adaptive_recent_window_days' => ['14', 'Historical lookback window in days for Bloom weakness calculation'],
+            'adaptive_min_trials' => ['1', 'Minimum completed daily trials required before switching to adaptive targeting']
         ];
 
         $stmt = $db->prepare("

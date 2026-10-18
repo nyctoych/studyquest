@@ -4,6 +4,7 @@
       <div
         v-if="isOpen"
         class="battle-confirm-backdrop"
+        :class="{ 'is-morning': isMorning }"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
@@ -11,7 +12,7 @@
       >
         <div
           class="battle-confirm-modal gothic-panel"
-          :class="{ 'is-boss-theme': isBoss }"
+          :class="{ 'is-boss-theme': isBoss, 'is-morning': isMorning }"
         >
           <!-- Corner Runic Accents -->
           <div class="corner-rune top-left">✦</div>
@@ -91,8 +92,12 @@
 </template>
 
 <script setup>
-import { watch, onMounted, onUnmounted } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
+import { useGameStore } from '../../stores/game'
 import { battleAudio } from '../../services/battleAudio'
+
+const game = useGameStore()
+const isMorning = computed(() => game.isMorning)
 
 const props = defineProps({
   isOpen: {
@@ -425,7 +430,7 @@ function handleConfirm() {
 .choice-text {
   font-size: 0.95rem;
   line-height: 1.45;
-  color: #f8fafc;
+  color: var(--choice-text-color, #f8fafc);
   font-weight: 500;
 }
 
@@ -523,5 +528,147 @@ function handleConfirm() {
   .btn-confirm-execute {
     order: -1;
   }
+}
+
+</style>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES (UNSCOPED GLOBAL)
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="morning"] .battle-confirm-backdrop,
+.theme-morning .battle-confirm-backdrop {
+  background: rgba(35, 24, 15, 0.48) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal,
+.theme-morning .battle-confirm-modal {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 20px 50px rgba(143, 100, 45, 0.28) !important;
+  color: #3D2B1F !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .corner-rune,
+.theme-morning .battle-confirm-modal .corner-rune {
+  color: #b45309 !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-header,
+.theme-morning .battle-confirm-modal .confirm-header {
+  border-bottom: 1px solid rgba(184, 138, 66, 0.35) !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-eyebrow,
+.theme-morning .battle-confirm-modal .confirm-eyebrow {
+  color: #92400e !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-title,
+.theme-morning .battle-confirm-modal .confirm-title {
+  color: #78350f !important;
+  text-shadow: none !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-target-row,
+.theme-morning .battle-confirm-modal .confirm-target-row {
+  background: rgba(180, 83, 9, 0.08) !important;
+  border: 1px solid rgba(184, 151, 88, 0.4) !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .target-label,
+.theme-morning .battle-confirm-modal .target-label {
+  color: #8c7860 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .target-name,
+.theme-morning .battle-confirm-modal .target-name {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .target-title,
+.theme-morning .battle-confirm-modal .target-title {
+  color: #6b553d !important;
+  font-style: italic !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-inquiry-box,
+.theme-morning .battle-confirm-modal .confirm-inquiry-box {
+  background: #FAF2E1 !important;
+  border: 1.5px solid #D4C3A3 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .inquiry-header,
+.theme-morning .battle-confirm-modal .inquiry-header {
+  color: #92400e !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .inquiry-text,
+.theme-morning .battle-confirm-modal .inquiry-text {
+  color: #2B1D0E !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-choice-card,
+.theme-morning .battle-confirm-modal .confirm-choice-card {
+  background: #FFFFFF !important;
+  border: 1.5px solid #B88A42 !important;
+  box-shadow: 0 2px 8px rgba(143, 100, 45, 0.08) !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .staged-badge,
+.theme-morning .battle-confirm-modal .staged-badge {
+  color: #92400e !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .ability-badge,
+.theme-morning .battle-confirm-modal .ability-badge {
+  background: rgba(180, 83, 9, 0.12) !important;
+  color: #92400e !important;
+  border: 1px solid #d4a359 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .choice-key-badge,
+.theme-morning .battle-confirm-modal .choice-key-badge {
+  background: #b45309 !important;
+  color: #ffffff !important;
+  border-color: #92400e !important;
+  box-shadow: none !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .choice-text,
+.theme-morning .battle-confirm-modal .choice-text {
+  color: #1F140A !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .confirm-prompt-note,
+.theme-morning .battle-confirm-modal .confirm-prompt-note {
+  color: #6B553D !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .btn-confirm-cancel,
+.theme-morning .battle-confirm-modal .btn-confirm-cancel {
+  background: #EDE2CF !important;
+  border: 1.5px solid #C8B58A !important;
+  color: #433222 !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .btn-confirm-cancel:hover,
+.theme-morning .battle-confirm-modal .btn-confirm-cancel:hover {
+  background: #E2D3BC !important;
+  color: #1F140A !important;
+}
+
+[data-theme="morning"] .battle-confirm-modal .kbd-hint,
+.theme-morning .battle-confirm-modal .kbd-hint {
+  background: rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  color: #432810 !important;
 }
 </style>

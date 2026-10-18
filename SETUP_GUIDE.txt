@@ -82,3 +82,4 @@ ARCHITECTURE & OFFLINE CONFIGURATION NOTES
   Adventure Gate, Arena, Market, Hall of Records, Achievement Hall,
   Chronicle Hall, and Settings.
 ========================================================================
+

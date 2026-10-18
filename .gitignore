@@ -1,9 +1,24 @@
+# Environment files
 .env
+.env.*
 *.env
 backend/.env
+backend/.env.*
 socketserver/.env
+socketserver/.env.*
+!.env.example
+!backend/.env.example
+
+# Dependencies
 vendor/
 node_modules/
 dist/
+
+# Logs & scratch
 *.log
 scratch/
+
+# User storage & uploads
+backend/storage/vault/*
+!backend/storage/vault/.htaccess
+!backend/storage/vault/.gitkeep

@@ -4,7 +4,7 @@
     <EnemySpeechBubble
       v-if="speechText"
       :text="speechText"
-      :speaker-name="enemyName"
+      :speaker-name="displayEnemyName"
     />
 
     <!-- Ground Pedestal / Dark Rune Circle -->
@@ -16,19 +16,20 @@
 
     <!-- Minion Sprite Container -->
     <div class="minion-sprite-wrapper" :class="animClass">
-      <!-- Custom Minion Sprite if configured in battleAssets -->
+      <!-- Authoritative Chapter Minion Sprite (Pixel Art PNG) -->
       <img
-        v-if="spriteSrc"
+        v-if="spriteSrc && !imgLoadError"
         :src="spriteSrc"
-        :alt="enemyName"
+        :alt="displayEnemyName"
         class="minion-custom-sprite pixel-art"
+        :style="minionSpriteStyles"
+        @error="onImgError"
       />
 
-      <!-- Default Dark Fantasy Fracture Specter Placeholder SVG -->
+      <!-- Fallback Dark Fantasy Placeholder SVG if asset load fails -->
       <div v-else class="minion-specter-placeholder">
         <svg class="specter-svg" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <!-- Shadow Aberration Gradient -->
             <radialGradient id="specterGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stop-color="#dc2626" stop-opacity="0.85" />
               <stop offset="50%" stop-color="#7f1d1d" stop-opacity="0.6" />
@@ -59,21 +60,18 @@
           <!-- Shadow Core / Shroud Body -->
           <path d="M 35,35 Q 60,20 85,35 Q 96,65 88,95 Q 60,118 32,95 Q 24,65 35,35 Z" fill="url(#specterBodyGrad)" stroke="#b91c1c" stroke-width="2" />
 
-          <!-- Fractured Mind Core (Cracked crystal in chest) -->
+          <!-- Fractured Mind Core -->
           <polygon points="60,52 70,66 60,80 50,66" fill="#ef4444" filter="url(#aberrationGlow)" />
           <line x1="56" y1="58" x2="64" y2="74" stroke="#fef2f2" stroke-width="1.5" />
 
           <!-- Glowing Crimson Aberration Eyes -->
           <g class="specter-eyes" filter="url(#aberrationGlow)">
-            <!-- Left Eye -->
             <ellipse cx="48" cy="44" rx="4.5" ry="3" fill="#fca5a5" transform="rotate(-15 48 44)" />
             <circle cx="49" cy="44" r="1.5" fill="#ffffff" />
-            <!-- Right Eye -->
             <ellipse cx="72" cy="44" rx="4.5" ry="3" fill="#fca5a5" transform="rotate(15 72 44)" />
             <circle cx="71" cy="44" r="1.5" fill="#ffffff" />
           </g>
 
-          <!-- Mocking Smile (Opens widely during laugh animation) -->
           <path
             v-if="battleState === 'laughing'"
             d="M 44,58 Q 60,74 76,58 Q 60,82 44,58 Z"
@@ -90,21 +88,21 @@
             stroke-linecap="round"
           />
         </svg>
-
-        <!-- Hit Impact Slash Graphic -->
-        <div v-if="battleState === 'hit'" class="hit-slash-spark"></div>
       </div>
+
+      <!-- Hit Impact Slash Graphic -->
+      <div v-if="battleState === 'hit'" class="hit-slash-spark"></div>
     </div>
 
     <!-- Retro Enemy Nameplate (Pokemon style, NO player HP!) -->
     <div class="enemy-nameplate gothic-panel">
       <div class="nameplate-row">
-        <span class="enemy-icon-badge">🦇</span>
-        <span class="enemy-display-name">{{ enemyName }}</span>
+        <span class="enemy-icon-badge">{{ enemyBadgeIcon }}</span>
+        <span class="enemy-display-name">{{ displayEnemyName }}</span>
       </div>
 
       <!-- Enemy HP Bar (Pokemon Style) -->
-      <div class="enemy-hp-bar-container">
+      <div class="enemy-hp-bar-container" :title="`HP: ${displayHpText} (${Math.round(displayHpPct)}%)`">
         <span class="enemy-hp-label">HP</span>
         <div class="enemy-hp-track">
           <div
@@ -113,11 +111,11 @@
             :style="{ width: `${displayHpPct}%` }"
           ></div>
         </div>
-        <span class="enemy-hp-val">{{ Math.round(displayHpPct) }}%</span>
+        <span class="enemy-hp-val">{{ displayHpText }}</span>
       </div>
 
       <div class="enemy-sub-row">
-        <span class="enemy-title-tag">{{ enemyTitle }}</span>
+        <span class="enemy-title-tag">{{ displayEnemyTitle }}</span>
         <span class="enemy-reaction-status" :class="battleState">
           {{ enemyReactionLabel }}
         </span>
@@ -127,18 +125,26 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { battleAssets } from '../../config/battleAssets'
+import { ref, computed, watch } from 'vue'
+import { getChapterMinion, getMinionAssetUrl } from '../../config/chapterMinions'
 import EnemySpeechBubble from './EnemySpeechBubble.vue'
 
 const props = defineProps({
+  chapterId: {
+    type: [Number, String],
+    default: 1
+  },
+  partNum: {
+    type: [Number, String],
+    default: 1
+  },
   enemyName: {
     type: String,
-    default: 'Fracture Specter'
+    default: ''
   },
   enemyTitle: {
     type: String,
-    default: 'Cognitive Aberration'
+    default: ''
   },
   battleState: {
     type: String,
@@ -151,15 +157,93 @@ const props = defineProps({
   enemyHpPct: {
     type: Number,
     default: 100
+  },
+  enemyHp: {
+    type: Number,
+    default: null
+  },
+  enemyMaxHp: {
+    type: Number,
+    default: null
+  },
+  damageDealt: {
+    type: Number,
+    default: 0
+  },
+  damageType: {
+    type: String,
+    default: 'normal'
   }
 })
+
+// Image loading state & graceful fallback
+const imgLoadError = ref(false)
+
+watch(() => props.chapterId, () => {
+  imgLoadError.value = false
+})
+
+// Authoritative Chapter Minion Mapping (Universal for all users & characters)
+const currentMinion = computed(() => {
+  return getChapterMinion(props.chapterId)
+})
+
+const spriteSrc = computed(() => {
+  return getMinionAssetUrl(props.chapterId)
+})
+
+const onImgError = (e) => {
+  console.warn(`[MinionBattleSprite] Failed to load minion image for Chapter ${props.chapterId}:`, e)
+  imgLoadError.value = true
+}
 
 const displayHpPct = computed(() => {
   return Math.max(0, Math.min(100, props.enemyHpPct ?? 100))
 })
 
-const spriteSrc = computed(() => {
-  return battleAssets.minionPlaceholder.spriteUrl || ''
+const displayHpText = computed(() => {
+  if (props.enemyHp !== null && props.enemyHp !== undefined) {
+    const cur = Math.max(0, Math.round(props.enemyHp))
+    if (props.enemyMaxHp !== null && props.enemyMaxHp !== undefined && props.enemyMaxHp > 0) {
+      const max = Math.round(props.enemyMaxHp)
+      return `${cur} / ${max}`
+    }
+    return `${cur} HP`
+  }
+  return `${Math.round(displayHpPct.value)}%`
+})
+
+// Display identity
+const displayEnemyName = computed(() => {
+  return currentMinion.value?.name || props.enemyName || 'Regional Minion'
+})
+
+const displayEnemyTitle = computed(() => {
+  // If a specific narrative title is provided that isn't the generic specter placeholder, display it
+  if (props.enemyName && !['Fracture Specter', 'Study Specter', currentMinion.value?.name].includes(props.enemyName)) {
+    return props.enemyName
+  }
+  return currentMinion.value?.title || props.enemyTitle || 'Regional Creature'
+})
+
+const enemyBadgeIcon = computed(() => {
+  return currentMinion.value?.iconEmoji || '⚔️'
+})
+
+// Pixel Art Positioning & Sizing Styles per Minion
+const minionSpriteStyles = computed(() => {
+  const m = currentMinion.value
+  const scale = m?.scale || 1.0
+  const offsetY = m?.offsetY || 0
+  const offsetX = m?.offsetX || 0
+  const w = m?.width ? `${m.width}px` : '135px'
+  const h = m?.height ? `${m.height}px` : '135px'
+
+  return {
+    width: w,
+    height: h,
+    transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`
+  }
 })
 
 const battleStateClass = computed(() => `state-${props.battleState}`)
@@ -185,7 +269,7 @@ const enemyReactionLabel = computed(() => {
   align-items: center;
   justify-content: flex-end;
   width: 195px;
-  height: 175px;
+  height: 180px;
 }
 
 /* Enemy Pedestal */
@@ -225,7 +309,7 @@ const enemyReactionLabel = computed(() => {
 .minion-sprite-wrapper {
   position: relative;
   z-index: 5;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -233,14 +317,21 @@ const enemyReactionLabel = computed(() => {
 }
 
 .minion-custom-sprite {
-  width: 125px;
-  height: 125px;
+  max-width: 150px;
+  max-height: 150px;
   object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75));
+  transition: filter 0.2s ease, transform 0.2s ease;
+  user-select: none;
+  pointer-events: none;
 }
 
 .minion-specter-placeholder {
-  width: 150px;
-  height: 160px;
+  width: 140px;
+  height: 150px;
   position: relative;
   display: flex;
   justify-content: center;
@@ -255,7 +346,7 @@ const enemyReactionLabel = computed(() => {
 
 /* Idle Animation */
 .anim-minion-idle {
-  animation: minion-hover 2.6s ease-in-out infinite;
+  animation: minion-hover 2.8s ease-in-out infinite;
 }
 
 @keyframes minion-hover {
@@ -332,16 +423,17 @@ const enemyReactionLabel = computed(() => {
 .nameplate-row {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .enemy-icon-badge {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .enemy-display-name {
   font-family: 'Cinzel', serif;
-  font-size: clamp(0.7rem, 0.95vw, 0.82rem);
+  font-size: clamp(0.72rem, 0.95vw, 0.84rem);
   font-weight: 700;
   color: #f8fafc;
   white-space: nowrap;
@@ -415,9 +507,40 @@ const enemyReactionLabel = computed(() => {
 
 .enemy-hp-val {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.4rem;
+  font-size: 0.38rem;
   color: #e2e8f0;
-  min-width: 28px;
   text-align: right;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MORNING MODE / LIGHT THEME STYLES
+   ══════════════════════════════════════════════════════════════ */
+:global(.theme-morning) .enemy-nameplate,
+:global([data-theme="morning"]) .enemy-nameplate {
+  background: rgba(254, 252, 248, 0.96) !important;
+  border: 2px solid #b89758 !important;
+  box-shadow: 0 4px 16px rgba(80, 55, 20, 0.25), 0 0 10px rgba(184, 151, 88, 0.25) !important;
+}
+
+:global(.theme-morning) .enemy-display-name,
+:global([data-theme="morning"]) .enemy-display-name {
+  color: #2b2216 !important;
+}
+
+:global(.theme-morning) .enemy-title-tag,
+:global([data-theme="morning"]) .enemy-title-tag {
+  color: #78350f !important;
+}
+
+:global(.theme-morning) .enemy-hp-track,
+:global([data-theme="morning"]) .enemy-hp-track {
+  background: rgba(180, 150, 110, 0.35) !important;
+  border: 1px solid rgba(184, 151, 88, 0.4) !important;
+}
+
+:global(.theme-morning) .enemy-hp-val,
+:global([data-theme="morning"]) .enemy-hp-val {
+  color: #4b3e2e !important;
 }
 </style>

@@ -9,7 +9,7 @@ class User {
     }
 
     public function findById(int $id): ?array {
-        $stmt = $this->db->prepare("SELECT id, username, nickname, email, points, xp, level, streak, longest_streak, coins, battle_rating, wins, losses, draws, total_battles, last_quest_date, avatar_style, avatar_seed, avatar_options, is_new_player, selected_character_id, created_at FROM users WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT id, username, nickname, email, points, xp, level, streak, longest_streak, coins, last_daily_chest_at, battle_rating, wins, losses, draws, total_battles, last_quest_date, avatar_style, avatar_seed, avatar_options, is_new_player, selected_character_id, adventure_current_hp, adventure_hp_persisted, health_regen_last_at, created_at FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $user = $stmt->fetch();
         if ($user) {
@@ -30,6 +30,28 @@ class User {
             require_once __DIR__ . '/Character.php';
             $charModel = new Character();
             $user['selected_character'] = $charModel->getUserSelectedCharacter($id) ?: $charModel->findById(1);
+
+            require_once __DIR__ . '/AttributeAllocation.php';
+            $allocModel = new AttributeAllocation();
+            $charId = (int)($user['selected_character']['id'] ?? 1);
+            $allocTotals = $allocModel->getAllocationTotals($id, $charId);
+            $userLevel = (int)($user['level'] ?? 1);
+            $pendingMilestones = $allocModel->getPendingMilestones($id, $userLevel, $charId);
+
+            if (!empty($user['selected_character'])) {
+                $user['selected_character']['allocations'] = $allocTotals['allocations'];
+                $user['selected_character']['allocated_bonuses'] = $allocTotals;
+                $user['selected_character']['pending_milestones'] = $pendingMilestones;
+            }
+            $user['attribute_allocations'] = $allocTotals['allocations'];
+            $user['allocated_bonuses'] = $allocTotals;
+            $user['pending_milestones'] = $pendingMilestones;
+            $user['has_pending_allocations'] = !empty($pendingMilestones);
+            $user['next_pending_milestone'] = !empty($pendingMilestones) ? $pendingMilestones[0] : null;
+
+            require_once __DIR__ . '/BattlefieldPreference.php';
+            $prefModel = new BattlefieldPreference();
+            $user['battlefield_preferences'] = $prefModel->getByUserId($id);
         }
         return $user ?: null;
     }
@@ -60,18 +82,24 @@ class User {
         return (int) $this->db->lastInsertId();
     }
 
+    public function updatePassword(int $userId, string $newPassword): bool {
+        $hashed = password_hash($newPassword, PASSWORD_BCRYPT);
+        $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE id = ?");
+        return $stmt->execute([$hashed, $userId]);
+    }
+
     public function addCoins(int $userId, int $coins): int {
-        $stmt = $this->db->prepare("UPDATE users SET coins = COALESCE(coins, 0) + ? WHERE id = ?");
-        $stmt->execute([$coins, $userId]);
+        $stmt = $this->db->prepare("UPDATE users SET coins = COALESCE(coins, 0) + ?, points = COALESCE(points, 0) + ? WHERE id = ?");
+        $stmt->execute([$coins, $coins, $userId]);
         $user = $this->findById($userId);
         return (int)($user['coins'] ?? 0);
     }
 
     public function spendCoins(int $userId, int $cost): bool {
         $user = $this->findById($userId);
-        if (($user['coins'] ?? 0) < $cost) return false;
-        $stmt = $this->db->prepare("UPDATE users SET coins = coins - ? WHERE id = ?");
-        return $stmt->execute([$cost, $userId]);
+        if (($user['coins'] ?? 0) < $cost && ($user['points'] ?? 0) < $cost) return false;
+        $stmt = $this->db->prepare("UPDATE users SET coins = GREATEST(0, coins - ?), points = GREATEST(0, points - ?) WHERE id = ?");
+        return $stmt->execute([$cost, $cost, $userId]);
     }
 
     public function completeTutorial(int $userId): bool {
@@ -107,18 +135,17 @@ class User {
     }
 
     public function addPoints(int $userId, int $points): int {
-        $stmt = $this->db->prepare("UPDATE users SET points = points + ? WHERE id = ?");
-        $stmt->execute([$points, $userId]);
+        $stmt = $this->db->prepare("UPDATE users SET points = COALESCE(points, 0) + ?, coins = COALESCE(coins, 0) + ? WHERE id = ?");
+        $stmt->execute([$points, $points, $userId]);
         $user = $this->findById($userId);
-        return $user['points'];
+        return (int)($user['coins'] ?? $user['points'] ?? 0);
     }
-
 
     public function spendPoints(int $userId, int $cost): bool {
         $user = $this->findById($userId);
-        if ($user['points'] < $cost) return false;
-        $stmt = $this->db->prepare("UPDATE users SET points = points - ? WHERE id = ?");
-        return $stmt->execute([$cost, $userId]);
+        if (($user['points'] ?? 0) < $cost && ($user['coins'] ?? 0) < $cost) return false;
+        $stmt = $this->db->prepare("UPDATE users SET points = GREATEST(0, points - ?), coins = GREATEST(0, coins - ?) WHERE id = ?");
+        return $stmt->execute([$cost, $cost, $userId]);
     }
 
     public function updateStreak(int $userId): array {

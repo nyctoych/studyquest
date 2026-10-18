@@ -1,0 +1,1 @@
+import{G as i}from"./index-B3U9qjnp.js";const a={getAll:()=>i.get("/achievements"),claim:e=>i.post("/achievements/claim",{milestone_id:e}),getPublicShare:e=>i.get(`/achievements/public/${e}`)};export{a};

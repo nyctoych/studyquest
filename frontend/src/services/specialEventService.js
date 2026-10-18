@@ -6,8 +6,20 @@ export const specialEventService = {
     return api.get('/special-event/today').then(res => res.data)
   },
 
-  startAttempt(eventId) {
-    return api.post(`/special-event/${eventId}/start`).then(res => res.data)
+  startAttempt(eventId, sessionNumber = 1) {
+    return api.post(`/special-event/${eventId}/start`, { session_number: sessionNumber }).then(res => res.data)
+  },
+
+  getOverview(eventId) {
+    return api.get(`/special-event/${eventId}/overview`).then(res => res.data)
+  },
+
+  getUserAnalytics() {
+    return api.get('/special-event/analytics').then(res => res.data)
+  },
+
+  getAudit() {
+    return api.get('/special-event/audit').then(res => res.data)
   },
 
   getAttempt(attemptId) {
@@ -32,6 +44,14 @@ export const specialEventService = {
 
   finishAttempt(attemptId) {
     return api.post(`/special-event/attempts/${attemptId}/submit`).then(res => res.data)
+  },
+
+  disqualifyAttempt(attemptId, reason = 'Cheating') {
+    return api.post(`/special-event/attempts/${attemptId}/disqualify`, { reason }).then(res => res.data)
+  },
+
+  recordTabSwitch(attemptId, count = 1) {
+    return api.post(`/special-event/attempts/${attemptId}/tab-switch`, { count }).then(res => res.data)
   },
 
   getHistory() {

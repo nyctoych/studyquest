@@ -54,7 +54,7 @@
     <!-- Rewards Row (XP + Coins) -->
     <div v-if="isFirstCompletion" class="victory-rewards-row">
       <div class="v-reward-pill xp-pill">
-        <span class="v-icon">⭐</span>
+        <span class="v-icon">✨</span>
         <span>+{{ rewards?.xp || 500 }} XP</span>
       </div>
       <div class="v-reward-pill coin-pill">

@@ -5,7 +5,10 @@
     :class="[
       `theme-${transitionStore.destination.themeColor || 'crimson'}`,
       `type-${transitionStore.transitionType || 'gate'}`,
-      { 'is-covered': transitionStore.isCovered }
+      {
+        'is-covered': transitionStore.isCovered,
+        'is-morning-mode': gameStore.isMorning
+      }
     ]"
     aria-live="polite"
     aria-busy="true"
@@ -59,8 +62,10 @@
 
 <script setup>
 import { useTransitionStore } from '../../stores/transition'
+import { useGameStore } from '../../stores/game'
 
 const transitionStore = useTransitionStore()
+const gameStore = useGameStore()
 </script>
 
 <style scoped>
@@ -267,6 +272,45 @@ const transitionStore = useTransitionStore()
 @keyframes dotPulse {
   0%, 100% { transform: scale(1); opacity: 0.3; }
   50% { transform: scale(1.5); opacity: 1; }
+}
+
+/* ── MORNING MODE (LIGHT MODE) STYLES ───────────────── */
+.is-morning-mode .shutter-strip {
+  background: #F5E8CC !important;
+  border-bottom: 2px solid #B88A42 !important;
+}
+
+.is-morning-mode .shutter-strip:nth-child(even) {
+  background: #EAD8B5 !important;
+}
+
+.is-morning-mode .energy-radial-halo {
+  background: radial-gradient(circle, rgba(184, 138, 66, 0.28) 0%, transparent 70%) !important;
+}
+
+.is-morning-mode .travel-destination-card {
+  background: #FFF4DF !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: 0 10px 40px rgba(143, 100, 45, 0.28), inset 0 0 15px rgba(255, 255, 255, 0.6) !important;
+}
+
+.is-morning-mode .emblem-halo-box {
+  background: #EAD8B5 !important;
+  border: 2px solid #B88A42 !important;
+  box-shadow: inset 0 0 10px rgba(143, 100, 45, 0.25) !important;
+}
+
+.is-morning-mode .destination-title {
+  color: #3D2B1F !important;
+  text-shadow: none !important;
+}
+
+.is-morning-mode .destination-sub {
+  color: #77634F !important;
+}
+
+.is-morning-mode .dot {
+  background: #8F642D !important;
 }
 
 /* Reduced Motion preference */

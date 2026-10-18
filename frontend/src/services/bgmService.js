@@ -28,6 +28,10 @@ const TRACK_CONFIGS = {
   battlefield: {
     src: resolveAsset('assets/MUSIC/BG-MUSIC-BATTLEFIELD.mp3'),
     volume: 0.40 // Balanced slightly lower to ensure synthesized combat SFX are punchy
+  },
+  serious: {
+    src: resolveAsset('assets/MUSIC/BG-MUSIC-SERIOUS-MODE.mp3'),
+    volume: 0.42 // Serious mode ambient focus theme
   }
 }
 
@@ -46,15 +50,30 @@ class BGMService {
       auth: null,
       world: null,
       adventure: null,
-      battlefield: null
+      battlefield: null,
+      serious: null
     }
     this.currentRoute = '/'
     this.currentModule = null
     this.isBattlefieldActive = false
+    this.isSeriousModeActive = false
     this.musicEnabled = true
     this.initialized = false
     this.interactionListenersAttached = false
     this.masterVolume = 1.0
+  }
+
+  isSeriousPath(p) {
+    if (!p || typeof p !== 'string') return false
+    const clean = p.split('?')[0].replace(/^#/, '')
+    return (
+      clean.startsWith('/studyhall') ||
+      clean.startsWith('/study') ||
+      clean.startsWith('/quests/part') ||
+      clean.startsWith('/quests/') ||
+      clean.startsWith('/vault') ||
+      clean.startsWith('/special-event')
+    )
   }
 
   getModule(p) {
@@ -64,7 +83,10 @@ class BGMService {
     if (p.includes('/part/') || p.includes('/boss') || p.startsWith('/battle/')) return 'battlefield'
     if (p === '/adventure' || p.startsWith('/adventure/')) return 'adventure'
     if (p.startsWith('/quests')) return 'quests'
-    if (p.startsWith('/study')) return 'study'
+    if (p.startsWith('/studyhall') || p.startsWith('/study')) return 'studyhall'
+    if (p.startsWith('/vault')) return 'vault'
+    if (p.startsWith('/special-event/exam')) return 'special-event-exam'
+    if (p.startsWith('/special-event')) return 'special-event'
     if (p.startsWith('/practice')) return 'practice'
     if (p.startsWith('/multiplayer') || p.startsWith('/arena') || p.startsWith('/matchmaking')) return 'multiplayer'
     if (p.startsWith('/shop') || p.startsWith('/market')) return 'shop'
@@ -74,8 +96,6 @@ class BGMService {
     if (p.startsWith('/achievements')) return 'achievements'
     if (p.startsWith('/profile') || p.startsWith('/character')) return 'profile'
     if (p.startsWith('/settings')) return 'settings'
-    if (p.startsWith('/special-event/exam')) return 'special-event-exam'
-    if (p.startsWith('/special-event')) return 'special-event'
     return p.split('/')[1] || 'world'
   }
 
@@ -83,6 +103,7 @@ class BGMService {
     this.currentRoute = initialRoute || '/'
     this.currentModule = this.getModule(this.currentRoute)
     this.musicEnabled = Boolean(initialEnabled)
+    this.isSeriousModeActive = this.isSeriousPath(this.currentRoute)
 
     if (this.initialized) {
       this.syncPlayback({ resetToBeginning: false })
@@ -135,7 +156,12 @@ class BGMService {
       return 'battlefield'
     }
 
-    const p = this.currentRoute || '/'
+    const p = (this.currentRoute || '/').toLowerCase().split('?')[0]
+
+    // Public /home landing page and legal policy pages have no background music (no autoplay)
+    if (p === '/home' || p === '/terms' || p === '/privacy') {
+      return null
+    }
 
     // 2. Landing Page & Authentication
     if (p === '/' || p === '/login' || p === '/register') {
@@ -152,7 +178,12 @@ class BGMService {
       return 'adventure'
     }
 
-    // 5. General Game World (World Hub, Quests, Shop, Profile, Study Hall, Leaderboards, etc.)
+    // 5. Serious Mode (Study Hall, Vault, Special Event Exam / Mock Board Exam)
+    if (this.isSeriousModeActive || this.isSeriousPath(p)) {
+      return 'serious'
+    }
+
+    // 6. General Game World (World Hub, Quests, Shop, Profile, Leaderboards, etc.)
     return 'world'
   }
 
@@ -212,7 +243,15 @@ class BGMService {
     this.syncPlayback({ resetToBeginning: stateChanged })
   }
 
+  setSeriousMode(isActive) {
+    const wasActive = this.isSeriousModeActive
+    this.isSeriousModeActive = Boolean(isActive)
+    const stateChanged = wasActive !== this.isSeriousModeActive
+    this.syncPlayback({ resetToBeginning: stateChanged })
+  }
+
   updateRoute(path) {
+    const oldTrackKey = this.getActiveTrackType()
     const oldModule = this.currentModule
     const newModule = this.getModule(path)
     this.currentRoute = path || '/'
@@ -224,8 +263,13 @@ class BGMService {
       this.isBattlefieldActive = false
     }
 
+    this.isSeriousModeActive = this.isSeriousPath(path)
+
+    const newTrackKey = this.getActiveTrackType()
+    const trackChanged = oldTrackKey !== newTrackKey
     const moduleChanged = oldModule !== null && oldModule !== newModule
-    this.syncPlayback({ resetToBeginning: moduleChanged })
+
+    this.syncPlayback({ resetToBeginning: trackChanged || (moduleChanged && !this.isSeriousModeActive) })
   }
 
   setMasterVolume(vol) {
